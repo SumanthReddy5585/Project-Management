@@ -39,13 +39,13 @@ export function MentionTextarea({ value, onChange, people = [], placeholder, id,
   );
 }
 
-export function Message({ m, internalLabel = 'Internal' }) {
+export function Message({ m, internalLabel = 'Team only' }) {
   return (
     <div className={`msg ${m.visibility === 'INTERNAL' ? 'internal' : ''}`}>
       <div className="meta"><Avatar name={m.author?.name} /><strong className="text-body">{m.author?.name ?? 'Unknown'}</strong>
         <span title={fmtDateTime(m.createdAt)}>{fmtRelative(m.createdAt)}</span>
         {m.visibility === 'INTERNAL' && <span className="pill pill-warn"><Lock size={10} /> {internalLabel}</span>}
-        {m.visibility === 'PUBLIC' && m.showPublic && <span className="pill pill-blue"><Globe size={10} /> Customer-visible</span>}
+        {m.visibility === 'PUBLIC' && m.showPublic && <span className="pill pill-blue"><Globe size={10} /> Shared with client</span>}
         {m.editedAt && <span>(edited)</span>}</div>
       <div className="body">{m.deleted ? <em className="text-muted">Comment deleted</em> : renderMentions(m.body)}</div>
     </div>
@@ -56,8 +56,8 @@ export function Message({ m, internalLabel = 'Internal' }) {
 export function VisibilityToggle({ value, onChange, canInternal, canPublic, publicHint }) {
   return (
     <div className="btn-group btn-group-sm vis-toggle" role="group" aria-label="Who can see this">
-      <button type="button" className={`btn btn-light internal ${value === 'INTERNAL' ? 'active' : ''}`} disabled={!canInternal} onClick={() => onChange('INTERNAL')} aria-pressed={value === 'INTERNAL'}><Lock size={12} /> Internal</button>
-      <button type="button" className={`btn btn-light ${value === 'PUBLIC' ? 'active' : ''}`} disabled={!canPublic} title={!canPublic ? publicHint : undefined} onClick={() => onChange('PUBLIC')} aria-pressed={value === 'PUBLIC'}><Globe size={12} /> Customer-visible</button>
+      <button type="button" className={`btn btn-light internal ${value === 'INTERNAL' ? 'active' : ''}`} disabled={!canInternal} onClick={() => onChange('INTERNAL')} aria-pressed={value === 'INTERNAL'}><Lock size={12} /> Team only</button>
+      <button type="button" className={`btn btn-light ${value === 'PUBLIC' ? 'active' : ''}`} disabled={!canPublic} title={!canPublic ? publicHint : undefined} onClick={() => onChange('PUBLIC')} aria-pressed={value === 'PUBLIC'}><Globe size={12} /> Share with client</button>
     </div>
   );
 }
@@ -89,9 +89,9 @@ export function CommentThread({ targetType, targetId, people = [] }) {
       {(data?.canInternal || data?.canPublic) && (
         <form onSubmit={send} className="composer">
           <label htmlFor={id} className="visually-hidden">Add a comment</label>
-          <MentionTextarea id={id} value={body} onChange={setBody} people={people} placeholder={isCustomer ? 'Write a comment…' : vis === 'INTERNAL' ? 'Internal comment — not visible to customers' : 'Customer-visible comment'} />
+          <MentionTextarea id={id} value={body} onChange={setBody} people={people} placeholder={isCustomer ? 'Write a comment…' : vis === 'INTERNAL' ? 'Team-only note — the client won\'t see this' : 'The client will see this'} />
           <div className="d-flex justify-content-between align-items-center mt-2 gap-2 flex-wrap">
-            {!isCustomer ? <VisibilityToggle value={vis} onChange={setVis} canInternal={data.canInternal} canPublic={data.canPublic} publicHint="Share this item with the customer to post customer-visible comments" /> : <span />}
+            {!isCustomer ? <VisibilityToggle value={vis} onChange={setVis} canInternal={data.canInternal} canPublic={data.canPublic} publicHint="Share this task with the client first" /> : <span />}
             <button className="btn btn-primary btn-sm" disabled={busy || !body.trim()}>{busy ? 'Posting…' : 'Post comment'}</button>
           </div>
         </form>
@@ -130,7 +130,7 @@ export function FileList({ targetType, targetId, compact, onChange }) {
           <li key={f.id}>
             <FileText size={16} className="text-muted flex-shrink-0" aria-hidden="true" />
             <div className="flex-grow-1 min-w-0"><div className="truncate fw-medium">{f.name}</div><div className="small text-muted">{fmtSize(f.size)} · {fmtRelative(f.createdAt)}</div></div>
-            {!isCustomer && f.visibility === 'INTERNAL' && <span className="pill pill-warn"><Lock size={10} /> Internal</span>}
+            {!isCustomer && f.visibility === 'INTERNAL' && <span className="pill pill-warn"><Lock size={10} /> Team only</span>}
             {!isCustomer && f.visibility === 'PUBLIC' && <span className="pill pill-blue"><Globe size={10} /> Shared</span>}
             <button className="btn btn-sm btn-ghost btn-icon" onClick={() => download(`/files/${f.id}/download`, f.name).catch((e) => toast(e.message, 'error'))} aria-label={`Download ${f.name}`}><Download size={15} /></button>
             {f.uploadedById === user.id && <ConfirmButton className="btn btn-sm btn-ghost btn-icon text-danger" title="Delete file?" message={`"${f.name}" will be removed.`} confirmLabel="Delete" onConfirm={async () => { await del(`/files/${f.id}`); reload(); }}><Trash2 size={15} aria-label={`Delete ${f.name}`} /></ConfirmButton>}
@@ -139,7 +139,7 @@ export function FileList({ targetType, targetId, compact, onChange }) {
       </ul>
       {canUpload && (
         <div className="d-flex align-items-center gap-2 mt-2 flex-wrap">
-          {!isCustomer && targetType !== 'deliverableVersion' && <VisibilityToggle value={vis} onChange={setVis} canInternal={data.canUploadInternal} canPublic={data.canUploadPublic} publicHint="Only shared items accept customer-visible files" />}
+          {!isCustomer && targetType !== 'deliverableVersion' && <VisibilityToggle value={vis} onChange={setVis} canInternal={data.canUploadInternal} canPublic={data.canUploadPublic} publicHint="Share this with the client first" />}
           <input ref={input} type="file" multiple className="d-none" id={`f-${targetId}`} onChange={(e) => onFiles(e.target.files)} accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.md,.json,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx" />
           <label htmlFor={`f-${targetId}`} className={`btn btn-sm btn-outline-primary mb-0 ${busy ? 'disabled' : ''}`}>{busy ? 'Uploading…' : <><Upload size={14} /> {compact ? 'Attach' : 'Upload files'}</>}</label>
           {!compact && <span className="form-text m-0"><Paperclip size={11} /> PDF, images, Office, text, CSV, ZIP · max 20 MB</span>}

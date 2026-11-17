@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { get, post } from '../api/client.js';
@@ -8,9 +9,17 @@ function Shell({ children }) {
   return (
     <div className="auth-wrap">
       <div className="auth-art">
-        <div className="d-flex align-items-center gap-2 fw-bold text-white"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b3556" /><path d="M8 22V10l8 7 8-7v12" fill="none" stroke="#7fb2e5" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>Meridian</div>
-        <div><h1>Plan the work. Serve the customer. One source of truth.</h1><p className="mt-3" style={{ maxWidth: 440, color: '#9fb4cf' }}>Projects, schedules, time, tickets and approvals — with customer access that only ever shows what you choose to share.</p></div>
-        <div className="small" style={{ color: '#6f88a8' }}>Secure, invitation-only workspace</div>
+        <div className="brand p-0"><span className="brand-mark">M</span>Meridian</div>
+        <div>
+          <h1>Your projects, tasks and client requests in one calm place.</h1>
+          <p className="mt-3 mb-4" style={{ maxWidth: 440, color: 'var(--ink-soft)' }}>Plan the work, tick things off, and keep clients in the loop — they only see what you choose to share.</p>
+          <div className="demo-floats" aria-hidden="true">
+            <div className="f"><span className="check on" style={{ pointerEvents: 'none' }}><Check size={13} strokeWidth={3} /></span>Homepage design approved<span className="pill pill-ok ms-auto">Done</span></div>
+            <div className="f" style={{ marginLeft: '2rem' }}><span className="avatar sm" style={{ background: 'var(--violet-soft)', color: 'var(--violet-ink)' }}>PS</span>Write onboarding emails<span className="pill pill-warn ms-auto">Due Fri</span></div>
+            <div className="f"><span className="avatar sm" style={{ background: 'var(--blue-soft)', color: 'var(--blue-ink)' }}>#</span>Client: “Can we add a FAQ page?”<span className="pill pill-sky ms-auto">Open</span></div>
+          </div>
+        </div>
+        <div className="small text-muted">Invitation-only workspace</div>
       </div>
       <div className="auth-form"><div className="box">{children}</div></div>
     </div>
@@ -31,7 +40,7 @@ export function Login() {
   };
   return (
     <Shell>
-      <h2 className="h4 mb-1">Sign in</h2><p className="text-muted mb-4">Use the email your administrator invited.</p>
+      <h2 className="h3 fw-bold mb-1">Welcome back</h2><p className="text-muted mb-4">Sign in with the email you were invited with.</p>
       <ErrorBox error={err} />
       <form onSubmit={submit} noValidate>
         <Field label="Email">{(id) => <input id={id} type="email" className="form-control" autoComplete="username" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />}</Field>

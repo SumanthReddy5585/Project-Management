@@ -3,11 +3,11 @@ import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip, 
 
 // Chart.js (MIT). Only the pieces we use are registered to keep the bundle small.
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
-Chart.defaults.font.family = 'Inter, "Segoe UI", system-ui, sans-serif';
+Chart.defaults.font.family = '"Plus Jakarta Sans Variable", "Segoe UI", system-ui, sans-serif';
 Chart.defaults.font.size = 11;
 Chart.defaults.color = '#657386';
 
-export const PALETTE = { steel: '#2f5d8a', sky: '#7fb2e5', pale: '#c9dbee', ok: '#2e7d5b', warn: '#d89a1b', risk: '#b4232f', slate: '#8a97a8' };
+export const PALETTE = { steel: '#7950f2', sky: '#91a7ff', pale: '#e5dbff', ok: '#40c057', warn: '#fab005', risk: '#fa5252', slate: '#adb5bd' };
 
 /**
  * Bar/column chart. `series`: [{ name, data: number[], color?, colors?: string[] (per bar) }].
@@ -17,16 +17,16 @@ export function BarChart({ labels, series, horizontal = false, stacked = false, 
   const ref = useRef(null);
   const chart = useRef(null);
   useEffect(() => {
-    const valueAxis = { stacked, beginAtZero: true, max, grid: { color: '#eef1f5' }, title: { display: Boolean(axisTitle), text: axisTitle }, ticks: { precision: 0 } };
+    const valueAxis = { stacked, beginAtZero: true, max, grid: { color: '#f3f1ed' }, border: { display: false }, title: { display: Boolean(axisTitle), text: axisTitle }, ticks: { precision: 0 } };
     const catAxis = { stacked, grid: { display: false } };
     chart.current = new Chart(ref.current, {
       type: 'bar',
-      data: { labels, datasets: series.map((s, i) => ({ label: s.name, data: s.data, backgroundColor: s.colors || s.color || Object.values(PALETTE)[i % 7], borderRadius: 3, maxBarThickness: 34 })) },
+      data: { labels, datasets: series.map((s, i) => ({ label: s.name, data: s.data, backgroundColor: s.colors || s.color || Object.values(PALETTE)[i % 7], borderRadius: 8, borderSkipped: false, maxBarThickness: 30 })) },
       options: {
         indexAxis: horizontal ? 'y' : 'x', responsive: true, maintainAspectRatio: false, animation: { duration: 250 },
         scales: horizontal ? { x: valueAxis, y: catAxis } : { x: catAxis, y: valueAxis },
         plugins: { legend: { display: legend && series.length > 1, position: 'bottom', labels: { boxWidth: 10, boxHeight: 10 } },
-          tooltip: { backgroundColor: '#12263f', padding: 8, cornerRadius: 4 } },
+          tooltip: { backgroundColor: '#2b2a33', padding: 10, cornerRadius: 10 } },
       },
     });
     return () => chart.current?.destroy();

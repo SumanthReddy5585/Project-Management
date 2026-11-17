@@ -103,7 +103,7 @@ r.get('/dashboard', async (req, res) => {
       for (const m of items.filter((i) => i.type === 'MILESTONE' && i.customerVisible && i.status !== 'DONE' && i.plannedFinish)) ms.push({ id: m.id, projectId: pid, projectCode: pf.projects.find((p) => p.id === pid).code, title: m.title, date: m.plannedFinish, overdue: m.plannedFinish < today });
     }
     return res.json({ kind: 'customer',
-      projects: pf.projects.map(({ id, code, name, status, health, progress, plannedFinish, milestones }) => ({ id, code, name, status, health, progress, plannedFinish, milestones })),
+      projects: pf.projects.map(({ id, code, name, status, health, customer, progress, plannedFinish, milestones }) => ({ id, code, name, status, health, customer, progress, plannedFinish, milestones })),
       milestones: ms.sort((x, y) => x.date.localeCompare(y.date)).slice(0, 10),
       updates: updates.map((u) => ({ id: u.id, projectId: u.projectId, projectCode: u.project.code, title: u.title, health: u.health, createdAt: u.createdAt })),
       deliverablesAwaitingReview: deliverables.map((d) => ({ id: d.id, name: d.name, projectId: d.project.id, projectCode: d.project.code, dueDate: fmtDate(d.dueDate) })),

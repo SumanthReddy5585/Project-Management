@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Save, Flag, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save, Flag } from 'lucide-react';
 import { get, post, patch } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
@@ -24,22 +24,22 @@ function RescheduleModal({ item, onClose, onApplied }) {
     setBusy(true); setErr(null);
     try {
       const r = await post(`/projects/${project.id}/schedule/apply`, { itemId: item.id, plannedStart: start, plannedFinish: isMs ? start : finish, includeDownstream: withDown && preview.moves.length > 0, expectedMoves: withDown ? preview.moves.map((m) => ({ id: m.id, start: m.to.start, finish: m.to.finish })) : [] });
-      toast(`${r.updated} item(s) rescheduled`, 'success'); onApplied(); onClose();
+      toast(`${r.updated} task(s) moved`, 'success'); onApplied(); onClose();
     } catch (e) { setErr(e); if (e.status === 409) setPreview(null); } finally { setBusy(false); }
   };
   return (
-    <Modal open onClose={onClose} title={`Reschedule ${item.key}`} size="lg" footer={<><button className="btn btn-light" onClick={onClose}>Cancel</button>
-      {!preview ? <button className="btn btn-primary" onClick={doPreview}>Preview impact</button> : <button className="btn btn-primary" disabled={busy} onClick={apply}>{busy ? 'Applying…' : `Apply ${1 + (withDown ? preview.moves.length : 0)} change(s)`}</button>}</>}>
+    <Modal open onClose={onClose} title="Change dates" size="lg" footer={<><button className="btn btn-light" onClick={onClose}>Cancel</button>
+      {!preview ? <button className="btn btn-primary" onClick={doPreview}>Check what else moves</button> : <button className="btn btn-primary" disabled={busy} onClick={apply}>{busy ? 'Applying…' : `Save ${1 + (withDown ? preview.moves.length : 0)} change(s)`}</button>}</>}>
       <p className="mb-2 fw-medium">{item.title}</p>
       <ErrorBox error={err} />
-      <div className="row"><div className="col-6"><Field label={isMs ? 'Date' : 'Planned start'}>{(id) => <input id={id} type="date" className="form-control" value={start} onChange={(e) => { setStart(e.target.value); setPreview(null); }} />}</Field></div>
-        {!isMs && <div className="col-6"><Field label="Planned finish">{(id) => <input id={id} type="date" className="form-control" value={finish} min={start} onChange={(e) => { setFinish(e.target.value); setPreview(null); }} />}</Field></div>}</div>
-      {preview && (preview.moves.length === 0 ? <Notice>No downstream items are affected.</Notice> : <>
-        <Notice tone="warn">{preview.moves.length} finish-to-start successor(s) would start before this item finishes. They can be pushed later, keeping their working-day durations.</Notice>
-        <table className="table table-sm mt-2"><thead><tr><th>Item</th><th>Current</th><th>Proposed</th></tr></thead>
+      <div className="row"><div className="col-6"><Field label={isMs ? 'Date' : 'Start'}>{(id) => <input id={id} type="date" className="form-control" value={start} onChange={(e) => { setStart(e.target.value); setPreview(null); }} />}</Field></div>
+        {!isMs && <div className="col-6"><Field label="Due">{(id) => <input id={id} type="date" className="form-control" value={finish} min={start} onChange={(e) => { setFinish(e.target.value); setPreview(null); }} />}</Field></div>}</div>
+      {preview && (preview.moves.length === 0 ? <Notice>Nothing else needs to move.</Notice> : <>
+        <Notice tone="warn">{preview.moves.length} task(s) that wait for this one would now start too early. We can push them later and keep their length.</Notice>
+        <table className="table table-sm mt-2"><thead><tr><th>Task</th><th>Now</th><th>New dates</th></tr></thead>
           <tbody>{preview.moves.map((m) => <tr key={m.id}><td><span className="mono text-muted">{project.code}-{m.number}</span> {m.title}</td><td className="small">{fmtDate(m.from.start)} → {fmtDate(m.from.finish)}</td><td className="small fw-semibold">{fmtDate(m.to.start)} → {fmtDate(m.to.finish)}</td></tr>)}</tbody></table>
-        <div className="form-check"><input className="form-check-input" type="checkbox" id="wd" checked={withDown} onChange={(e) => setWithDown(e.target.checked)} /><label className="form-check-label" htmlFor="wd">Also move these downstream items</label></div>
-        {!withDown && <div className="form-text">Only this item changes; the successors will show schedule conflicts.</div>}
+        <div className="form-check"><input className="form-check-input" type="checkbox" id="wd" checked={withDown} onChange={(e) => setWithDown(e.target.checked)} /><label className="form-check-label" htmlFor="wd">Move these too</label></div>
+        {!withDown && <div className="form-text">Only this task changes; the others will be flagged as starting too early.</div>}
       </>)}
     </Modal>
   );
@@ -79,21 +79,21 @@ export function Timeline() {
   const conflicts = new Set((analysis.data?.conflicts || []).map((c) => c.successorId));
   const base = new Map((cmp.data?.data || []).map((r) => [r.id, r]));
   const canSchedule = can('work.schedule') && !project.readOnly;
-  const saveBaseline = async () => { try { await post(`/projects/${project.id}/baselines`, { name: blName }); toast('Baseline saved', 'success'); setBlName(null); baselines.reload(); } catch (e) { toast(e.message, 'error'); } };
+  const saveBaseline = async () => { try { await post(`/projects/${project.id}/baselines`, { name: blName }); toast('Plan saved', 'success'); setBlName(null); baselines.reload(); } catch (e) { toast(e.message, 'error'); } };
   return (
     <>
       <div className="filters">
         <div className="btn-group btn-group-sm" role="group" aria-label="Zoom">{[[34, 'Days'], [20, 'Weeks'], [7, 'Months']].map(([z, l]) => <button key={z} className={`btn btn-light ${zoom === z ? 'active' : ''}`} aria-pressed={zoom === z} onClick={() => setZoom(z)}>{l}</button>)}</div>
-        <div className="form-check form-switch m-0"><input className="form-check-input" type="checkbox" id="cp" checked={showCp} onChange={(e) => setShowCp(e.target.checked)} /><label className="form-check-label small" htmlFor="cp">Critical path</label></div>
-        <Select aria-label="Compare with baseline" value={blId} onChange={(v) => setBlId(v || '')} placeholder="No baseline overlay" options={(baselines.data?.data || []).map((b) => ({ value: b.id, label: `${b.name} · ${fmtDate(b.createdAt)}` }))} />
-        {canSchedule && <button className="btn btn-sm btn-light" onClick={() => setBlName(`Baseline ${fmtDate(today)}`)}><Save size={14} /> Save baseline</button>}
+        <div className="form-check form-switch m-0"><input className="form-check-input" type="checkbox" id="cp" checked={showCp} onChange={(e) => setShowCp(e.target.checked)} /><label className="form-check-label small" htmlFor="cp">Show critical path</label></div>
+        <Select aria-label="Compare with baseline" value={blId} onChange={(v) => setBlId(v || '')} placeholder="Compare with a saved plan…" options={(baselines.data?.data || []).map((b) => ({ value: b.id, label: `${b.name} · ${fmtDate(b.createdAt)}` }))} />
+        {canSchedule && <button className="btn btn-sm btn-light" onClick={() => setBlName(`Plan ${fmtDate(today)}`)}><Save size={14} /> Save current plan</button>}
       </div>
-      <Notice icon={Info}>Manual scheduling with preview: changing a date never moves other items. Click a bar to reschedule; downstream effects are previewed and applied only if you confirm. Critical path uses finish-to-start links and working days on the project calendar{analysis.data?.criticalPath ? ` (${analysis.data.criticalPath.durationDays} working days end-to-end${analysis.data.criticalPath.excludedUndated ? `; ${analysis.data.criticalPath.excludedUndated} undated item(s) excluded` : ''})` : ''}.{analysis.data?.unsupportedDependencyTypes > 0 && ` ${analysis.data.unsupportedDependencyTypes} non-FS link(s) are stored but not scheduled.`}</Notice>
+      <div className="small text-muted mb-2">{canSchedule ? 'Click a bar to change its dates — you\'ll see what else would move before anything is saved.' : 'Click a bar to open it.'}{analysis.data?.criticalPath && showCp ? ` Red bars are the critical path: if any of them slip, the end date slips (${analysis.data.criticalPath.durationDays} working days end to end).` : ''}</div>
       <ErrorBox error={items.error || analysis.error} />
       <div className="d-flex gap-3 small text-muted my-2 flex-wrap"><span><span className="gantt-legend" style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--steel-500)', borderRadius: 2 }} /> Task</span><span><span style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--risk)', borderRadius: 2 }} /> Critical</span><span><span style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--ok)', borderRadius: 2 }} /> Done</span><span><span style={{ display: 'inline-block', width: 14, height: 8, boxShadow: '0 0 0 2px var(--warn)', borderRadius: 2 }} /> Conflict</span>{blId && <span><span style={{ display: 'inline-block', width: 14, height: 4, background: 'var(--slate-300)' }} /> Baseline</span>}</div>
       <div className="gantt">
         <div className="gantt-left">
-          <div className="gantt-head small-caps d-flex align-items-center px-2">Work item{blId && <span className="ms-auto">Var.</span>}</div>
+          <div className="gantt-head small-caps d-flex align-items-center px-2">Task{blId && <span className="ms-auto">Var.</span>}</div>
           {rows.map((r) => <div key={r.id} className="gantt-row" style={{ paddingLeft: 8 + r.depth * 14, background: r.phase ? '#fafbfc' : undefined }}>
             {r.phase ? <strong className="small">{r.name}</strong> : <><span className="mono text-muted small">{r.key}</span><button onClick={() => openItem(r.id)} className="truncate">{r.title}</button>
               {blId && base.get(r.id)?.finishVarianceDays != null && base.get(r.id).finishVarianceDays !== 0 && <span className={`ms-auto small fw-semibold ${base.get(r.id).finishVarianceDays > 0 ? 'text-danger' : 'text-success'}`}>{base.get(r.id).finishVarianceDays > 0 ? '+' : ''}{base.get(r.id).finishVarianceDays}d</span>}</>}
@@ -125,8 +125,8 @@ export function Timeline() {
       </div>
       {dated.length === 0 && <div className="form-text mt-2">Add planned dates to work items to see them on the timeline.</div>}
       {moving && <RescheduleModal item={moving} onClose={() => setMoving(null)} onApplied={() => { items.reload(); reloadProject(); }} />}
-      <Modal open={blName != null} onClose={() => setBlName(null)} title="Save baseline" footer={<><button className="btn btn-light" onClick={() => setBlName(null)}>Cancel</button><button className="btn btn-primary" disabled={!blName?.trim()} onClick={saveBaseline}>Save</button></>}>
-        <p className="small text-muted">Snapshots the planned dates and estimates of every work item so you can compare planned vs current later. Baselines are never changed automatically.</p>
+      <Modal open={blName != null} onClose={() => setBlName(null)} title="Save current plan" footer={<><button className="btn btn-light" onClick={() => setBlName(null)}>Cancel</button><button className="btn btn-primary" disabled={!blName?.trim()} onClick={saveBaseline}>Save</button></>}>
+        <p className="small text-muted">Saves today's dates and estimates so you can later compare what you planned with what happened.</p>
         <Field label="Name">{(id) => <input id={id} className="form-control" value={blName || ''} onChange={(e) => setBlName(e.target.value)} />}</Field>
       </Modal>
     </>
@@ -149,7 +149,7 @@ export function CalendarView() {
       <div className="d-flex align-items-center gap-2 mb-2"><button className="btn btn-sm btn-light" onClick={() => shift(-1)} aria-label="Previous month"><ChevronLeft size={15} /></button>
         <h2 className="h6 m-0" style={{ minWidth: 150, textAlign: 'center' }}>{new Date(`${first}T00:00:00Z`).toLocaleString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
         <button className="btn btn-sm btn-light" onClick={() => shift(1)} aria-label="Next month"><ChevronRight size={15} /></button><button className="btn btn-sm btn-link" onClick={() => setMonth(today.slice(0, 7))}>Today</button>
-        <span className="small text-muted ms-auto">Items appear on their planned finish date.</span></div>
+        <span className="small text-muted ms-auto">Tasks show on their due date.</span></div>
       <ErrorBox error={error} />
       {loading && !data ? <Loading /> : <div className="cal" role="grid">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => <div key={d} className="dow" role="columnheader">{d}</div>)}

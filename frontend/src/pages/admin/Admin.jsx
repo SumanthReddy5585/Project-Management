@@ -34,7 +34,7 @@ export function AdminUsers() {
   const cust = customers.data?.data || [];
   return (
     <>
-      <PageHeader title="Users & invitations" sub="Invite people, set organization roles and manage access. Project access is granted per project." actions={<button className="btn btn-primary" onClick={() => { setErr(null); setInv({ email: '', name: '', role: 'EMPLOYEE', customerCompanyId: cust[0]?.id }); }}><Plus size={15} /> Invite</button>} />
+      <PageHeader title="People and access" sub="Invite your team and clients. People only see the projects they are added to." actions={<button className="btn btn-primary" onClick={() => { setErr(null); setInv({ email: '', name: '', role: 'EMPLOYEE', customerCompanyId: cust[0]?.id }); }}><Plus size={15} /> Invite</button>} />
       <Notice tone="warn">Email delivery is not configured. Invitation and reset links are shown once here for you to send securely.</Notice>
       {invites.data?.data.length > 0 && <Card title="Pending invitations" className="my-3" bodyClass="p-0"><table className="table"><thead><tr><th>Email</th><th>Role</th><th>Expires</th><th /></tr></thead>
         <tbody>{invites.data.data.map((i) => <tr key={i.id}><td>{i.email}</td><td><Pill>{labelize(i.role)}</Pill></td><td className={`small ${i.expired ? 'text-danger' : ''}`}>{i.expired ? 'Expired' : fmtDateTime(i.expiresAt)}</td>
@@ -53,13 +53,13 @@ export function AdminUsers() {
         <Field label="Email" error={fieldErrors(err).email}>{(id) => <input id={id} type="email" className="form-control" value={inv.email} onChange={(e) => setInv({ ...inv, email: e.target.value })} />}</Field>
         <Field label="Name (optional)">{(id) => <input id={id} className="form-control" value={inv.name} onChange={(e) => setInv({ ...inv, name: e.target.value })} />}</Field>
         <Field label="Organization role" hint={inv.role === 'CUSTOMER' ? 'Customers see only projects explicitly shared with them.' : inv.role === 'MANAGER' ? 'Managers can create projects; they only see projects they belong to.' : undefined}>{(id) => <Select id={id} value={inv.role} onChange={(v) => setInv({ ...inv, role: v })} options={ROLES.map((r) => ({ value: r, label: labelize(r) }))} />}</Field>
-        {inv.role === 'CUSTOMER' && <Field label="Customer company">{(id) => <Select id={id} value={inv.customerCompanyId} onChange={(v) => setInv({ ...inv, customerCompanyId: v })} placeholder="Choose…" options={cust.map((c) => ({ value: c.id, label: c.name }))} />}</Field>}
+        {inv.role === 'CUSTOMER' && <Field label="Client">{(id) => <Select id={id} value={inv.customerCompanyId} onChange={(v) => setInv({ ...inv, customerCompanyId: v })} placeholder="Choose…" options={cust.map((c) => ({ value: c.id, label: c.name }))} />}</Field>}
       </Modal>}
       {edit && <Modal open onClose={() => setEdit(null)} title={`Edit ${edit.name}`} footer={<><button className="btn btn-light" onClick={() => setEdit(null)}>Cancel</button><button className="btn btn-primary" onClick={saveMember}>Save</button></>}>
         <ErrorBox error={err} />
         <div className="row"><div className="col-6"><Field label="Role">{(id) => <Select id={id} value={edit.role} disabled={edit.userId === user.id} onChange={(v) => setEdit({ ...edit, role: v })} options={ROLES.map((r) => ({ value: r, label: labelize(r) }))} />}</Field></div>
           <div className="col-6"><Field label="Status">{(id) => <Select id={id} value={edit.status} disabled={edit.userId === user.id} onChange={(v) => setEdit({ ...edit, status: v })} options={[{ value: 'ACTIVE', label: 'Active' }, { value: 'DISABLED', label: 'Disabled' }]} />}</Field></div></div>
-        {edit.role === 'CUSTOMER' && <Field label="Customer company">{(id) => <Select id={id} value={edit.customerCompanyId} onChange={(v) => setEdit({ ...edit, customerCompanyId: v })} options={cust.map((c) => ({ value: c.id, label: c.name }))} />}</Field>}
+        {edit.role === 'CUSTOMER' && <Field label="Client">{(id) => <Select id={id} value={edit.customerCompanyId} onChange={(v) => setEdit({ ...edit, customerCompanyId: v })} options={cust.map((c) => ({ value: c.id, label: c.name }))} />}</Field>}
         {(edit.role === 'CUSTOMER') !== (edit.customerCompany != null) && <Notice tone="warn">Switching between customer and internal roles removes this person's project memberships.</Notice>}
         {edit.role !== 'CUSTOMER' && <><Field label="Job title">{(id) => <input id={id} className="form-control" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} />}</Field>
           <div className="row"><div className="col-6"><Field label="Weekly capacity (hours)">{(id) => <input id={id} type="number" min="0" max="80" className="form-control" value={edit.weeklyCapacityHours} onChange={(e) => setEdit({ ...edit, weeklyCapacityHours: e.target.value })} />}</Field></div>
@@ -79,7 +79,7 @@ export function AdminCustomers() {
   const save = async () => { setErr(null); try { f.id ? await patch(`/org/customers/${f.id}`, { name: f.name, domain: f.domain || null, notes: f.notes || null }) : await post('/org/customers', { name: f.name, domain: f.domain || null, notes: f.notes || null }); setF(null); reload(); } catch (e) { setErr(e); } };
   return (
     <>
-      <PageHeader title="Customer companies" sub="Customer users belong to exactly one company and only ever see that company's shared projects and tickets." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', domain: '', notes: '' })}><Plus size={15} /> Add customer</button>} />
+      <PageHeader title="Clients" sub="Each client only sees projects and requests shared with them." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', domain: '', notes: '' })}><Plus size={15} /> Add client</button>} />
       <ErrorBox error={error} />
       <div className="card">{loading && !data ? <div className="p-3"><Loading /></div> : data.data.length === 0 ? <Empty title="No customers yet" /> : <table className="table"><thead><tr><th>Company</th><th>Domain</th><th className="text-end">Contacts</th><th className="text-end">Projects</th><th className="text-end">Tickets</th><th /></tr></thead>
         <tbody>{data.data.map((c) => <tr key={c.id}><td className="fw-medium">{c.name}</td><td className="small">{c.domain}</td><td className="text-end">{c.contacts}</td><td className="text-end">{c.projects}</td><td className="text-end">{c.tickets}</td><td className="text-end"><button className="btn btn-sm btn-ghost" onClick={() => setF(c)}>Edit</button></td></tr>)}</tbody></table>}</div>
@@ -103,7 +103,7 @@ export function AdminCalendars() {
     try { f.id ? await patch(`/org/calendars/${f.id}`, body) : await post('/org/calendars', body); setF(null); reload(); toast('Calendar saved', 'success'); } catch (e) { setErr(e); } };
   return (
     <>
-      <PageHeader title="Working calendars" sub="Working days and holidays drive task durations; working hours drive SLA business-time clocks." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', timezone: 'UTC', workDays: [1, 2, 3, 4, 5], dayStart: '09:00', dayEnd: '17:00', isDefault: false, holidays: [] })}><Plus size={15} /> New calendar</button>} />
+      <PageHeader title="Working days" sub="Set working days, hours and holidays. Task durations and request response times use them." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', timezone: 'UTC', workDays: [1, 2, 3, 4, 5], dayStart: '09:00', dayEnd: '17:00', isDefault: false, holidays: [] })}><Plus size={15} /> New calendar</button>} />
       <ErrorBox error={error} />
       {loading && !data ? <Loading /> : <div className="row g-3">{data.data.map((c) => <div key={c.id} className="col-md-6"><Card title={<>{c.name} {c.isDefault && <Pill tone="blue">Default</Pill>}</>} actions={<button className="btn btn-sm btn-light" onClick={() => setF({ ...c, holidays: c.holidays.map((h) => ({ date: h.date, name: h.name })) })}>Edit</button>}>
         <dl className="kv"><dt>Working days</dt><dd>{DAYS.filter(([n]) => c.workDays.includes(n)).map(([, l]) => l).join(', ')}</dd><dt>Hours</dt><dd>{c.dayStart}–{c.dayEnd} ({c.timezone})</dd><dt>Holidays</dt><dd>{c.holidays.length ? c.holidays.slice(0, 5).map((h) => `${fmtDate(h.date)} ${h.name}`).join(' · ') : 'None'}{c.holidays.length > 5 && ` +${c.holidays.length - 5} more`}</dd></dl></Card></div>)}</div>}
@@ -136,11 +136,11 @@ export function AdminTemplates() {
   const setP = (i, k, v) => setF({ ...f, phases: f.phases.map((p, j) => (j === i ? { ...p, [k]: v } : p)) });
   return (
     <>
-      <PageHeader title="Project templates" sub="Phases, milestones and deliverables generated for new projects. Durations are relative and scaled to each project's window." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', description: '', isDefault: false, phases: [{ name: 'Phase 1', durationDays: 5, completionCriteria: '', milestones: [], deliverables: [] }] })}><Plus size={15} /> New template</button>} />
+      <PageHeader title="Project plans" sub="Ready-made phases and milestones that new projects start with." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', description: '', isDefault: false, phases: [{ name: 'Phase 1', durationDays: 5, completionCriteria: '', milestones: [], deliverables: [] }] })}><Plus size={15} /> New plan</button>} />
       <ErrorBox error={error} />
       {loading && !data ? <Loading /> : <div className="row g-3">{data.data.map((t) => <div className="col-lg-6" key={t.id}><Card title={<>{t.name} {t.isDefault && <Pill tone="blue">Default</Pill>}</>} actions={<button className="btn btn-sm btn-light" onClick={() => setF({ ...t, phases: t.phases.map((p) => ({ ...p })) })}>Edit</button>}>
         <p className="small text-muted">{t.description}</p><ol className="small mb-0 ps-3">{t.phases.map((p) => <li key={p.id}>{p.name} <span className="text-muted">· {p.durationDays}d{p.milestones.length ? ` · ◆ ${p.milestones.join(', ')}` : ''}</span></li>)}</ol></Card></div>)}</div>}
-      {f && <Modal open size="lg" onClose={() => setF(null)} title={f.id ? 'Edit template' : 'New template'} footer={<><button className="btn btn-light" onClick={() => setF(null)}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={!f.name || !f.phases.length}><Save size={14} /> Save</button></>}>
+      {f && <Modal open size="lg" onClose={() => setF(null)} title={f.id ? 'Edit template' : 'New plan'} footer={<><button className="btn btn-light" onClick={() => setF(null)}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={!f.name || !f.phases.length}><Save size={14} /> Save</button></>}>
         <ErrorBox error={err} />
         <div className="row"><div className="col-md-8"><Field label="Name">{(id) => <input id={id} className="form-control" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />}</Field></div>
           <div className="col-md-4 d-flex align-items-center"><div className="form-check"><input className="form-check-input" type="checkbox" id="tdef" checked={f.isDefault} onChange={(e) => setF({ ...f, isDefault: e.target.checked })} /><label className="form-check-label" htmlFor="tdef">Default template</label></div></div></div>
@@ -167,17 +167,17 @@ export function AdminTicketSettings() {
   if (loading && !data) return <Loading />;
   const [settings, cals] = data ? [data[0], data[1].data] : [null, []];
   const v = f || (settings && { categories: settings.categories.join('\n'), sla: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map((p) => settings.sla.find((s) => s.priority === p) || { priority: p, responseMinutes: 240, resolutionMinutes: 960, calendarId: null }) });
-  const save = async () => { try { await put('/org/ticket-settings', { categories: v.categories.split('\n').map((s) => s.trim()).filter(Boolean), sla: v.sla.map((s) => ({ priority: s.priority, responseMinutes: Number(s.responseMinutes), resolutionMinutes: Number(s.resolutionMinutes), calendarId: s.calendarId || null })) }); setF(null); reload(); toast('Ticket settings saved', 'success'); } catch (e) { toast(e.message, 'error'); } };
+  const save = async () => { try { await put('/org/ticket-settings', { categories: v.categories.split('\n').map((s) => s.trim()).filter(Boolean), sla: v.sla.map((s) => ({ priority: s.priority, responseMinutes: Number(s.responseMinutes), resolutionMinutes: Number(s.resolutionMinutes), calendarId: s.calendarId || null })) }); setF(null); reload(); toast('Request settings saved', 'success'); } catch (e) { toast(e.message, 'error'); } };
   const setS = (i, k, val) => setF({ ...v, sla: v.sla.map((s, j) => (j === i ? { ...s, [k]: val } : s)) });
   return (
     <>
-      <PageHeader title="Ticket settings" sub="Categories and SLA targets. Targets are measured in business minutes on the chosen calendar's working hours." actions={<button className="btn btn-primary" onClick={save}><Save size={14} /> Save</button>} />
+      <PageHeader title="Requests" sub="Request categories and how fast your team aims to reply, in working minutes." actions={<button className="btn btn-primary" onClick={save}><Save size={14} /> Save</button>} />
       <ErrorBox error={error} />
-      {v && <div className="row g-3"><div className="col-lg-8"><Card title="SLA targets" bodyClass="p-0"><table className="table"><thead><tr><th>Priority</th><th>First response (min)</th><th>Resolution (min)</th><th>Business calendar</th></tr></thead>
+      {v && <div className="row g-3"><div className="col-lg-8"><Card title="Response time targets" bodyClass="p-0"><table className="table"><thead><tr><th>Priority</th><th>First response (min)</th><th>Resolution (min)</th><th>Working hours from</th></tr></thead>
         <tbody>{v.sla.map((s, i) => <tr key={s.priority}><td className="fw-medium">{labelize(s.priority)}</td><td><input aria-label={`${s.priority} response minutes`} type="number" min="5" className="form-control form-control-sm" value={s.responseMinutes} onChange={(e) => setS(i, 'responseMinutes', e.target.value)} /><div className="form-text">{(s.responseMinutes / 60).toFixed(1)} business h</div></td>
           <td><input aria-label={`${s.priority} resolution minutes`} type="number" min="5" className="form-control form-control-sm" value={s.resolutionMinutes} onChange={(e) => setS(i, 'resolutionMinutes', e.target.value)} /><div className="form-text">{(s.resolutionMinutes / 60).toFixed(1)} business h</div></td>
           <td><Select aria-label={`${s.priority} calendar`} value={s.calendarId} onChange={(val) => setS(i, 'calendarId', val)} placeholder="Organization default" options={cals.map((c) => ({ value: c.id, label: c.name }))} /></td></tr>)}</tbody></table>
-        <div className="p-3 small text-muted">Pause rules: both clocks pause while a ticket is “Waiting on customer”; time spent resolved before a reopen is excluded. Changes apply to new tickets and to tickets whose priority changes.</div></Card></div>
+        <div className="p-3 small text-muted">Pause rules: both clocks pause while a request is “Waiting on client”; time spent resolved before a reopen is excluded. Changes apply to new requests and to requests whose priority changes.</div></Card></div>
         <div className="col-lg-4"><Card title="Categories"><Field label="One per line">{(id) => <textarea id={id} rows={8} className="form-control" value={v.categories} onChange={(e) => setF({ ...v, categories: e.target.value })} />}</Field></Card></div></div>}
     </>
   );
@@ -190,7 +190,7 @@ export function AdminAudit() {
   const { data, error, loading } = useLoad(() => get('/org/audit', { q: dq || undefined, page, pageSize: 50 }), [dq, page]);
   return (
     <>
-      <PageHeader title="Audit log" sub="Administrative and business actions across the organization." />
+      <PageHeader title="Activity log" sub="A record of important changes in your workspace." />
       <div className="filters"><input className="form-control form-control-sm" style={{ maxWidth: 280 }} placeholder="Filter by action, e.g. invitation" aria-label="Filter actions" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} /></div>
       <ErrorBox error={error} />
       <div className="card">{loading && !data ? <div className="p-3"><Loading /></div> : <table className="table table-sm"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Entity</th><th>Details</th></tr></thead>

@@ -1,4 +1,23 @@
-export const labelize = (s) => (s ? s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) : '');
+// Plain-language names for internal codes, shown everywhere in the UI.
+const FRIENDLY = {
+  TODO: 'To do', IN_PROGRESS: 'In progress', IN_REVIEW: 'In review', WAITING_ON_CUSTOMER: 'Waiting on client', ON_HOLD: 'On hold',
+  NEW: 'New', CHANGES_REQUESTED: 'Changes requested', SERVICE_REQUEST: 'Service request', CHANGE_REQUEST: 'Change request',
+  CUSTOMER: 'Client', EMPLOYEE: 'Team member', MANAGER: 'Manager', ADMIN: 'Admin', MEMBER: 'Member', VIEWER: 'Viewer (read-only)',
+  MODULE: 'Group', TASK: 'Task', SUBTASK: 'Subtask', MILESTONE: 'Milestone', GREEN: 'On track', AMBER: 'At risk', RED: 'Off track',
+  ON_TRACK: 'On track', AT_RISK: 'At risk', BREACHED: 'Overdue', MET: 'Met', PAUSED: 'Paused', INTERNAL: 'Team only', PUBLIC: 'Shared with client',
+};
+export const labelize = (s) => (s ? FRIENDLY[s] || s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) : '');
+
+// Each project gets a stable color from its code.
+const PROJECT_COLORS = ['#7950f2', '#12b886', '#228be6', '#e64980', '#fd7e14', '#15aabf', '#be4bdb', '#40c057'];
+export const projectColor = (key = '') => PROJECT_COLORS[[...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % PROJECT_COLORS.length];
+export const dueInfo = (d, done) => {
+  if (!d) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const diff = Math.round((Date.parse(`${d}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+  const text = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff === -1 ? 'Yesterday' : diff < 0 ? `${-diff} days late` : diff < 7 ? new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' }) : new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return { text, tone: done ? '' : diff < 0 ? 'late' : diff <= 2 ? 'soon' : '' };
+};
 export const fmtDate = (d) => (d ? new Date(d.length === 10 ? `${d}T00:00:00` : d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 export const fmtDateTime = (d) => (d ? new Date(d).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 export const fmtRelative = (d) => {

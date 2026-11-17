@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Info, Inbox, Loader2, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { labelize, initials } from '../lib/format.js';
+import { labelize, initials, dueInfo, projectColor } from '../lib/format.js';
+import { Check } from 'lucide-react';
 
 // ---------- Badges ----------
-const STATUS_TONE = {
+export const STATUS_TONE = {
   TODO: 'neutral', IN_PROGRESS: 'blue', BLOCKED: 'risk', IN_REVIEW: 'warn', DONE: 'ok', CANCELLED: 'outline',
-  DRAFT: 'neutral', ACTIVE: 'blue', ON_HOLD: 'warn', COMPLETED: 'ok', ARCHIVED: 'outline',
-  NEW: 'dark', OPEN: 'blue', WAITING_ON_CUSTOMER: 'warn', RESOLVED: 'ok', CLOSED: 'outline',
+  DRAFT: 'neutral', ACTIVE: 'teal', ON_HOLD: 'warn', COMPLETED: 'ok', ARCHIVED: 'outline',
+  NEW: 'dark', OPEN: 'sky', WAITING_ON_CUSTOMER: 'warn', RESOLVED: 'ok', CLOSED: 'outline',
   SUBMITTED: 'blue', APPROVED: 'ok', REJECTED: 'risk', CHANGES_REQUESTED: 'warn',
   UNDER_REVIEW: 'warn', IMPLEMENTED: 'ok',
 };
@@ -14,11 +15,14 @@ export const Pill = ({ tone = 'neutral', children, title }) => <span className={
 export const StatusBadge = ({ status }) => <Pill tone={STATUS_TONE[status] || 'neutral'}>{labelize(status)}</Pill>;
 const PRI_TONE = { LOW: 'outline', MEDIUM: 'neutral', HIGH: 'warn', CRITICAL: 'risk' };
 export const PriorityBadge = ({ priority }) => <Pill tone={PRI_TONE[priority]}>{labelize(priority)}</Pill>;
-export const HealthBadge = ({ health }) => (
-  <span className="d-inline-flex align-items-center gap-1 small fw-semibold" title={`Health: ${labelize(health)}`}>
-    <span className={`dot dot-${health}`} aria-hidden="true" />{labelize(health)}
-  </span>
-);
+const HEALTH_TONE = { GREEN: 'ok', AMBER: 'warn', RED: 'risk' };
+export const HealthBadge = ({ health }) => <Pill tone={HEALTH_TONE[health]} title="Project health"><span className={`dot dot-${health}`} aria-hidden="true" />{labelize(health)}</Pill>;
+export const DueChip = ({ date, done }) => { const d = dueInfo(date, done); return d ? <span className={`due ${d.tone}`} title={date}>{d.text}</span> : null; };
+export const ProjectDot = ({ code }) => <span className="project-dot" style={{ '--pc': projectColor(code) }} aria-hidden="true" />;
+export const ProjectChip = ({ code, size = 38 }) => <span className="project-chip" style={{ '--pc': projectColor(code), width: size, height: size, fontSize: size * 0.32 }} aria-hidden="true">{(code || '?').slice(0, 2)}</span>;
+export function CheckButton({ done, onToggle, label, disabled }) {
+  return <button type="button" className={`check ${done ? 'on' : ''}`} onClick={onToggle} disabled={disabled} aria-pressed={done} aria-label={done ? `Mark ${label} as not done` : `Mark ${label} as done`}><Check size={13} strokeWidth={3} /></button>;
+}
 const SLA_TONE = { MET: 'ok', ON_TRACK: 'blue', AT_RISK: 'warn', BREACHED: 'risk', PAUSED: 'neutral', NONE: 'outline' };
 export const SlaBadge = ({ clock, label }) => clock && clock.state !== 'NONE'
   ? <Pill tone={SLA_TONE[clock.state]} title={clock.dueAt ? `Due ${new Date(clock.dueAt).toLocaleString()}` : undefined}>{label}: {labelize(clock.state)}</Pill> : null;
@@ -34,7 +38,7 @@ export function Meter({ value, label }) {
   );
 }
 
-export const Avatar = ({ name }) => <span className="avatar" aria-hidden="true">{initials(name)}</span>;
+export const Avatar = ({ name, sm, title }) => <span className={`avatar ${sm ? 'sm' : ''}`} title={title ?? name} aria-hidden="true">{initials(name)}</span>;
 
 // ---------- States ----------
 export const Spinner = ({ label = 'Loading' }) => <span className="d-inline-flex align-items-center gap-2 text-muted"><Loader2 size={16} className="spin" style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true" /><span>{label}…</span></span>;
@@ -69,6 +73,13 @@ export function PageHeader({ title, sub, actions, eyebrow }) {
       {actions && <div className="d-flex gap-2 flex-wrap">{actions}</div>}
     </div>
   );
+}
+
+export function Tabs({ tabs, value, onChange, label }) {
+  return <div className="tabs" role="tablist" aria-label={label}>{tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={value === k} className={`tab ${value === k ? 'active' : ''}`} onClick={() => onChange(k)}>{l}</button>)}</div>;
+}
+export function Segmented({ options, value, onChange, label }) {
+  return <div className="segmented" role="group" aria-label={label}>{options.map(([k, l, Icon]) => <button key={k} type="button" className={value === k ? 'active' : ''} aria-pressed={value === k} onClick={() => onChange(k)}>{Icon && <Icon size={14} />}{l}</button>)}</div>;
 }
 
 export function Card({ title, actions, children, className = '', bodyClass = '' }) {

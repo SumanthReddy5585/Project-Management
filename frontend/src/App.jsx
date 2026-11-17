@@ -1,31 +1,38 @@
-import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
-import { ToastProvider, Loading } from './components/ui.jsx';
+import { ToastProvider, Loading, Empty } from './components/ui.jsx';
 import Layout from './components/Layout.jsx';
 import { Login, AcceptInvite, ForgotPassword, ResetPassword } from './pages/Auth.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import ProjectsList from './pages/ProjectsList.jsx';
-import ProjectNew from './pages/ProjectNew.jsx';
+import Home from './pages/Home.jsx';
+import MyTasks from './pages/MyTasks.jsx';
+import Projects from './pages/Projects.jsx';
+import Reports from './pages/Reports.jsx';
+import SettingsPage from './pages/Settings.jsx';
+import TimePage from './pages/TimePage.jsx';
 import ProjectWorkspace from './pages/project/Workspace.jsx';
 import { Overview } from './pages/project/Overview.jsx';
-import { WorkList, Board } from './pages/project/Work.jsx';
-import { Timeline, CalendarView, Milestones } from './pages/project/Schedule.jsx';
-import { Deliverables, Updates, Discussions, ProjectFiles } from './pages/project/Engagement.jsx';
+import { TasksTab } from './pages/project/Work.jsx';
+import { Deliverables, UpdatesTab, ProjectFiles } from './pages/project/Engagement.jsx';
 import { Registers, Team, ProjectSettings } from './pages/project/Manage.jsx';
 import { TicketsList, TicketDetail } from './pages/Tickets.jsx';
-import { Timesheet, Approvals } from './pages/Time.jsx';
-import { Workload, People, NotificationsPage } from './pages/Resources.jsx';
-import { AdminUsers, AdminCustomers, AdminCalendars, AdminTemplates, AdminTicketSettings, AdminAudit } from './pages/admin/Admin.jsx';
+import { People, NotificationsPage } from './pages/Resources.jsx';
 
 function Protected({ children }) {
   const { me } = useAuth();
+  const loc = useLocation();
   if (me === undefined) return <div className="p-5"><Loading /></div>;
-  if (!me) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  if (!me) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
   return children;
 }
 function AdminOnly({ children }) { const { role } = useAuth(); return role === 'ADMIN' ? children : <Navigate to="/" replace />; }
 function InternalOnly({ children }) { const { isCustomer } = useAuth(); return isCustomer ? <Navigate to="/" replace /> : children; }
-function WorkRedirect() { const { projectId, itemId } = useParams(); return <Navigate to={`/projects/${projectId}/work?item=${itemId}`} replace />; }
+function ManagerOnly({ children }) { const { role } = useAuth(); return ['ADMIN', 'MANAGER'].includes(role) ? children : <Navigate to="/" replace />; }
+/** Old links (notifications, bookmarks) keep working after the navigation was simplified. */
+function Redirect({ to }) {
+  const p = useParams();
+  const loc = useLocation();
+  return <Navigate to={to.replace(/:(\w+)/g, (_, k) => p[k]) + loc.search} replace />;
+}
 
 export default function App() {
   return (
@@ -38,40 +45,38 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route element={<Protected><Layout /></Protected>}>
-              <Route index element={<Dashboard />} />
-              <Route path="projects" element={<ProjectsList />} />
-              <Route path="projects/new" element={<InternalOnly><ProjectNew /></InternalOnly>} />
-              <Route path="projects/:projectId/work/:itemId" element={<WorkRedirect />} />
+              <Route index element={<Home />} />
+              <Route path="my-tasks" element={<InternalOnly><MyTasks /></InternalOnly>} />
+              <Route path="projects" element={<Projects />} />
+              <Route path="projects/new" element={<Navigate to="/projects?new=1" replace />} />
+              <Route path="projects/:projectId/work/:itemId" element={<Redirect to="/projects/:projectId/tasks?item=:itemId" />} />
               <Route path="projects/:projectId" element={<ProjectWorkspace />}>
                 <Route index element={<Overview />} />
-                <Route path="work" element={<WorkList />} />
-                <Route path="board" element={<Board />} />
-                <Route path="timeline" element={<Timeline />} />
-                <Route path="calendar" element={<CalendarView />} />
-                <Route path="milestones" element={<Milestones />} />
-                <Route path="deliverables" element={<Deliverables />} />
-                <Route path="updates" element={<Updates />} />
-                <Route path="discussions" element={<Discussions />} />
-                <Route path="discussions/:discussionId" element={<Discussions />} />
+                <Route path="tasks" element={<TasksTab />} />
+                <Route path="approvals" element={<Deliverables />} />
                 <Route path="files" element={<ProjectFiles />} />
-                <Route path="registers" element={<Registers />} />
+                <Route path="updates" element={<UpdatesTab />} />
+                <Route path="updates/:discussionId" element={<UpdatesTab />} />
+                <Route path="risks" element={<Registers />} />
                 <Route path="team" element={<Team />} />
                 <Route path="settings" element={<ProjectSettings />} />
+                {['work', 'board', 'timeline', 'calendar', 'milestones'].map((p) => <Route key={p} path={p} element={<Redirect to="/projects/:projectId/tasks" />} />)}
+                <Route path="deliverables" element={<Redirect to="/projects/:projectId/approvals" />} />
+                <Route path="discussions/:discussionId?" element={<Redirect to="/projects/:projectId/updates" />} />
+                <Route path="registers" element={<Redirect to="/projects/:projectId/risks" />} />
               </Route>
               <Route path="tickets" element={<TicketsList />} />
               <Route path="tickets/:ticketId" element={<TicketDetail />} />
-              <Route path="time" element={<InternalOnly><Timesheet /></InternalOnly>} />
-              <Route path="time/approvals" element={<InternalOnly><Approvals /></InternalOnly>} />
-              <Route path="workload" element={<InternalOnly><Workload /></InternalOnly>} />
+              <Route path="time" element={<InternalOnly><TimePage /></InternalOnly>} />
+              <Route path="time/approvals" element={<Navigate to="/time?tab=approvals" replace />} />
+              <Route path="reports" element={<ManagerOnly><Reports /></ManagerOnly>} />
+              <Route path="workload" element={<Navigate to="/reports" replace />} />
               <Route path="people" element={<InternalOnly><People /></InternalOnly>} />
               <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="admin/users" element={<AdminOnly><AdminUsers /></AdminOnly>} />
-              <Route path="admin/customers" element={<AdminOnly><AdminCustomers /></AdminOnly>} />
-              <Route path="admin/calendars" element={<AdminOnly><AdminCalendars /></AdminOnly>} />
-              <Route path="admin/templates" element={<AdminOnly><AdminTemplates /></AdminOnly>} />
-              <Route path="admin/ticket-settings" element={<AdminOnly><AdminTicketSettings /></AdminOnly>} />
-              <Route path="admin/audit" element={<AdminOnly><AdminAudit /></AdminOnly>} />
-              <Route path="*" element={<div className="empty"><h3>Page not found</h3></div>} />
+              <Route path="settings" element={<AdminOnly><SettingsPage /></AdminOnly>} />
+              <Route path="settings/:tab" element={<AdminOnly><SettingsPage /></AdminOnly>} />
+              <Route path="admin/:tab" element={<Redirect to="/settings/:tab" />} />
+              <Route path="*" element={<Empty title="Page not found">The link may be out of date.</Empty>} />
             </Route>
           </Routes>
         </ToastProvider>

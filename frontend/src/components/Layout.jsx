@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, LifeBuoy, Clock, CheckSquare, Users, Building2, Settings, Bell, Search, LogOut, Menu, Gauge, ScrollText, CalendarDays, Layers, MailWarning } from 'lucide-react';
+import { Home, CheckCircle2, FolderKanban, LifeBuoy, Clock, Users, Settings, Bell, Search, LogOut, Menu, BarChart3, Layers } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { get, post } from '../api/client.js';
 import { useDebounced } from '../lib/hooks.js';
 import { fmtRelative, labelize } from '../lib/format.js';
-import { Avatar, StatusBadge } from './ui.jsx';
+import { Avatar, StatusBadge, ProjectDot } from './ui.jsx';
 
-function NavItem({ to, icon: Icon, children, end }) {
-  return <NavLink to={to} end={end} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><Icon size={17} aria-hidden="true" />{children}</NavLink>;
+function NavItem({ to, icon: Icon, children, end, count }) {
+  return <NavLink to={to} end={end} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><Icon size={18} aria-hidden="true" />{children}{count > 0 && <span className="count">{count}</span>}</NavLink>;
 }
 
 function GlobalSearch() {
@@ -27,20 +27,22 @@ function GlobalSearch() {
   const total = res ? res.projects.length + res.workItems.length + res.tickets.length : 0;
   return (
     <div className="search" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
-      <Search size={15} className="icon" aria-hidden="true" />
-      <input className="form-control form-control-sm" placeholder="Search projects, work items (e.g. CSM-12), tickets (#42)…" value={q} aria-label="Search"
+      <Search size={16} className="icon" aria-hidden="true" />
+      <input className="form-control" placeholder="Search projects, tasks and requests" value={q} aria-label="Search"
         onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)} />
       {open && res && (
         <div className="search-results">
-          {total === 0 && <div className="p-2 small text-muted">No matches you have access to.</div>}
-          {res.projects.map((p) => <a href="#" key={p.id} onClick={(e) => { e.preventDefault(); go(`/projects/${p.id}`); }}><FolderKanban size={14} /><span className="mono">{p.code}</span> <span className="truncate">{p.name}</span></a>)}
-          {res.workItems.map((w) => <a href="#" key={w.id} onClick={(e) => { e.preventDefault(); go(`/projects/${w.projectId}/work?item=${w.id}`); }}><Layers size={14} /><span className="mono">{w.key}</span> <span className="truncate flex-grow-1">{w.title}</span><StatusBadge status={w.status} /></a>)}
-          {res.tickets.map((t) => <a href="#" key={t.id} onClick={(e) => { e.preventDefault(); go(`/tickets/${t.id}`); }}><LifeBuoy size={14} /><span className="mono">#{t.number}</span> <span className="truncate flex-grow-1">{t.subject}</span><StatusBadge status={t.status} /></a>)}
+          {total === 0 && <div className="p-2 small text-muted">Nothing found.</div>}
+          {res.projects.map((p) => <a href="#" key={p.id} onClick={(e) => { e.preventDefault(); go(`/projects/${p.id}`); }}><ProjectDot code={p.code} /><span className="truncate fw-semibold">{p.name}</span></a>)}
+          {res.workItems.map((w) => <a href="#" key={w.id} onClick={(e) => { e.preventDefault(); go(`/projects/${w.projectId}/tasks?item=${w.id}`); }}><CheckCircle2 size={15} className="text-muted" /><span className="truncate flex-grow-1">{w.title}</span><StatusBadge status={w.status} /></a>)}
+          {res.tickets.map((t) => <a href="#" key={t.id} onClick={(e) => { e.preventDefault(); go(`/tickets/${t.id}`); }}><LifeBuoy size={15} className="text-muted" /><span className="truncate flex-grow-1">{t.subject}</span><StatusBadge status={t.status} /></a>)}
         </div>
       )}
     </div>
   );
 }
+
+const linkFor = (n) => n.link?.replace(/\/work\/([0-9a-f-]{36})$/, '/tasks?item=$1');
 
 function Notifications() {
   const [open, setOpen] = useState(false);
@@ -48,23 +50,23 @@ function Notifications() {
   const nav = useNavigate();
   const load = () => get('/notifications', { pageSize: 15 }).then(setData).catch(() => {});
   useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, []);
-  const openItem = async (n) => { setOpen(false); if (!n.readAt) await post(`/notifications/${n.id}/read`).catch(() => {}); load(); if (n.link) nav(n.link.replace(/\/work\/([0-9a-f-]{36})$/, '/work?item=$1')); };
+  const openItem = async (n) => { setOpen(false); if (!n.readAt) await post(`/notifications/${n.id}/read`).catch(() => {}); load(); if (n.link) nav(linkFor(n)); };
   return (
     <div className="position-relative" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
       <button className="btn btn-ghost btn-icon position-relative" onClick={() => setOpen(!open)} aria-label={`Notifications${data?.unread ? `, ${data.unread} unread` : ''}`} aria-expanded={open}>
-        <Bell size={18} />{data?.unread > 0 && <span className="count-badge">{data.unread > 99 ? '99+' : data.unread}</span>}
+        <Bell size={20} />{data?.unread > 0 && <span className="count-badge">{data.unread > 99 ? '99+' : data.unread}</span>}
       </button>
       {open && (
         <div className="notif-panel" role="dialog" aria-label="Notifications">
           <div className="d-flex justify-content-between align-items-center px-3 py-2 border-bottom"><strong>Notifications</strong>
-            <div className="d-flex gap-2"><button className="btn btn-sm btn-link p-0" onClick={async () => { await post('/notifications/read-all'); load(); }}>Mark all read</button><Link className="btn btn-sm btn-link p-0" to="/notifications" onClick={() => setOpen(false)}>View all</Link></div></div>
-          <div className="px-3 py-2 small text-muted d-flex gap-2 align-items-center border-bottom"><MailWarning size={13} /> Email delivery is not configured; notifications appear here only.</div>
-          {data?.data.length === 0 && <div className="p-3 small text-muted">You are all caught up.</div>}
+            <button className="btn btn-sm btn-link p-0" onClick={async () => { await post('/notifications/read-all'); load(); }}>Mark all read</button></div>
+          {data?.data.length === 0 && <div className="p-4 text-center small text-muted">You're all caught up.</div>}
           {data?.data.map((n) => (
             <a href="#" key={n.id} className={`item ${n.readAt ? '' : 'unread'}`} onClick={(e) => { e.preventDefault(); openItem(n); }}>
               <div className="fw-semibold small">{n.title}</div>{n.body && <div className="small text-muted truncate">{n.body}</div>}<div className="small text-muted">{fmtRelative(n.createdAt)}</div>
             </a>
           ))}
+          <Link className="d-block text-center small py-2" to="/notifications" onClick={() => setOpen(false)}>See all</Link>
         </div>
       )}
     </div>
@@ -72,51 +74,42 @@ function Notifications() {
 }
 
 export default function Layout() {
-  const { user, role, org, isCustomer, me, logout, can } = useAuth();
+  const { user, role, isCustomer, me, logout } = useAuth();
   const [menu, setMenu] = useState(false);
   const loc = useLocation();
-  const main = useRef(null);
   useEffect(() => { setMenu(false); }, [loc.pathname]);
-  const internal = !isCustomer;
+  const manager = ['ADMIN', 'MANAGER'].includes(role);
   return (
     <div className="app-shell">
       <a href="#main" className="skip-link">Skip to content</a>
-      <aside className={`sidebar ${menu ? 'open' : ''}`} aria-label="Primary">
-        <div className="brand"><svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1b3556" /><path d="M8 22V10l8 7 8-7v12" fill="none" stroke="#7fb2e5" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg><div>Meridian<small>{isCustomer ? 'Customer portal' : 'Projects & Service'}</small></div></div>
+      <aside className={`sidebar ${menu ? 'open' : ''}`} aria-label="Main menu">
+        <div className="brand"><span className="brand-mark">M</span>Meridian</div>
         <nav>
-          <NavItem to="/" icon={LayoutDashboard} end>Dashboard</NavItem>
+          <NavItem to="/" icon={Home} end>Home</NavItem>
+          {!isCustomer && <NavItem to="/my-tasks" icon={CheckCircle2}>My tasks</NavItem>}
           <NavItem to="/projects" icon={FolderKanban}>Projects</NavItem>
-          <NavItem to="/tickets" icon={LifeBuoy}>{isCustomer ? 'Support tickets' : 'Tickets'}</NavItem>
-          {internal && <>
-            <div className="nav-group">Time & resources</div>
-            <NavItem to="/time" icon={Clock}>My timesheet</NavItem>
-            {['ADMIN', 'MANAGER'].includes(role) && <NavItem to="/time/approvals" icon={CheckSquare}>Approvals</NavItem>}
-            {can('workload.view') && <NavItem to="/workload" icon={Gauge}>Workload</NavItem>}
+          <NavItem to="/tickets" icon={LifeBuoy}>Requests</NavItem>
+          {!isCustomer && <NavItem to="/time" icon={Clock}>Time</NavItem>}
+          {!isCustomer && <>
+            <div className="nav-label">Team</div>
             <NavItem to="/people" icon={Users}>People</NavItem>
-          </>}
-          {role === 'ADMIN' && <>
-            <div className="nav-group">Administration</div>
-            <NavItem to="/admin/users" icon={Users}>Users & invitations</NavItem>
-            <NavItem to="/admin/customers" icon={Building2}>Customers</NavItem>
-            <NavItem to="/admin/calendars" icon={CalendarDays}>Calendars</NavItem>
-            <NavItem to="/admin/templates" icon={Layers}>Templates</NavItem>
-            <NavItem to="/admin/ticket-settings" icon={Settings}>Ticket settings</NavItem>
-            <NavItem to="/admin/audit" icon={ScrollText}>Audit log</NavItem>
+            {manager && <NavItem to="/reports" icon={BarChart3}>Reports</NavItem>}
+            {role === 'ADMIN' && <NavItem to="/settings" icon={Settings}>Settings</NavItem>}
           </>}
         </nav>
-        <div className="org-card"><strong>{org?.name}</strong>{isCustomer ? me?.customerCompany?.name : labelize(role)}</div>
+        <div className="me">
+          <Avatar name={user?.name} />
+          <div className="min-w-0 flex-grow-1"><div className="fw-semibold small truncate">{user?.name}</div><div className="small text-muted truncate">{isCustomer ? me?.customerCompany?.name : labelize(role)}</div></div>
+          <button className="btn btn-ghost btn-icon" onClick={logout} aria-label="Sign out" title="Sign out"><LogOut size={17} /></button>
+        </div>
       </aside>
       <div className="main">
         <header className="topbar">
-          <button className="btn btn-ghost btn-icon mobile-toggle" onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><Menu size={18} /></button>
+          <button className="btn btn-ghost btn-icon mobile-toggle" onClick={() => setMenu(!menu)} aria-label="Open menu"><Menu size={20} /></button>
           <GlobalSearch />
-          <div className="ms-auto d-flex align-items-center gap-2">
-            <Notifications />
-            <div className="d-flex align-items-center gap-2 ps-2 border-start"><Avatar name={user?.name} /><div className="d-none d-md-block lh-sm"><div className="small fw-semibold text-body">{user?.name}</div><div className="small text-muted">{user?.email}</div></div></div>
-            <button className="btn btn-ghost btn-icon" onClick={logout} aria-label="Sign out" title="Sign out"><LogOut size={17} /></button>
-          </div>
+          <div className="ms-auto d-flex align-items-center gap-2"><Notifications /></div>
         </header>
-        <main id="main" className="content" ref={main} tabIndex={-1}><Outlet /></main>
+        <main id="main" className="content" tabIndex={-1}><Outlet /></main>
       </div>
     </div>
   );

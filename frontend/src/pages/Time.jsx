@@ -27,7 +27,7 @@ export function Timesheet() {
   const submit = async () => { try { await post(`/time/timesheets/${data.timesheet.id}/submit`, { version: data.timesheet.version }); toast('Timesheet submitted for approval', 'success'); reload(); } catch (e) { toast(e.message, 'error'); } };
   return (
     <>
-      <PageHeader title="My timesheet" sub="Log time against projects and tasks. Submitted and approved weeks are locked."
+      <PageHeader title="Your week" sub="Add the hours you worked, then submit the week."
         actions={<><button className="btn btn-light" onClick={() => download(`/reports/time.csv?from=${week}&to=${addDaysISO(week, 6)}`, `time-${week}.csv`)}>Export week</button></>} />
       <div className="d-flex align-items-center gap-2 mb-3 flex-wrap">
         <button className="btn btn-sm btn-light" onClick={() => go(-1)} aria-label="Previous week"><ChevronLeft size={15} /></button>
@@ -36,8 +36,8 @@ export function Timesheet() {
         <button className="btn btn-sm btn-link" onClick={() => setParams({})}>This week</button>
         {data && <><StatusBadge status={data.timesheet.status} /><span className="fw-semibold ms-2">{fmtHours(total)}</span></>}
         <div className="ms-auto d-flex gap-2">
-          {!locked && data?.projects.length > 0 && <button className="btn btn-sm btn-outline-primary" onClick={() => setF({ projectId: data.projects[0].id, workItemId: '', date: week <= todayISO() && todayISO() <= addDaysISO(week, 6) ? todayISO() : week, hours: 1, billable: false, note: '' })}><Plus size={14} /> Log time</button>}
-          {!locked && data?.entries.length > 0 && <ConfirmButton className="btn btn-sm btn-primary" tone="primary" title="Submit timesheet?" message="Entries for this week will be locked until a manager approves or rejects them." confirmLabel="Submit" onConfirm={submit}><Send size={14} /> Submit week</ConfirmButton>}
+          {!locked && data?.projects.length > 0 && <button className="btn btn-sm btn-outline-primary" onClick={() => setF({ projectId: data.projects[0].id, workItemId: '', date: week <= todayISO() && todayISO() <= addDaysISO(week, 6) ? todayISO() : week, hours: 1, billable: false, note: '' })}><Plus size={14} /> Add hours</button>}
+          {!locked && data?.entries.length > 0 && <ConfirmButton className="btn btn-sm btn-primary" tone="primary" title="Submit timesheet?" message="Entries for this week will be locked until a manager approves or rejects them." confirmLabel="Submit" onConfirm={submit}><Send size={14} /> Submit for approval</ConfirmButton>}
         </div>
       </div>
       <ErrorBox error={error} />
@@ -77,7 +77,7 @@ export function Approvals() {
   const act = async (s, action, body = {}) => { try { await post(`/time/timesheets/${s.id}/${action}`, { version: s.version, ...body }); toast(`Timesheet ${action === 'approve' ? 'approved' : 'rejected'}`, 'success'); setRejecting(null); setNote(''); reload(); } catch (e) { toast(e.message, 'error'); reload(); } };
   return (
     <>
-      <PageHeader title="Timesheet approvals" sub="Approve timesheets for projects you manage. You can never approve your own." />
+      <PageHeader title="Timesheets to approve" sub="Weeks your team submitted for projects you manage." />
       <div className="filters"><Select aria-label="Status" value={status} onChange={(v) => setStatus(v || 'SUBMITTED')} options={[{ value: 'SUBMITTED', label: 'Awaiting approval' }, { value: 'APPROVED', label: 'Approved' }, { value: 'REJECTED', label: 'Rejected' }]} /></div>
       <ErrorBox error={error} />
       <div className="card">{loading && !data ? <div className="p-3"><Loading /></div> : data?.data.length === 0 ? <Empty icon={Check} title="Nothing to review" /> : (
