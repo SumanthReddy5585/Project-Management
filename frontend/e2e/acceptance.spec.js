@@ -44,8 +44,8 @@ test.describe.serial('manager → client → request workflow', () => {
     }
     await page.getByRole('button', { name: 'Approve & lock original plan' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Approve & lock' }).click();
-    await expect(page.getByText('Original plan locked')).toBeVisible();
-    await expect(page.locator('.sched-hero')).toContainText('On track');
+    await expect(page.locator('.locked-bar')).toContainText('Plan approved on');
+    await expect(page.locator('.status-banner')).toContainText('On schedule');
 
     // one task shared with the client and one team-only task, added with quick-add
     await page.locator('nav.tabs').getByRole('link', { name: /^Team/ }).click();

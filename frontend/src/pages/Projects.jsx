@@ -211,10 +211,10 @@ export default function Projects() {
   const creating = params.get('new') === '1' && can('project.create');
   const chooseLayout = (v) => { setLayout(v); try { localStorage.setItem('o2.projectsLayout', v); } catch { /* ignore */ } };
   const rows = data?.data || [];
-  const sum = useMemo(() => ({ total: rows.length, red: rows.filter((p) => p.health === 'RED').length, amber: rows.filter((p) => p.health === 'AMBER').length, overdue: rows.reduce((s, p) => s + (p.counts?.overdue || 0), 0) }), [rows]);
+  const sum = useMemo(() => ({ total: rows.length, late: rows.filter((p) => p.schedule?.status === 'DELAYED').length, risk: rows.filter((p) => p.schedule?.status === 'AT_RISK').length, draft: rows.filter((p) => p.planApprovedAt === null && !['CANCELLED', 'ARCHIVED'].includes(p.status)).length }), [rows]);
   return (
     <>
-      <div className="page-header"><div><h1 className="h-page">{isCustomer ? 'My projects' : 'Projects'}</h1><div className="sub">{isCustomer ? 'Projects your team has shared with you.' : `${sum.total} project${sum.total === 1 ? '' : 's'}${sum.red ? ` · ${sum.red} off track` : ''}${sum.amber ? ` · ${sum.amber} at risk` : ''}${sum.overdue ? ` · ${sum.overdue} overdue tasks` : ''}`}</div></div>
+      <div className="page-header"><div><h1 className="h-page">{isCustomer ? 'My projects' : 'Projects'}</h1><div className="sub">{isCustomer ? 'Projects your team has shared with you.' : `${sum.total} project${sum.total === 1 ? '' : 's'}${sum.late ? ` · ${sum.late} running late` : ''}${sum.risk ? ` · ${sum.risk} at risk` : ''}${sum.draft ? ` · ${sum.draft} plan${sum.draft === 1 ? '' : 's'} not approved yet` : ''}`}</div></div>
         {can('project.create') && <button className="btn btn-primary" onClick={() => setParams({ new: '1' })}><Plus size={16} /> New project</button>}</div>
       <div className="filters">
         <div className="position-relative" style={{ maxWidth: 260 }}><Search size={15} className="position-absolute text-muted" style={{ left: 10, top: 11 }} /><input className="form-control ps-4" placeholder="Search projects" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} aria-label="Search projects" /></div>
@@ -229,18 +229,18 @@ export default function Projects() {
         : layout === 'timeline' ? <PortfolioTimeline rows={rows} />
         : (
           <div className="card" style={{ overflow: 'hidden' }}><div className="table-wrap"><table className="table table-hover mb-0">
-            <thead><tr><th>Project</th>{!isCustomer && <th>Manager</th>}<th>Status</th><th>Health</th>{!isCustomer && <th title="Working plan compared with the original (approved) plan">Vs original plan</th>}<th style={{ width: 170 }}>Progress</th><th>Tasks</th><th>Milestones</th><th>Finish</th>{!isCustomer && <th>Team</th>}</tr></thead>
+            <thead><tr><th>Project</th>{!isCustomer && <th>Manager</th>}<th>Status</th>{!isCustomer && <th title="Automatic: compared with the approved plan">Schedule</th>}<th title="The project manager's own rating">Manager's view</th><th style={{ width: 170 }}>Progress</th><th>Tasks</th><th>Milestones</th><th title="Planned end date (from the approved plan when there is one)">Planned end</th>{!isCustomer && <th>Team</th>}</tr></thead>
             <tbody>{rows.map((p) => (
               <tr key={p.id} className="row-link" onClick={() => nav(`/projects/${p.id}`)}>
                 <td><Link to={`/projects/${p.id}`} className="fw-semibold text-body d-inline-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()}><ProjectDot code={p.code} />{p.name}</Link><div className="tk-meta"><span className="mono">{p.code}</span> · {p.customerName || 'Internal'}</div></td>
                 {!isCustomer && <td className="small text-nowrap">{p.managerName ? <span className="d-inline-flex align-items-center gap-2"><Avatar sm name={p.managerName} />{p.managerName}</span> : '—'}</td>}
                 <td><StatusBadge status={p.status} /></td>
+                {!isCustomer && <td className="small">{p.schedule ? <div><ScheduleChip status={p.schedule.status} />{p.schedule.finishVariance ? <div className="mt-1"><DaysVar days={p.schedule.finishVariance} /></div> : null}</div> : ['CANCELLED', 'ARCHIVED'].includes(p.status) ? <span className="text-muted">—</span> : <span className="text-muted" title="The plan has not been approved yet">Plan not approved</span>}</td>}
                 <td><HealthBadge health={p.health} /></td>
-                {!isCustomer && <td className="small text-nowrap">{p.schedule ? <span className="d-inline-flex align-items-center gap-1"><ScheduleChip status={p.schedule.status} /><DaysVar days={p.schedule.finishVariance} /></span> : ['CANCELLED', 'ARCHIVED'].includes(p.status) ? <span className="text-muted">—</span> : <span className="text-muted" title="The plan has not been approved yet">Plan in draft</span>}</td>}
                 <td><div className="d-flex align-items-center gap-2"><div className="meter flex-grow-1" style={{ '--pc': projectColor(p.code) }}><span style={{ width: `${p.progress || 0}%` }} /></div><span className="small num">{Math.round(p.progress || 0)}%</span></div></td>
-                <td className="small text-nowrap num">{p.counts?.open ?? '—'} open{p.counts?.overdue ? <span className="text-danger fw-semibold"> · {p.counts.overdue} late</span> : ''}</td>
+                <td className="small text-nowrap num">{p.counts?.open ?? '—'} open{(p.schedule ? p.schedule.delayed : p.counts?.overdue) ? <span className="text-danger fw-semibold"> · {p.schedule ? p.schedule.delayed : p.counts.overdue} late</span> : ''}</td>
                 <td className="small num">{p.milestones ? `${p.milestones.done}/${p.milestones.total}` : '—'}</td>
-                <td className="small text-nowrap"><CalendarDays size={12} className="text-muted" /> {fmtDate(p.plannedFinish)}</td>
+                <td className="small text-nowrap"><CalendarDays size={12} className="text-muted" /> {fmtDate(p.schedule?.originalFinish || p.plannedFinish)}{p.schedule && p.schedule.status !== 'COMPLETED' && p.schedule.finishVariance > 0 && <div className="text-danger">expected {fmtDate(p.schedule.forecastFinish)}</div>}</td>
                 {!isCustomer && <td className="small num"><UserCheck size={13} className="text-muted" /> {p.teamSize ?? '—'}</td>}
               </tr>))}</tbody>
           </table></div></div>)}

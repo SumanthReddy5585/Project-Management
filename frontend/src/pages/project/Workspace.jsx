@@ -28,7 +28,7 @@ export default function ProjectWorkspace() {
   const itemId = params.get('item');
   const openItem = (id) => setParams((prev) => { const n = new URLSearchParams(prev); if (id) n.set('item', id); else n.delete('item'); return n; });
   const base = `/projects/${p.id}`;
-  const tabs = [['', 'Overview'], ...(!isCustomer ? [['plan', p.planApprovedAt ? 'Plan vs original' : 'Plan (draft)']] : []), ['tasks', 'Tasks'], ...(!isCustomer ? [['team', `Team (${p.members.filter((m) => m.role !== 'CUSTOMER').length})`]] : []), ['approvals', 'Approvals'], ['files', 'Files'], ['updates', 'Updates'],
+  const tabs = [['', 'Overview'], ...(!isCustomer ? [['plan', p.planApprovedAt ? 'Plan vs original' : 'Plan (not approved)']] : []), ['tasks', 'Tasks'], ...(!isCustomer ? [['team', `Team (${p.members.filter((m) => m.role !== 'CUSTOMER').length})`]] : []), ['approvals', 'Approvals'], ['files', 'Files'], ['updates', 'Updates'],
     ...(can('register.view') ? [['risks', 'Risks & issues']] : []), ...(!isCustomer ? [['activity', 'Activity']] : [])];
   const team = p.members.filter((m) => m.role !== 'CUSTOMER');
   return (
@@ -38,9 +38,12 @@ export default function ProjectWorkspace() {
         <div className="min-w-0 flex-grow-1">
           <h1 className="h-page d-flex align-items-center gap-2 flex-wrap">{p.name}{p.status !== 'ACTIVE' && <StatusBadge status={p.status} />}</h1>
           <div className="d-flex gap-3 mt-1 small text-muted flex-wrap align-items-center">
-            <span>{p.customerName || 'Internal project'}</span><span>Due {fmtDate(p.plannedFinish)}</span><HealthBadge health={p.health} />
-            {!isCustomer && (p.schedule ? <NavLink to={`${base}/plan`} className="d-inline-flex align-items-center gap-1 text-decoration-none" title="Working plan compared with the locked original plan"><span className="text-muted">vs original plan:</span><ScheduleChip status={p.schedule.status} /></NavLink>
-              : p.planApprovedAt === null && <NavLink to={`${base}/plan`} className="small fw-semibold">Plan not approved yet →</NavLink>)}
+            <span>{p.customerName || 'Internal project'}</span>
+            {(() => { const sc = !isCustomer ? p.schedule : null;
+              if (sc) return <>
+                <span>Planned end {fmtDate(sc.originalFinish)}{sc.status !== 'COMPLETED' && sc.finishVariance ? <span className={sc.finishVariance > 0 ? 'text-danger fw-semibold' : 'text-primary fw-semibold'}> · expected {fmtDate(sc.forecastFinish)}</span> : null}</span>
+                <NavLink to={`${base}/plan`} className="text-decoration-none" title="Automatic: compared with the approved plan"><ScheduleChip status={sc.status} /></NavLink></>;
+              return <><span>Due {fmtDate(p.plannedFinish)}</span>{isCustomer ? <HealthBadge health={p.health} /> : p.planApprovedAt === null && p.status !== 'CANCELLED' && <NavLink to={`${base}/plan`} className="pill pill-neutral text-decoration-none">Plan not approved yet</NavLink>}</>; })()}
             {!isCustomer && p.customerName && (p.customerVisible ? <span className="d-inline-flex gap-1 align-items-center"><Globe size={13} /> Client can follow</span> : <span className="d-inline-flex gap-1 align-items-center"><Lock size={13} /> Hidden from client</span>)}
           </div>
         </div>

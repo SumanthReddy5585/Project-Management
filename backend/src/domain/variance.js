@@ -54,7 +54,7 @@ export function classify(row, today, cal) {
   if (!cur || cur.status === 'CANCELLED') return { status: 'REMOVED', finishVariance: null, startVariance: null, lateStart: false, forecastFinish: null };
   const bf = base.plannedFinish; const bs = base.plannedStart;
   const startedOn = cur.actualStart || (cur.status !== 'TODO' ? cur.plannedStart : null);
-  const lateStart = Boolean(bs && bs < today && cur.status === 'TODO' && !cur.actualStart);
+  const lateStart = Boolean(cur.type !== 'MILESTONE' && bs && bs < today && cur.status === 'TODO' && !cur.actualStart);
   if (cur.status === 'DONE') {
     const af = cur.actualFinish || cur.plannedFinish;
     const v = slipDays(bf, af, cal);
@@ -148,6 +148,8 @@ export function compareToOriginal({ current, original, today, cal, phases = [] }
     const rs = out.filter((r) => (r.phaseId ?? null) === ph.id);
     if (!rs.length) return null;
     const of = maxDate(rs.filter((r) => r.status !== 'ADDED').map((r) => r.originalFinish));
+    const os = rs.filter((r) => r.status !== 'ADDED').map((r) => r.originalStart || r.originalFinish).filter(Boolean).sort()[0] ?? null;
+    const cs = rs.filter((r) => r.status !== 'REMOVED').map((r) => r.actualStart || r.currentStart || r.currentFinish).filter(Boolean).sort()[0] ?? null;
     const ff = maxDate(rs.filter((r) => r.status !== 'REMOVED').map((r) => r.forecastFinish));
     const sc = rs.filter((r) => r.originalFinish && r.status !== 'ADDED' && r.status !== 'REMOVED');
     const w = sc.reduce((s, r) => s + weight(r), 0);
@@ -156,11 +158,12 @@ export function compareToOriginal({ current, original, today, cal, phases = [] }
     const c = {}; for (const r of rs) c[r.status] = (c[r.status] || 0) + 1;
     const done = rs.filter((r) => r.status !== 'REMOVED').every((r) => r.workStatus === 'DONE');
     const fv = slipDays(of, ff, cal);
-    return { id: ph.id, name: ph.name, originalFinish: of, forecastFinish: ff, finishVariance: fv, plannedPct: pp, actualPct: ap, counts: c, items: rs.length,
+    return { id: ph.id, name: ph.name, originalStart: os, currentStart: cs, done, originalFinish: of, forecastFinish: ff, finishVariance: fv, plannedPct: pp, actualPct: ap, counts: c, items: rs.length,
       status: projectStatus({ finishVariance: fv, spi: pp ? ap / pp : null, plannedPct: pp ?? 0, actualPct: ap ?? 0, allDone: done, counts: c }) };
   }).filter(Boolean);
 
-  const summary = { originalStart, originalFinish, forecastFinish, finishVariance, plannedPct, actualPct, spi, counts, items: out.length,
+  const currentStart = live.map((r) => r.actualStart || r.currentStart || r.currentFinish).filter(Boolean).sort()[0] ?? null;
+  const summary = { originalStart, currentStart, originalFinish, forecastFinish, finishVariance, plannedPct, actualPct, spi, counts, items: out.length,
     status: projectStatus({ finishVariance, spi, plannedPct: plannedPct ?? 0, actualPct: actualPct ?? 0, allDone, counts }) };
   return { summary, phases: phaseRows, items: out, curve };
 }

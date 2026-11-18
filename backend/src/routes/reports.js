@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { parse, dateOnly, toDate, fmtDate, uuid } from '../lib/http.js';
 import { visibleProjectsWhere, ticketsWhere, requireOrg } from '../policies/access.js';
 import { rollup } from '../domain/progress.js';
+import { scheduleSummary } from '../services/planVariance.js';
 import { capacityHours, plannedLoad, utilization } from '../domain/capacity.js';
 import { workingDaysBetween, addDays } from '../domain/calendar.js';
 import { loadSchedule, projectCalendar } from '../services/projectData.js';
@@ -36,8 +37,9 @@ async function portfolio(auth) {
     const logged = await prisma.timeEntry.aggregate({ where: { projectId: p.id }, _sum: { hours: true } });
     const billable = p.billingEnabled ? await prisma.timeEntry.aggregate({ where: { projectId: p.id, billable: true }, _sum: { hours: true } }) : null;
     const isAdminOrMgr = auth.orgRole === 'ADMIN' || (await prisma.projectMember.findFirst({ where: { projectId: p.id, userId: auth.userId, role: 'MANAGER' } }));
+    const sched = await scheduleSummary(p);
     out.push({ id: p.id, code: p.code, name: p.name, status: p.status, health: p.health, customer: p.customerCompany?.name ?? null, plannedFinish: fmtDate(p.plannedFinish),
-      progress: roll.project.percent, milestones: roll.milestones, scheduleVarianceDays: variance, baseline: bl?.name ?? null,
+      progress: sched?.actualPct ?? roll.project.percent, milestones: roll.milestones, scheduleVarianceDays: sched ? sched.finishVariance : variance, baseline: sched ? 'Approved plan' : bl?.name ?? null, schedule: sched?.status ?? null,
       estimateHours: Math.round(est * 10) / 10, actualHours: Number(logged._sum.hours ?? 0),
       ...(isAdminOrMgr && p.budgetAmount != null && { budget: { amount: Number(p.budgetAmount), currency: p.budgetCurrency, consumed: p.hourlyRate && billable ? Math.round(Number(billable._sum.hours ?? 0) * Number(p.hourlyRate) * 100) / 100 : null } }) });
   }

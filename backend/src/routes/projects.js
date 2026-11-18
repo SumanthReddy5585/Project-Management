@@ -38,8 +38,10 @@ r.get('/', async (req, res) => {
     const access = { isCustomer: req.auth.isCustomer, role: req.auth.orgRole === 'ADMIN' ? 'ADMIN' : undefined, can: () => false };
     const vis = (req.auth.isCustomer ? items.filter((i) => i.customerVisible) : items).filter((i) => i.type !== 'MODULE');
     const open = vis.filter((i) => !['DONE', 'CANCELLED'].includes(i.status));
-    out.push(S.project(p, access, { progress: roll.project.percent, milestones: roll.milestones, customerName: p.customerCompany?.name ?? null, managerName: mgr.get(p.managerId) ?? null,
-      ...(!req.auth.isCustomer && { teamSize: p._count.members, planApprovedAt: p.planApprovedAt, schedule: await scheduleSummary(p) }), counts: { total: vis.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length } }));
+    // Once the plan is approved, "progress" means work done on the approved plan (the same number the schedule status uses).
+    const sched = await scheduleSummary(p);
+    out.push(S.project(p, access, { progress: sched?.actualPct ?? roll.project.percent, milestones: roll.milestones, customerName: p.customerCompany?.name ?? null, managerName: mgr.get(p.managerId) ?? null,
+      ...(!req.auth.isCustomer && { teamSize: p._count.members, planApprovedAt: p.planApprovedAt, schedule: sched }), counts: { total: vis.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length } }));
   }
   res.json(paged(out, total, q));
 });
@@ -139,15 +141,16 @@ async function projectDetail(req, access) {
   const today = new Date().toISOString().slice(0, 10);
   const visible = access.isCustomer ? items.filter((i) => i.customerVisible) : items;
   const open = visible.filter((i) => !['DONE', 'CANCELLED'].includes(i.status));
+  const sched = await scheduleSummary(p);
   return S.project(p, access, {
-    progress: roll.project.percent, progressMethod: roll.project.method, milestones: roll.milestones,
+    progress: sched?.actualPct ?? roll.project.percent, progressMethod: sched ? 'APPROVED_PLAN' : roll.project.method, milestones: roll.milestones,
     customerName: customer?.name ?? null, calendarName: calendar?.name ?? null,
     phases: phases.map((ph) => S.phase(ph, access, roll.phase(ph.id).percent)),
     members: members.map((m) => ({ ...S.publicUser(m.user), role: m.role, title: m.user.title, ...(access.internal && { email: m.user.email, department: m.user.department, allocationPct: m.allocationPct }) })),
     counts: { items: visible.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length,
       ...(access.internal && { blocked: open.filter((i) => i.status === 'BLOCKED').length }) },
     readOnly: READ_ONLY_PROJECT.has(p.status),
-    ...(access.internal && { planApprovedAt: p.planApprovedAt, schedule: await scheduleSummary(p) }),
+    ...(access.internal && { planApprovedAt: p.planApprovedAt, schedule: sched }),
   });
 }
 
