@@ -628,3 +628,5 @@ details.more > summary::-webkit-details-marker { display: none; }
 .cmp-table td, .ov-table td { font-size: 0.88rem; } .cmp-table tr.removed td { opacity: 0.6; }
 .ov-table th, .cmp-table th { font-size: 0.72rem; }
 details.explain summary { cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; }
+.cell-input.bad { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }
+.cell-input.pending { border-color: var(--amber) !important; background: #fffbeb; }

@@ -145,7 +145,16 @@ async function projectDetail(req, access) {
   return S.project(p, access, {
     progress: sched?.actualPct ?? roll.project.percent, progressMethod: sched ? 'APPROVED_PLAN' : roll.project.method, milestones: roll.milestones,
     customerName: customer?.name ?? null, calendarName: calendar?.name ?? null,
-    phases: phases.map((ph) => S.phase(ph, access, roll.phase(ph.id).percent)),
+    // A phase's dates are the span of its scheduled work, so they always match the tasks (stored dates only when it has none).
+    phases: phases.map((ph) => {
+      const own = items.filter((i) => i.phaseId === ph.id && i.status !== 'CANCELLED' && i.type !== 'MODULE');
+      const starts = own.map((i) => i.plannedStart || i.plannedFinish).filter(Boolean).sort(); const finishes = own.map((i) => i.plannedFinish || i.plannedStart).filter(Boolean).sort();
+      const out = S.phase(ph, access, roll.phase(ph.id).percent);
+      return starts.length ? { ...out, plannedStart: starts[0], plannedFinish: finishes.at(-1), datesFrom: 'tasks' } : { ...out, datesFrom: 'phase' };
+    }),
+    ...(() => { const live = items.filter((i) => i.status !== 'CANCELLED' && i.type !== 'MODULE');
+      const st = live.map((i) => i.plannedStart || i.plannedFinish).filter(Boolean).sort(); const fi = live.map((i) => i.plannedFinish || i.plannedStart).filter(Boolean).sort();
+      return { workStart: st[0] ?? null, workFinish: fi.at(-1) ?? null }; })(),
     members: members.map((m) => ({ ...S.publicUser(m.user), role: m.role, title: m.user.title, ...(access.internal && { email: m.user.email, department: m.user.department, allocationPct: m.allocationPct }) })),
     counts: { items: visible.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length,
       ...(access.internal && { blocked: open.filter((i) => i.status === 'BLOCKED').length }) },

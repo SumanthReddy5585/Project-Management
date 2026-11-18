@@ -12,6 +12,7 @@ import { rollup } from '../domain/progress.js';
 import { normalizeProgress, READ_ONLY_PROJECT } from '../domain/workflow.js';
 import { wouldCreateCycle, previewShift, scheduleConflicts, criticalPath } from '../domain/dependencies.js';
 import { toCsv } from '../lib/csv.js';
+import { resolveDateChange, DateRuleError } from '../domain/dates.js';
 
 const r = Router({ mergeParams: true });
 const STATUS = z.enum(['TODO', 'IN_PROGRESS', 'BLOCKED', 'IN_REVIEW', 'DONE', 'CANCELLED']);
@@ -198,6 +199,55 @@ r.patch('/work-items/:itemId', async (req, res) => {
     downstream = scheduleConflicts(sched.items, sched.deps, await projectCalendar(a.project)).filter((c) => c.predecessorId === it.id);
   }
   res.json({ ...S.workItem(updated, a, { code: a.project.code }), downstreamConflicts: downstream });
+});
+
+// ----- Change a task's dates (the one path used by the table, the task panel and the plan builder) -----
+// Works out the final dates on the project calendar (moving the start keeps the length), validates them,
+// and finds finish-to-start dependents that would start too early. When there are any, it answers with
+// needsConfirmation and changes nothing until the caller says whether to move them too.
+const datesBody = z.object({ plannedStart: dateOnly.nullable().optional(), plannedFinish: dateOnly.nullable().optional(), version: z.number().int(),
+  moveDependents: z.boolean().optional(), expectedMoves: z.array(z.object({ id: uuid, start: dateOnly, finish: dateOnly })).max(2000).optional() });
+r.post('/work-items/:itemId/dates', async (req, res) => {
+  const a = await workItemAccess(req.auth, req.params.projectId, req.params.itemId);
+  if (!a.can('work.editAny')) throw forbidden('Only project managers can change dates');
+  writable(a);
+  const b = parse(datesBody, req.body);
+  const change = {}; if ('plannedStart' in b) change.plannedStart = b.plannedStart; if ('plannedFinish' in b) change.plannedFinish = b.plannedFinish;
+  const cal = await projectCalendar(a.project);
+  const it = a.item;
+  let next;
+  try { next = resolveDateChange({ type: it.type, plannedStart: fmtDate(it.plannedStart), plannedFinish: fmtDate(it.plannedFinish) }, change, cal); }
+  catch (e) { if (e instanceof DateRuleError) throw badRequest(e.message); throw e; }
+  const findMoves = async (db) => {
+    if (!next.start || !next.finish) return { sched: null, moves: [] };
+    const sched = await loadSchedule(a.project.id, db);
+    return { sched, moves: previewShift(sched.items, sched.deps, it.id, next.start, next.finish, cal) };
+  };
+  const pre = await findMoves(prisma);
+  const named = (moves, sched) => { const by = new Map((sched?.items || []).map((x) => [x.id, x])); return moves.map((m) => ({ id: m.id, number: by.get(m.id)?.number, title: by.get(m.id)?.title, from: m.from, to: m.to })); };
+  if (pre.moves.length && b.moveDependents === undefined) {
+    return res.json({ applied: false, needsConfirmation: true, start: next.start, finish: next.finish, adjusted: next.adjusted, moves: named(pre.moves, pre.sched) });
+  }
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${a.project.id}))`;
+    const n = await tx.workItem.updateMany({ where: { id: it.id, version: b.version }, data: { plannedStart: toDate(next.start), plannedFinish: toDate(next.finish), version: { increment: 1 } } });
+    if (!n.count) throw conflict('This task was changed by someone else. Showing the latest version.');
+    let moved = [];
+    if (b.moveDependents) {
+      const { sched, moves } = await findMoves(tx);
+      const key = (xs) => xs.map((m) => `${m.id}:${m.to?.start ?? m.start}:${m.to?.finish ?? m.finish}`).sort().join('|');
+      if (b.expectedMoves && key(moves) !== key(b.expectedMoves)) throw conflict('The plan changed while you were looking. Please try again.');
+      for (const m of moves) await tx.workItem.update({ where: { id: m.id }, data: { plannedStart: toDate(m.to.start), plannedFinish: toDate(m.to.finish), version: { increment: 1 } } });
+      moved = named(moves, sched);
+    }
+    await audit(tx, req.auth, { action: 'work_item.dates_changed', entityType: 'WorkItem', entityId: it.id, projectId: a.project.id,
+      metadata: { number: it.number, from: { start: fmtDate(it.plannedStart), finish: fmtDate(it.plannedFinish) }, to: { start: next.start, finish: next.finish }, movedDependents: moved.length } }, req.ip);
+    return { item: await tx.workItem.findUnique({ where: { id: it.id } }), moved };
+  });
+  const after = await loadSchedule(a.project.id);
+  const stillEarly = scheduleConflicts(after.items, after.deps, cal).filter((c) => c.predecessorId === it.id).length;
+  res.json({ applied: true, start: next.start, finish: next.finish, adjusted: next.adjusted, moved: result.moved, dependentsStartingTooEarly: stillEarly,
+    item: S.workItem(result.item, a, { code: a.project.code }) });
 });
 
 async function isDescendant(projectId, candidateId, ancestorId) {

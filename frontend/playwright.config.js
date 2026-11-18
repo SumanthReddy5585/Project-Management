@@ -14,6 +14,8 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     trace: 'retain-on-failure',
     ignoreHTTPSErrors: Boolean(process.env.E2E_IGNORE_HTTPS_ERRORS),
-    launchOptions: process.env.PW_CHROME_PATH ? { executablePath: process.env.PW_CHROME_PATH, args: ['--no-sandbox', ...(process.env.PW_NO_PROXY ? ['--no-proxy-server'] : [])] } : {},
+    locale: 'en-GB',
+    // Browser UI language decides the date-field order: dd/mm/yyyy, as the team uses it.
+    launchOptions: { env: { ...process.env, LANG: 'en_GB.UTF-8' }, args: ['--lang=en-GB', ...(process.env.PW_CHROME_PATH ? ['--no-sandbox'] : []), ...(process.env.PW_NO_PROXY ? ['--no-proxy-server'] : [])], ...(process.env.PW_CHROME_PATH && { executablePath: process.env.PW_CHROME_PATH }) },
   },
 });

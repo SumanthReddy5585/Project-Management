@@ -94,3 +94,21 @@ original effort (estimate hours, or equal weights) scheduled to be done by today
 the same items by % complete. SPI = done % ÷ planned %. Added work counts in neither, so new scope cannot hide delays.
 Status: DELAYED if the end slips > 5 working days or SPI < 0.8; AT_RISK if the end slips, any task is overdue/delayed or
 SPI < 0.95; AHEAD if the end moves earlier (SPI ≥ 1) or SPI > 1.1; COMPLETED when all work is done; otherwise ON_TRACK.
+
+## Changing dates (`src/domain/dates.js`, `POST /projects/:id/work-items/:itemId/dates`)
+
+Every date edit (task table, task panel, Gantt drag) goes through one endpoint:
+
+- Only real dates between 2000 and 2100 are accepted (half-typed values such as `0002-12-04` or `2026-02-30` are refused).
+- Moving the **start** keeps the task's length in working days on the project calendar; the due date moves with it.
+- Changing the **due date** keeps the start; a due date before the start is refused with a message.
+- Milestones have one date (start = due).
+- If finish-to-start dependents would start too early, nothing is saved until the user chooses "Move them too"
+  (each keeps its working-day length) or "Only change this task". A stale version is refused (409).
+- A dependent may start on the working day after its predecessor finishes (+ lag); a weekend/holiday finish
+  counts as finished that day (Sat finish → Mon start).
+- Lateness = working days after the planned date up to the actual/expected date (Fri→Mon = 1, Sat→Mon = 1).
+- Phase dates shown in the app are the span of their tasks; `workFinish` is where the scheduled work ends.
+
+In the browser, a date is saved once — on Enter, Tab, leaving the field or picking from the calendar pop-up — never
+while digits are being typed.

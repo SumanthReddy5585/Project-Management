@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Search, Flag, ChevronDown, ChevronRight, ArrowUp, ArrowDown, Upload } from 'lucide-react';
 import { ImportTasksDialog } from './Import.jsx';
+import { DateCell, useDateChange } from './DateChange.jsx';
 import { get, patch, post } from '../../api/client.js';
 import { useLoad, useDebounced } from '../../lib/hooks.js';
 import { useLive } from '../../lib/live.js';
@@ -61,6 +62,10 @@ export function TaskGrid() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, groupBy, project.phases, people]);
 
+  const dates = useDateChange({ project, onChanged: (item) => {
+    if (item) setData((d) => ({ ...d, data: d.data.map((x) => (x.id === item.id ? { ...x, ...item } : x)) })); // new version + dates right away
+    reload({ silent: true }); reloadProject();
+  } });
   const save = async (i, changes) => {
     setData((d) => ({ ...d, data: d.data.map((x) => (x.id === i.id ? { ...x, ...changes } : x)) }));
     try {
@@ -125,8 +130,8 @@ export function TaskGrid() {
                     <td><select className="cell-select fw-semibold" style={{ color: STATUS_COLOR[i.status] }} value={i.status} disabled={!edit} onChange={(e) => save(i, { status: e.target.value })} aria-label={`Status of ${i.title}`}>{STATUSES.map((s) => <option key={s} value={s}>{labelize(s)}</option>)}</select></td>
                     <td>{ms ? <span className="small text-muted">—</span> : <select className="cell-select" value={i.assigneeId || ''} disabled={!editAny} onChange={(e) => save(i, { assigneeId: e.target.value || null })} aria-label={`Assignee of ${i.title}`}><option value="">Unassigned</option>{assignable.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</td>
                     <td><select className={`cell-select prio-${i.priority}`} value={i.priority || 'MEDIUM'} disabled={!editAny} onChange={(e) => save(i, { priority: e.target.value })} aria-label={`Priority of ${i.title}`}>{PRIS.map((p) => <option key={p} value={p}>{priorityLabel(p)}</option>)}</select></td>
-                    <td><input type="date" className="cell-input" value={i.plannedStart || ''} disabled={!editAny} onChange={(e) => save(i, ms ? { plannedStart: e.target.value || null, plannedFinish: e.target.value || null } : { plannedStart: e.target.value || null })} aria-label={`Start of ${i.title}`} /></td>
-                    <td><input type="date" className={`cell-input ${late ? 'late' : ''}`} value={i.plannedFinish || ''} min={i.plannedStart || undefined} disabled={!editAny || ms} onChange={(e) => save(i, { plannedFinish: e.target.value || null })} aria-label={`Due date of ${i.title}`} /></td>
+                    <td><DateCell value={i.plannedStart} disabled={!editAny} label={`${ms ? 'Date' : 'Start'} of ${i.title}`} onCommit={(v) => dates.change(i, ms ? { plannedFinish: v } : { plannedStart: v })} /></td>
+                    <td>{ms ? <span className="small text-muted ps-2">same day</span> : <DateCell value={i.plannedFinish} className={late ? 'late' : ''} min={i.plannedStart || undefined} disabled={!editAny} label={`Due date of ${i.title}`} onCommit={(v) => dates.change(i, { plannedFinish: v })} />}</td>
                     <td className="text-end">{ms ? '—' : <input type="number" min="0" step="0.5" className="cell-input text-end" style={{ width: 58 }} defaultValue={i.estimateHours ?? ''} key={`${i.id}-${i.estimateHours}`} disabled={!editAny} onBlur={(e) => { const v = e.target.value === '' ? null : Number(e.target.value); if (v !== (i.estimateHours ?? null)) save(i, { estimateHours: v }); }} aria-label={`Estimate of ${i.title}`} />}</td>
                     <td className={`text-end small num ${i.estimateHours && i.loggedHours > i.estimateHours ? 'text-danger fw-semibold' : ''}`}>{fmtH(i.loggedHours)}</td>
                     <td><div className="d-flex align-items-center gap-1"><div className="meter flex-grow-1"><span style={{ width: `${i.progress || 0}%`, background: i.status === 'DONE' ? 'var(--green)' : undefined }} /></div><span className="small num" style={{ width: 32 }}>{Math.round(i.progress || 0)}%</span></div></td>
@@ -135,6 +140,7 @@ export function TaskGrid() {
             </tbody>))}
           <tfoot><tr><td colSpan={(editAny ? 1 : 0) + (groupBy !== 'phase' ? 9 : 8)} className="small text-muted">Totals</td><td className="text-end small fw-semibold num">{fmtH(sum(rows, 'estimateHours'))}</td><td className="text-end small fw-semibold num">{fmtH(sum(rows, 'loggedHours'))}</td><td /></tr></tfoot>
         </table></div></div>)}
+      {dates.dialog}
       {importing && <ImportTasksDialog project={project} onClose={() => setImporting(false)} onDone={() => { reload({ silent: true }); reloadProject(); }} />}
       {!editAny && <div className="form-text mt-2">You can change the status of tasks assigned to you. Managers can edit everything.</div>}
     </>

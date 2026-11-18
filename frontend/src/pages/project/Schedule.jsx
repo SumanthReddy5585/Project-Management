@@ -7,6 +7,12 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import { addDaysISO, fmtDate, labelize, todayISO } from '../../lib/format.js';
 import { ErrorBox, Field, Loading, Modal, Notice, Select, StatusBadge, useToast, Empty } from '../../components/ui.jsx';
 import { useProject } from './Workspace.jsx';
+import { useDateChange } from './DateChange.jsx';
+
+// Display-only working-day helpers (Mon–Fri) for the drag preview; the server applies holidays too.
+const isWD = (iso) => { const g = new Date(`${iso}T00:00:00Z`).getUTCDay(); return g !== 0 && g !== 6; };
+const wdBetween = (a, b) => { let n = 0; for (let d = a; d <= b; d = addDaysISO(d, 1)) if (isWD(d)) n++; return n; };
+const keepLength = (s, f, ns) => { const len = Math.max(1, wdBetween(s, f)); let d = ns; while (!isWD(d)) d = addDaysISO(d, 1); for (let k = 1; k < len; k++) { d = addDaysISO(d, 1); while (!isWD(d)) d = addDaysISO(d, 1); } return d; };
 
 const dayDiff = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
 
@@ -70,13 +76,14 @@ export function Timeline() {
   const dragRef = useRef(null);
   dragRef.current = drag;
   const live = useRef({});
+  const dates = useDateChange({ project, onChanged: () => { items.reload({ silent: true }); reloadProject(); } });
   useEffect(() => {
     if (!drag) return undefined;
     const move = (e) => {
       const d = dragRef.current; if (!d) return;
       const n = Math.round((e.clientX - d.x0) / live.current.zoom);
       let ds = d.s; let df = d.f;
-      if (d.mode === 'move') { ds = addDaysISO(d.s, n); df = addDaysISO(d.f, n); }
+      if (d.mode === 'move') { ds = addDaysISO(d.s, n); df = keepLength(d.s, d.f, ds); } // same working-day length (the server applies the project calendar)
       if (d.mode === 'start') { ds = addDaysISO(d.s, n); if (ds > df) ds = df; }
       if (d.mode === 'end') { df = addDaysISO(d.f, n); if (df < ds) df = ds; }
       setDrag({ ...d, ds, df, moved: d.moved || Math.abs(e.clientX - d.x0) > 3 });
@@ -87,22 +94,17 @@ export function Timeline() {
       const item = live.current.byId.get(d.id);
       if (!d.moved) { setMoving(item); return; }
       if (d.ds === d.s && d.df === d.f) return;
-      const finish = item.type === 'MILESTONE' ? d.ds : d.df;
+      // Same rules as everywhere else: moving keeps the working-day length; dependents are moved only after asking.
+      const changes = item.type === 'MILESTONE' ? { plannedFinish: d.ds } : d.mode === 'move' ? { plannedStart: d.ds } : d.mode === 'start' ? { plannedStart: d.ds, plannedFinish: d.f } : { plannedFinish: d.df };
       setBusy(true);
-      try {
-        const pv = await post(`/projects/${project.id}/schedule/preview`, { itemId: d.id, plannedStart: d.ds, plannedFinish: finish });
-        if (pv.moves.length) { setMoving({ ...item, _initial: { start: d.ds, finish, preview: pv } }); return; }
-        await post(`/projects/${project.id}/schedule/apply`, { itemId: d.id, plannedStart: d.ds, plannedFinish: finish, includeDownstream: false, expectedMoves: [] });
-        toast(`${item.title}: ${fmtDate(d.ds)} → ${fmtDate(finish)}`, 'success');
-        items.reload({ silent: true }); reloadProject();
-      } catch (err) { toast(err.message, 'error'); } finally { setBusy(false); }
+      try { await live.current.dates.change(item, changes); } finally { setBusy(false); }
     };
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once: true });
     return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag?.id]);
   const laneXY = (e) => { const b = laneRef.current.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
-  live.current = { zoom, laneXY, byId: live.current.byId };
+  live.current = { zoom, laneXY, byId: live.current.byId, dates };
   const onLinkDown = (e, r) => { e.preventDefault(); e.stopPropagation(); setLink({ fromId: r.id, ...laneXY(e) }); };
   useEffect(() => {
     if (!link) return undefined;
@@ -231,6 +233,7 @@ export function Timeline() {
         </div>
       </div>
       {dated.length === 0 && <div className="form-text mt-2">Add planned dates to work items to see them on the timeline.</div>}
+      {dates.dialog}
       {moving && <RescheduleModal item={moving} initial={moving._initial} onClose={() => setMoving(null)} onApplied={() => { items.reload(); reloadProject(); }} />}
       {selDep && <div className="bulkbar rounded mt-2"><span>Link: <strong>{byId.get(selDep.predecessorId)?.key}</strong> {selDep.type === 'FS' ? 'must finish before' : selDep.type === 'SS' ? 'must start before' : selDep.type === 'FF' ? 'must finish before finishing' : 'starts before finishing'} <strong>{byId.get(selDep.successorId)?.key}</strong>{selDep.lagDays ? ` (+${selDep.lagDays}d lag)` : ''}</span>
         <button className="btn btn-sm btn-outline-danger ms-auto" onClick={() => removeDep(selDep)}>Remove link</button><button className="btn btn-sm btn-ghost" onClick={() => setSelDep(null)}>Close</button></div>}

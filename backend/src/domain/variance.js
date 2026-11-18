@@ -26,14 +26,18 @@
 //     DELAYED  = end date > 5 working days later than the original, or SPI < 0.8 (once >= 10% was due)
 //     AT_RISK  = end date later, any task overdue or slipped past its original finish, or SPI < 0.95
 //     AHEAD    = end date earlier (and SPI >= 1), or SPI > 1.1;  COMPLETED = all original+added work done
-import { workingDaysBetween } from './calendar.js';
+import { workingDaysBetween, addDays } from './calendar.js';
 
 const LEAF = new Set(['TASK', 'SUBTASK', 'MILESTONE']);
 
+/**
+ * Working days from `from` to `to`: the working days after `from` up to and including `to` (negative when
+ * earlier). Fri→Mon = 1, Sat→Mon = 1 (a Saturday finish means "done by Monday morning"), Mon→Mon = 0.
+ */
 export function slipDays(from, to, cal) {
   if (!from || !to) return null;
   if (from === to) return 0;
-  return to > from ? workingDaysBetween(from, to, cal) - 1 : -(workingDaysBetween(to, from, cal) - 1);
+  return to > from ? workingDaysBetween(addDays(from, 1), to, cal) : -workingDaysBetween(addDays(to, 1), from, cal);
 }
 
 const maxDate = (xs) => xs.filter(Boolean).sort().at(-1) ?? null;

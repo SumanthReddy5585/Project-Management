@@ -17,8 +17,12 @@ export function wouldCreateCycle(edges, predecessorId, successorId) {
   return false;
 }
 
-/** Earliest allowed start for a successor of `pred` under FS + lag (working days). */
-export const earliestStartAfter = (predFinish, lag, cal) => addWorkingDays(nextWorkingDay(predFinish, cal), 1 + lag, cal);
+/**
+ * Earliest allowed start for a successor of `pred` under FS + lag: the (1 + lag)-th working day after the
+ * predecessor's finish. A finish on a weekend/holiday counts as finished that day, so the successor may
+ * start on the very next working day (Fri or Sat finish → Monday start, not Tuesday).
+ */
+export const earliestStartAfter = (predFinish, lag, cal) => addWorkingDays(predFinish, 1 + Math.max(0, lag), cal);
 
 /** Items whose planned start violates an FS predecessor. */
 export function scheduleConflicts(items, deps, cal = DEFAULT_CALENDAR) {

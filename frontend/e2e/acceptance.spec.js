@@ -172,3 +172,68 @@ test.describe('planning tools', () => {
     await expect(page.locator('.planner tbody tr').first()).toBeVisible();
   });
 });
+
+test.describe('changing task dates in the table', () => {
+  const shift = (iso, n) => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const ddmmyyyy = (iso) => `${iso.slice(8, 10)}${iso.slice(5, 7)}${iso.slice(0, 4)}`;
+  const toDay = async (input) => { await input.focus(); for (let k = 0; k < 4; k++) await input.press('ArrowLeft'); }; // start at the day part
+  const typeDate = async (page, input, iso) => { await toDay(input); await page.keyboard.type(ddmmyyyy(iso), { delay: 60 }); };
+
+  test('typing a date saves it once, keeps lengths, moves dependents on request and never saves half-typed dates', async ({ page }) => {
+    const calls = [];
+    page.on('request', (r) => { if (r.url().includes('/dates') || (r.method() === 'PATCH' && r.url().includes('/work-items/'))) calls.push(r.postDataJSON()); });
+    await login(page, 'manager@demo.local');
+    await page.goto('/projects');
+    await page.getByRole('link', { name: /Customer Mobile App/ }).first().click();
+    await page.locator('nav.tabs').getByRole('link', { name: 'Tasks' }).click();
+    await page.getByRole('button', { name: 'Table' }).click();
+
+    // 1. Type a new due date digit by digit: exactly one save, with the full date.
+    const due = page.getByLabel('Due date of Push notifications');
+    const oldDue = await due.inputValue();
+    const newDue = shift(oldDue, 3);
+    await typeDate(page, due, newDue);
+    await due.press('Tab');
+    await expect(page.getByText('Push notifications: dates saved')).toBeVisible();
+    expect(calls.length).toBe(1);
+    expect(calls[0]).toMatchObject({ plannedFinish: newDue });
+    await page.reload();
+    await expect(page.getByLabel('Due date of Push notifications')).toHaveValue(newDue);
+
+    // 2. A half-typed date is never saved and the old value comes back.
+    calls.length = 0;
+    const d2 = page.getByLabel('Due date of Push notifications');
+    await toDay(d2); await d2.press('Backspace'); // clears the day: the browser now reports the date as incomplete
+    await d2.press('Tab');
+    await expect(d2).toHaveValue(newDue);
+    expect(calls.length).toBe(0);
+
+    // 3. A due date before the start is refused with a clear message; nothing changes.
+    const start = await page.getByLabel('Start of Push notifications').inputValue();
+    await typeDate(page, d2, shift(start, -2));
+    await d2.press('Tab');
+    await expect(page.getByText(/can't be before the start date/)).toBeVisible();
+    await expect(d2).toHaveValue(newDue);
+
+    // 4. Moving the start of a task that others depend on: the due date keeps the length and dependents move after confirming.
+    const pay = page.getByLabel('Start of Payments & transfers API');
+    const payStart = await pay.inputValue(); const payDue = await page.getByLabel('Due date of Payments & transfers API').inputValue();
+    const pen = await page.getByLabel('Start of Security penetration test').inputValue();
+    await typeDate(page, pay, shift(payStart, 7));
+    await pay.press('Tab');
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Move the tasks that depend on');
+    await expect(dialog).toContainText('Security penetration test');
+    await dialog.getByRole('button', { name: /^Move \d+ tasks? too$/ }).click();
+    await expect(page.getByText(/Payments & transfers API: Due date moved to .* dependent task/)).toBeVisible();
+    await page.reload();
+    expect(await page.getByLabel('Start of Payments & transfers API').inputValue()).toBe(shift(payStart, 7));
+    expect(await page.getByLabel('Due date of Payments & transfers API').inputValue()).toBe(shift(payDue, 7)); // same weekday, same length
+    expect(await page.getByLabel('Start of Security penetration test').inputValue() > pen).toBe(true);
+
+    // 5. The Plan tab now reports the moved work against the approved plan.
+    await page.locator('nav.tabs').getByRole('link', { name: 'Plan vs original' }).click();
+    await page.getByRole('tab', { name: /Late/ }).click();
+    await expect(page.locator('.cmp-table')).toContainText('Payments & transfers API');
+  });
+});

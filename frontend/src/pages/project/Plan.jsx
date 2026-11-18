@@ -35,7 +35,9 @@ function QuickAdd({ onAdded }) {
   const { project, people } = useProject();
   const toast = useToast();
   const assignable = people.filter((m) => ['MANAGER', 'MEMBER'].includes(m.role));
-  const blank = (keep = {}) => ({ type: 'TASK', title: '', phaseId: keep.phaseId ?? project.phases[0]?.id ?? '', assigneeId: keep.assigneeId ?? '', plannedStart: keep.plannedFinish ?? '', plannedFinish: '', estimateHours: '' });
+  // The next row starts on the working day after the previous one ends (Mon–Fri).
+  const nextDay = (iso) => { if (!iso) return ''; const d = new Date(`${iso}T00:00:00Z`); do d.setUTCDate(d.getUTCDate() + 1); while ([0, 6].includes(d.getUTCDay())); return d.toISOString().slice(0, 10); };
+  const blank = (keep = {}) => ({ type: 'TASK', title: '', phaseId: keep.phaseId ?? project.phases[0]?.id ?? '', assigneeId: keep.assigneeId ?? '', plannedStart: nextDay(keep.plannedFinish), plannedFinish: '', estimateHours: '' });
   const [f, setF] = useState(blank());
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -63,7 +65,7 @@ function QuickAdd({ onAdded }) {
         <button className="btn btn-sm btn-primary qa-btn" disabled={busy || !f.title.trim()}><Plus size={14} /> Add {ms ? 'milestone' : 'task'}</button>
       </div>
       {err && <div className="small text-danger mt-1">{err.message}</div>}
-      <div className="form-text">Press Enter to add. Phase, person and the next start date are kept so you can enter the plan row after row. Edit anything in the table below, link tasks on the <Link to="../tasks">Gantt</Link>, or import a CSV.</div>
+      <div className="form-text">Press Enter to add. Phase and person are kept, and the next task starts the working day after this one ends, so you can enter the plan row after row. Edit anything in the table below, link tasks on the <Link to="../tasks">Gantt</Link>, or import a CSV.</div>
     </form>
   );
 }
@@ -162,6 +164,8 @@ export function StatusBanner({ project: p, plan, burn, link = false }) {
           <div className="k">{s ? 'Planned end date' : 'Target end date'}</div>
           <div className="v sm">{fmtDate(s?.originalFinish || p.plannedFinish)}</div>
           {s && <div className={`sub ${s.finishVariance > 0 ? 'text-danger fw-semibold' : ''}`}>{s.status === 'COMPLETED' ? 'Finished' : 'Expected'}: {fmtDate(s.forecastFinish)}{s.finishVariance ? ` (${diffText(s.finishVariance)})` : ''}</div>}
+          {!s && p.workFinish && p.workFinish > p.plannedFinish && <div className="sub text-danger fw-semibold">The tasks currently end on {fmtDate(p.workFinish)} — after this date</div>}
+          {!s && p.workFinish && p.workFinish <= p.plannedFinish && <div className="sub">The tasks currently end on {fmtDate(p.workFinish)}</div>}
         </div>
         <div className="sb-fact">
           {s ? <>

@@ -8,6 +8,7 @@ import { fmtDate, fmtHours, labelize } from '../../lib/format.js';
 import { Drawer, ErrorBox, Loading, StatusBadge, Meter, Select, useToast, ConfirmButton, Notice, CheckButton, DueChip, Avatar, STATUS_TONE } from '../../components/ui.jsx';
 import { CommentThread, FileList } from '../../components/collab.jsx';
 import { useProject } from './Workspace.jsx';
+import { useDateChange } from './DateChange.jsx';
 
 const STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE', 'CANCELLED'];
 const TYPE_NAME = { TASK: 'Task', SUBTASK: 'Subtask', MODULE: 'Group', MILESTONE: 'Milestone', PHASE: 'Phase' };
@@ -17,9 +18,10 @@ function InlineField({ value, display, type = 'text', canEdit, onSave, label, ..
   const [editing, setEditing] = useState(false);
   if (!canEdit) return <span>{display ?? (value || '—')}</span>;
   if (!editing) return <button type="button" className="btn btn-ghost btn-sm px-2 py-1 text-start" onClick={() => setEditing(true)} aria-label={`Change ${label}`}>{display ?? (value || <span className="text-muted">Add</span>)}</button>;
-  const commit = (v) => { setEditing(false); if (v !== (value ?? '')) onSave(v); };
+  // A half-typed date reads as "" in the browser: cancel instead of clearing the date.
+  const commit = (el) => { setEditing(false); if (type === 'date' && el.validity?.badInput) return; if (el.value !== (value ?? '')) onSave(el.value); };
   return <input autoFocus type={type} aria-label={label} className="form-control form-control-sm" style={{ maxWidth: 220 }} defaultValue={value ?? ''} {...rest}
-    onBlur={(e) => commit(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') commit(e.currentTarget.value); if (e.key === 'Escape') setEditing(false); }} />;
+    onBlur={(e) => commit(e.target)} onKeyDown={(e) => { if (e.key === 'Enter') commit(e.currentTarget); if (e.key === 'Escape') setEditing(false); }} />;
 }
 
 function TextBlock({ title, value, canEdit, onSave, placeholder }) {
@@ -44,6 +46,7 @@ export function WorkItemDrawer({ itemId, onClose }) {
   const [titleDraft, setTitleDraft] = useState(null);
   const all = useLoad(() => (itemId && !isCustomer ? get(`/projects/${project.id}/work-items`, { all: 'true' }) : Promise.resolve(null)), [itemId]);
   useEffect(() => { setTitleDraft(null); setSub(''); }, [itemId]);
+  const dates = useDateChange({ project, onChanged: (item) => { if (item) setData((d) => ({ ...d, ...item })); reload(); reloadProject(); } });
   if (!itemId) return null;
   const save = async (changes) => {
     const version = it.version;
@@ -91,9 +94,9 @@ export function WorkItemDrawer({ itemId, onClose }) {
           {!isCustomer && it.type !== 'MILESTONE' && <><dt>Assigned to</dt><dd>{manager && canEdit
             ? <Select aria-label="Assigned to" value={it.assigneeId} onChange={(v) => save({ assigneeId: v || null })} placeholder="Nobody yet" options={assignable.map((m) => ({ value: m.id, label: m.name }))} />
             : assignee ? <span className="d-inline-flex align-items-center gap-2"><Avatar sm name={assignee.name} />{assignee.name}</span> : 'Nobody yet'}</dd></>}
-          {it.type !== 'MILESTONE' && <><dt>Start</dt><dd><InlineField label="start date" type="date" canEdit={manager && canEdit} value={it.plannedStart} display={it.plannedStart ? fmtDate(it.plannedStart) : undefined} onSave={(v) => save({ plannedStart: v || null })} /></dd></>}
+          {it.type !== 'MILESTONE' && <><dt>Start</dt><dd><InlineField label="start date" type="date" canEdit={manager && canEdit} value={it.plannedStart} display={it.plannedStart ? fmtDate(it.plannedStart) : undefined} onSave={(v) => dates.change(it, { plannedStart: v || null })} /></dd></>}
           <dt>{it.type === 'MILESTONE' ? 'Date' : 'Due'}</dt><dd><InlineField label="due date" type="date" canEdit={manager && canEdit} value={it.plannedFinish} min={it.plannedStart || undefined} display={it.plannedFinish ? <DueChip date={it.plannedFinish} done={done} /> : undefined}
-            onSave={(v) => save(it.type === 'MILESTONE' ? { plannedStart: v || null, plannedFinish: v || null } : { plannedFinish: v || null })} /></dd>
+            onSave={(v) => dates.change(it, { plannedFinish: v || null })} /></dd>
           {!isCustomer && leaf && it.type !== 'MILESTONE' && <><dt>Estimate</dt><dd><InlineField label="estimate in hours" type="number" min="0" step="0.5" canEdit={manager && canEdit} value={it.estimateHours ?? ''} display={it.estimateHours != null ? `${fmtHours(it.estimateHours)} · ${fmtHours(it.actualHours)} logged` : undefined} onSave={(v) => save({ estimateHours: v === '' ? null : Number(v) })} /></dd></>}
           {!isCustomer && <><dt>Priority</dt><dd>{manager && canEdit
             ? <Select aria-label="Priority" value={it.priority} onChange={(v) => v && save({ priority: v })} options={['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((v) => ({ value: v, label: labelize(v) }))} />
@@ -151,6 +154,7 @@ export function WorkItemDrawer({ itemId, onClose }) {
         <h3 className="h-section mt-4">Comments</h3>
         <CommentThread targetType="workItem" targetId={it.id} people={people} />
       </>}
+      {dates.dialog}
     </Drawer>
   );
 }

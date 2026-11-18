@@ -45,3 +45,18 @@ describe('capacity', () => {
     expect(utilization(40, 50).state).toBe('OVER');
   });
 });
+
+describe('successor start after a weekend or holiday finish', () => {
+  it('starts on the next working day, never one too late', async () => {
+    const { earliestStartAfter } = await import('../../src/domain/dependencies.js');
+    const { makeCalendar } = await import('../../src/domain/calendar.js');
+    const cal = makeCalendar({ holidays: ['2026-12-25'] });
+    expect(earliestStartAfter('2026-11-27', 0, cal)).toBe('2026-11-30'); // Fri -> Mon
+    expect(earliestStartAfter('2026-11-28', 0, cal)).toBe('2026-11-30'); // Sat -> Mon (was Tue)
+    expect(earliestStartAfter('2026-11-29', 0, cal)).toBe('2026-11-30'); // Sun -> Mon
+    expect(earliestStartAfter('2026-11-24', 0, cal)).toBe('2026-11-25'); // Tue -> Wed
+    expect(earliestStartAfter('2026-11-24', 2, cal)).toBe('2026-11-27'); // + 2 days lag
+    expect(earliestStartAfter('2026-12-24', 0, cal)).toBe('2026-12-28'); // Thu before Christmas -> Mon
+    expect(earliestStartAfter('2026-12-25', 0, cal)).toBe('2026-12-28'); // holiday finish -> next working day
+  });
+});

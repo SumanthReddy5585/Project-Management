@@ -181,3 +181,61 @@ describe('original plan: build, approve & lock, compare', () => {
   });
 });
 
+describe('changing task dates', () => {
+  let P; let A; let B; let C;
+  const addWD = (iso, n) => { const d = new Date(`${iso}T00:00:00Z`); let k = n; while (k > 0) { d.setUTCDate(d.getUTCDate() + 1); if (![0, 6].includes(d.getUTCDay())) k--; } return d.toISOString().slice(0, 10); };
+  const monday = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + 14); while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+  it('sets up a chain A -> B -> C', async () => {
+    const me = await pm.get('/api/auth/me');
+    P = await pm.post('/api/projects', { name: 'Dates', code: 'DTS', managerId: me.user.id, plannedStart: today, plannedFinish: plus(90), status: 'ACTIVE' });
+    A = await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'A', plannedStart: monday, plannedFinish: addWD(monday, 4) });
+    B = await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'B', plannedStart: addWD(monday, 5), plannedFinish: addWD(monday, 9) });
+    C = await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'C', plannedStart: addWD(monday, 10), plannedFinish: addWD(monday, 12) });
+    await pm.post(`/api/projects/${P.id}/dependencies`, { predecessorId: A.id, successorId: B.id, type: 'FS' });
+    await pm.post(`/api/projects/${P.id}/dependencies`, { predecessorId: B.id, successorId: C.id, type: 'FS' });
+  });
+  it('rejects half-typed and impossible dates', async () => {
+    await expectStatus(pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: '0001-12-04', version: A.version }), 422);
+    await expectStatus(pm.patch(`/api/projects/${P.id}/work-items/${A.id}`, { plannedFinish: '2026-02-30', version: A.version }), 422);
+    await expectStatus(pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: new Date(Date.parse(`${monday}T00:00:00Z`) - 3 * 864e5).toISOString().slice(0, 10), version: A.version }), 400);
+    const still = await pm.get(`/api/projects/${P.id}/work-items/${A.id}`);
+    expect([still.plannedStart, still.plannedFinish]).toEqual([monday, addWD(monday, 4)]);
+  });
+  it('moving the start keeps the length; dependents need confirmation and then move', async () => {
+    const newStart = addWD(monday, 2);
+    const ask = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedStart: newStart, version: A.version });
+    expect(ask).toMatchObject({ applied: false, needsConfirmation: true, start: newStart, finish: addWD(monday, 6) });
+    expect(ask.adjusted).toMatchObject({ finish: addWD(monday, 6), days: 5 });
+    expect(ask.moves.map((m) => m.title).sort()).toEqual(['B', 'C']);
+    const unchanged = await pm.get(`/api/projects/${P.id}/work-items/${A.id}`);
+    expect(unchanged.version).toBe(A.version);
+    const done = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedStart: newStart, version: A.version, moveDependents: true, expectedMoves: ask.moves.map((m) => ({ id: m.id, start: m.to.start, finish: m.to.finish })) });
+    expect(done).toMatchObject({ applied: true, dependentsStartingTooEarly: 0 });
+    expect(done.moved.length).toBe(2);
+    const b = await pm.get(`/api/projects/${P.id}/work-items/${B.id}`);
+    expect(b.plannedStart > addWD(monday, 6)).toBe(true);
+    expect(b.plannedFinish).toBe(addWD(b.plannedStart, 4)); // B keeps its 5 working days
+    // stale version is refused
+    await expectStatus(pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: addWD(monday, 20), version: A.version, moveDependents: false }), 409);
+  });
+  it('"only this task" leaves dependents and reports the clash; earlier dates never need confirmation', async () => {
+    const a = await pm.get(`/api/projects/${P.id}/work-items/${A.id}`);
+    const r = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: addWD(a.plannedFinish, 10), version: a.version, moveDependents: false });
+    expect(r).toMatchObject({ applied: true, moved: [] });
+    expect(r.dependentsStartingTooEarly).toBe(1);
+    const back = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: a.plannedFinish, version: r.item.version });
+    expect(back).toMatchObject({ applied: true, dependentsStartingTooEarly: 0 });
+  });
+  it('phase dates follow their tasks and the project reports where the work ends', async () => {
+    const d = await pm.get(`/api/projects/${P.id}`);
+    const all = (await pm.get(`/api/projects/${P.id}/work-items?all=true`)).data.filter((i) => i.type !== 'MODULE');
+    expect(d.workFinish).toBe(all.map((i) => i.plannedFinish).filter(Boolean).sort().at(-1));
+    for (const ph of d.phases.filter((x) => x.datesFrom === 'tasks')) {
+      const own = all.filter((i) => i.phaseId === ph.id);
+      expect(ph.plannedStart).toBe(own.map((i) => i.plannedStart || i.plannedFinish).filter(Boolean).sort()[0]);
+      expect(ph.plannedFinish).toBe(own.map((i) => i.plannedFinish).filter(Boolean).sort().at(-1));
+    }
+    await expectStatus(dev.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: plus(30), version: 99 }), 404); // not on the team
+  });
+});
+

@@ -57,3 +57,14 @@ describe('project summary', () => {
     expect(compareToOriginal({ current, original, today: '2026-11-18', cal }).summary).toMatchObject({ status: 'ON_TRACK', finishVariance: 0, plannedPct: 0 });
   });
 });
+
+describe('lateness in working days around weekends', () => {
+  it('counts the working days after the planned date', () => {
+    expect(slipDays('2026-11-27', '2026-11-30', cal)).toBe(1);  // Fri -> Mon
+    expect(slipDays('2026-11-28', '2026-11-30', cal)).toBe(1);  // Sat -> Mon (was 0)
+    expect(slipDays('2026-11-27', '2026-11-28', cal)).toBe(0);  // Fri -> Sat: no working day lost
+    expect(slipDays('2026-11-30', '2026-11-27', cal)).toBe(-1); // Mon -> Fri: 1 day early
+    expect(slipDays('2026-11-30', '2026-12-07', cal)).toBe(5);  // one week
+    expect(slipDays('2026-12-07', '2026-11-30', cal)).toBe(-5);
+  });
+});
