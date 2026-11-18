@@ -42,7 +42,6 @@ function GlobalSearch() {
       <Search size={16} className="icon" aria-hidden="true" />
       <input id="global-search" className="form-control" placeholder="Search..." value={q} aria-label="Search" autoComplete="off"
         onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)} />
-      {!q && <kbd>Ctrl K</kbd>}
       {open && res && (
         <div className="search-results">
           {total === 0 && <div className="p-3 small text-muted">No matches for “{dq}”.</div>}
@@ -218,17 +217,14 @@ export default function Layout() {
           <Link to="/" aria-label={`${APP_NAME} home`}><BrandLogo /></Link>
           <button className="btn btn-ghost btn-sm btn-icon" onClick={toggle} aria-label="Collapse sidebar" title="Collapse sidebar"><PanelLeft size={16} /></button>
         </div>
-        <GlobalSearch />
         <nav>
           {isCustomer ? <>
             <NavItem to="/" icon={Home} end>Home</NavItem>
-            <NavItem to="/notifications" icon={Bell}>Notifications</NavItem>
             <div className="sec">Workspace</div>
             <NavItem to="/projects" icon={FolderKanban}>My projects</NavItem>
             <NavItem to="/tickets" icon={Inbox} count={views?.open}>My tickets</NavItem>
             <NavItem to="/kb" icon={BookOpen}>Help center</NavItem>
           </> : <>
-            <NavItem to="/notifications" icon={Bell}>Notifications</NavItem>
             <NavItem to="/" icon={LayoutDashboard} end>Dashboard</NavItem>
             <NavItem to="/my-tasks" icon={UserCheck}>Assigned to me</NavItem>
             <NavItem to="/projects" icon={FolderKanban} end>Projects</NavItem>
@@ -253,6 +249,7 @@ export default function Layout() {
           <header className="page-bar">
             <button className={`btn btn-ghost btn-sm btn-icon side-toggle ${collapsed ? '' : 'd-lg-none'}`} onClick={toggle} aria-label={collapsed ? 'Expand sidebar' : 'Open menu'} title="Sidebar"><PanelLeft size={16} /></button>
             <PageCrumb isCustomer={isCustomer} />
+            <GlobalSearch />
             <div className="right">
               <LiveBadge />
               <NewMenu />
