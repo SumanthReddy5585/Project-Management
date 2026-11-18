@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Plus, ChevronRight, ChevronDown, List, Columns3, GanttChart, CalendarDays, Download, Lock, AlertTriangle, Flag, ListChecks, X, Table2, Upload } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, Download, Lock, AlertTriangle, Flag, ListChecks, X, Upload } from 'lucide-react';
 import { get, post, patch, download } from '../../api/client.js';
 import { useLive } from '../../lib/live.js';
 import { useLoad, useDebounced } from '../../lib/hooks.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { labelize, todayISO } from '../../lib/format.js';
 import { setDone } from '../../lib/tasks.js';
-import { Avatar, CheckButton, DueChip, Empty, ErrorBox, Field, Loading, Meter, Modal, PriorityBadge, Segmented, Select, StatusBadge, fieldErrors, useToast, Card } from '../../components/ui.jsx';
+import { Avatar, CheckButton, DueChip, Empty, ErrorBox, Field, Loading, Meter, Modal, PriorityBadge, PriorityIcon, TypeIcon, Segmented, Select, StatusBadge, fieldErrors, useToast, Card } from '../../components/ui.jsx';
 import { useProject } from './Workspace.jsx';
 import { Timeline, CalendarView } from './Schedule.jsx';
 import { TaskGrid } from './Grid.jsx';
@@ -171,12 +171,14 @@ function TaskList() {
                 {r.type === 'MODULE' ? <button className="btn btn-ghost btn-icon p-0" aria-label={collapsed.has(r.id) ? 'Show tasks in group' : 'Hide tasks in group'} onClick={() => setCollapsed((c) => { const n = new Set(c); n.has(r.id) ? n.delete(r.id) : n.add(r.id); return n; })}>{collapsed.has(r.id) ? <ChevronRight size={18} /> : <ChevronDown size={18} />}</button>
                   : r.type === 'MILESTONE' ? <Flag size={19} className={done ? 'text-success' : 'text-warning'} aria-label="Milestone" />
                   : <CheckButton done={done} label={r.title} onToggle={() => toggleDone(r)} disabled={isCustomer || project.readOnly || r.kidCount > 0} />}
-                <button className="title" onClick={() => openItem(r.id)} style={r.type === 'MODULE' ? { fontWeight: 800 } : undefined}>{r.title}</button>
+                <TypeIcon type={r.type} />
+                <span className="mono" style={{ minWidth: 64, color: 'var(--muted)', fontSize: '0.8125rem' }}>{r.key}</span>
+                <button className="title" onClick={() => openItem(r.id)} style={r.type === 'MODULE' ? { fontWeight: 600 } : undefined}>{r.title}</button>
                 {r.kidCount > 0 && <span className="small text-muted">{Math.round(r.progress ?? 0)}%</span>}
                 {!isCustomer && !r.customerVisible && project.customerVisible && <Lock size={13} className="text-muted flex-shrink-0" aria-label="Hidden from client" title="Hidden from client" />}
                 {r.scheduleConflict && <AlertTriangle size={14} className="text-warning flex-shrink-0" aria-label="Starts before the task it waits for finishes" title="Starts before the task it waits for finishes" />}
-                {!['TODO', 'DONE'].includes(r.status) && <StatusBadge status={r.status} />}
-                {r.priority && ['HIGH', 'CRITICAL'].includes(r.priority) && !done && <PriorityBadge priority={r.priority} />}
+                <StatusBadge status={r.status} />
+                {!isCustomer && r.priority && <PriorityIcon priority={r.priority} />}
                 {r.plannedFinish && <span className={late ? '' : ''}><DueChip date={r.plannedFinish} done={done} /></span>}
                 {!isCustomer && (r.assigneeId ? <Avatar sm name={names.get(r.assigneeId)} /> : r.type !== 'MILESTONE' && r.type !== 'MODULE' && <span className="avatar sm" style={{ background: 'var(--surface-soft)', color: 'var(--muted)' }} title="Not assigned">?</span>)}
                 {canCreate && CHILD_TYPES[r.type] && <button className="btn btn-ghost btn-icon p-1" aria-label={`Add inside ${r.title}`} title={r.type === 'TASK' ? 'Add a subtask' : 'Add a task to this group'} onClick={() => setCreating({ parent: r })}><Plus size={15} /></button>}
@@ -190,12 +192,15 @@ function TaskList() {
 
 export function Board() {
   const { project, can, people, openItem } = useProject();
+  const { user, isCustomer } = useAuth();
   const toast = useToast();
   const [over, setOver] = useState(null);
-  const [mine, setMine] = useState('all');
-  const { data, error, loading, reload, setData } = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true', type: 'TASK,SUBTASK', assigneeId: mine === 'me' ? 'me' : undefined }), [project.id, mine]);
+  const [q, setQ] = useState('');
+  const [who, setWho] = useState(() => new Set());
+  const { data, error, loading, reload, setData } = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true', type: 'TASK,SUBTASK,MILESTONE' }), [project.id]);
   useLive((e) => e.type === 'work.changed' && e.projectId === project.id && !e.self, () => reload({ silent: true }), [project.id]);
   const names = new Map(people.map((m) => [m.id, m.name]));
+  const phase = new Map(project.phases.map((ph) => [ph.id, ph.name]));
   const move = async (id, status) => {
     const it = data.data.find((x) => x.id === id);
     if (!it || it.status === status) return;
@@ -203,23 +208,47 @@ export function Board() {
     try { await patch(`/projects/${project.id}/work-items/${id}`, { status, version: it.version }); reload(); }
     catch (e) { toast(e.status === 403 ? 'You can only move tasks assigned to you' : e.message, 'error'); reload(); }
   };
-  const cols = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', ...((data?.data || []).some((i) => i.status === 'BLOCKED') ? ['BLOCKED'] : [])];
+  const items = (data?.data || []).filter((i) => (!q || `${i.key} ${i.title}`.toLowerCase().includes(q.toLowerCase())) && (!who.size || who.has(i.assigneeId || 'none')));
+  const cols = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE', ...(items.some((i) => i.status === 'BLOCKED') ? ['BLOCKED'] : [])];
+  const today = todayISO();
+  const assignees = people.filter((m) => ['MANAGER', 'MEMBER'].includes(m.role));
+  const toggleWho = (id) => setWho((w) => { const n = new Set(w); n.has(id) ? n.delete(id) : n.add(id); return n; });
   return (
     <>
-      <div className="filters"><Segmented label="Whose tasks" value={mine} onChange={setMine} options={[['all', 'Everyone'], ['me', 'Mine']]} /><span className="small text-muted">Drag cards between columns to update them.</span></div>
+      <div className="filters">
+        <div className="position-relative" style={{ width: 200 }}><input className="form-control" placeholder="Search board" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search board" /></div>
+        {!isCustomer && <div className="avatar-stack ms-2" role="group" aria-label="Filter by person">{assignees.slice(0, 8).map((m) => (
+          <button key={m.id} type="button" className="btn p-0 border-0" style={{ borderRadius: '50%', marginLeft: -4, boxShadow: who.has(m.id) ? '0 0 0 2px var(--brand)' : 'none', zIndex: who.has(m.id) ? 2 : 1 }}
+            aria-pressed={who.has(m.id)} title={m.name} aria-label={`Show ${m.name}'s tasks`} onClick={() => toggleWho(m.id)}><Avatar name={m.name} /></button>))}</div>}
+        {!isCustomer && <button className={`btn btn-sm ${who.size === 1 && who.has(user.id) ? 'btn-outline-primary' : 'btn-light'}`} onClick={() => setWho(who.size === 1 && who.has(user.id) ? new Set() : new Set([user.id]))}>Only my tasks</button>}
+        {(who.size > 0 || q) && <button className="btn btn-sm btn-ghost" onClick={() => { setWho(new Set()); setQ(''); }}>Clear filters</button>}
+        <span className="small text-muted ms-auto">Drag cards between columns to change their status.</span>
+      </div>
       <ErrorBox error={error} />
       {loading && !data ? <Loading /> : (
         <div className="board">{cols.map((s) => {
-          const items = (data?.data || []).filter((i) => i.status === s);
+          const list = items.filter((i) => i.status === s);
           return (
             <section key={s} className={`board-col ${over === s ? 'drop' : ''}`} aria-label={labelize(s)} onDragOver={(e) => { e.preventDefault(); setOver(s); }} onDragLeave={() => setOver(null)} onDrop={(e) => { e.preventDefault(); setOver(null); move(e.dataTransfer.getData('text/plain'), s); }}>
-              <h3><StatusBadge status={s} /><span className="text-muted">{items.length}</span></h3>
-              {items.map((i) => (
-                <article key={i.id} className="board-card" draggable={!project.readOnly} onDragStart={(e) => e.dataTransfer.setData('text/plain', i.id)}>
-                  <button className="title btn btn-link p-0 text-start text-decoration-none d-block" onClick={() => openItem(i.id)}>{i.title}</button>
-                  <div className="d-flex justify-content-between align-items-center">{i.assigneeId ? <Avatar sm name={names.get(i.assigneeId)} /> : <span className="small text-muted">Unassigned</span>}<DueChip date={i.plannedFinish} done={s === 'DONE'} /></div>
-                  {i.progress > 0 && s !== 'DONE' && <div className="mt-2"><Meter value={i.progress} /></div>}
-                </article>))}
+              <h3><StatusBadge status={s} /><span className="n">{list.length}</span></h3>
+              {list.map((i) => {
+                const done = i.status === 'DONE';
+                return (
+                  <article key={i.id} className={`board-card ${done ? 'done' : ''}`} draggable={!project.readOnly} onDragStart={(e) => e.dataTransfer.setData('text/plain', i.id)} onClick={() => openItem(i.id)}>
+                    <button className="title" onClick={(e) => { e.stopPropagation(); openItem(i.id); }}>{i.title}</button>
+                    {(i.phaseId && phase.get(i.phaseId)) && <div className="chips"><span className="epic" title="Stage">{phase.get(i.phaseId)}</span></div>}
+                    <div className="foot">
+                      <TypeIcon type={i.type} />
+                      <span className="key">{i.key}</span>
+                      {i.plannedFinish && !done && <DueChip date={i.plannedFinish} done={done} />}
+                      <span className="ms-auto d-inline-flex align-items-center gap-1">
+                        {!isCustomer && i.priority && <PriorityIcon priority={i.priority} />}
+                        {!isCustomer && (i.assigneeId ? <Avatar name={names.get(i.assigneeId)} title={names.get(i.assigneeId)} /> : <span className="avatar avatar-empty" title="Unassigned">?</span>)}
+                      </span>
+                    </div>
+                    {i.plannedFinish && i.plannedFinish < today && !done && <span className="visually-hidden">Overdue</span>}
+                  </article>);
+              })}
             </section>);
         })}</div>)}
       {!can('work.editAny') && <div className="form-text mt-2">You can move tasks assigned to you.</div>}
@@ -227,20 +256,11 @@ export function Board() {
   );
 }
 
-export function TasksTab() {
-  const { isCustomer } = useAuth();
-  const [view, setView] = useState(() => { try { return localStorage.getItem('meridian.taskView') || 'list'; } catch { return 'list'; } });
-  const choose = (v) => { setView(v); try { localStorage.setItem('meridian.taskView', v); } catch { /* private mode */ } };
-  const options = [['list', 'List', List], ...(isCustomer ? [] : [['grid', 'Table', Table2], ['board', 'Board', Columns3], ['timeline', 'Gantt', GanttChart]]), ['calendar', 'Calendar', CalendarDays]];
-  const current = options.some((o) => o[0] === view) ? view : 'list';
-  return (
-    <>
-      <div className="mb-3"><Segmented label="View" value={current} onChange={choose} options={options} /></div>
-      {current === 'list' && <TaskList />}
-      {current === 'grid' && <TaskGrid />}
-      {current === 'board' && <Board />}
-      {current === 'timeline' && <Timeline />}
-      {current === 'calendar' && <CalendarView />}
-    </>
-  );
-}
+/** Backlog: every task grouped by stage (quick add, bulk edit, sub-tasks). */
+export function TasksTab() { return <TaskList />; }
+/** Jira-style board: drag cards between status columns. */
+export function BoardTab() { return <Board />; }
+/** Spreadsheet list: inline editing of names, owners, dates and estimates. */
+export function ListTab() { return <TaskGrid />; }
+export function TimelineTab() { return <Timeline />; }
+export function CalendarTab() { return <CalendarView />; }

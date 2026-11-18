@@ -4,6 +4,16 @@ import { test, expect } from '@playwright/test';
 const PW = process.env.E2E_PASSWORD || 'Demo-pass-2026';
 const code = `E${Date.now().toString(36).slice(-6).toUpperCase()}`;
 
+/** Open a project section: a visible tab, or an entry under "More". */
+async function projectTab(page, name) {
+  const nav = page.locator('nav.proj-tabs');
+  await nav.getByRole('link', { name: 'Summary' }).waitFor();
+  const link = nav.getByRole('link', { name });
+  if (await link.count()) return link.first().click();
+  await nav.locator('.more-wrap > button').click();
+  await page.getByRole('menuitem', { name }).click();
+}
+
 async function login(page, email) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(email);
@@ -62,15 +72,15 @@ test.describe.serial('manager → client → request workflow', () => {
     await expect(page.locator('.status-banner')).toContainText('On schedule');
 
     // one task shared with the client and one team-only task, added with quick-add
-    await page.locator('nav.tabs').getByRole('link', { name: /^Team/ }).click();
+    await projectTab(page, /^Team/);
     await expect(page.getByRole('cell', { name: /Ravi Developer/ })).toBeVisible();
-    await page.getByRole('link', { name: 'Tasks', exact: true }).click();
+    await projectTab(page, 'Backlog');
     for (const [title, shared] of [['Shared onboarding task', true], ['Internal pricing review', false]]) {
       await page.getByRole('button', { name: title, exact: true }).click();
-      const share = page.locator('.drawer').getByRole('switch');
+      const share = page.locator('.issue').getByRole('switch');
       if (shared) await share.check(); else await expect(share).not.toBeChecked();
       await expect(share).toBeChecked({ checked: shared });
-      await page.getByRole('button', { name: 'Close panel' }).click();
+      await page.locator('.issue').getByRole('button', { name: 'Close', exact: true }).click();
     }
     // tick one off from the list
     await page.getByRole('button', { name: 'Mark Internal pricing review as done' }).first().click();
@@ -166,16 +176,15 @@ test.describe('planning tools', () => {
     await login(page, 'manager@demo.local');
     await page.goto('/projects');
     await page.getByRole('link', { name: /Contoso Store Modernization/ }).first().click();
-    await page.locator('nav.tabs').getByRole('link', { name: 'Tasks' }).click();
-    await page.getByRole('button', { name: 'Table' }).click();
+    await projectTab(page, 'List');
     const status = page.getByLabel('Status of Requirements specification');
     await status.selectOption('IN_REVIEW');
     await expect(page.getByText(/Someone else changed|can only update/)).toHaveCount(0);
     await page.reload();
     await expect(page.getByLabel('Status of Requirements specification')).toHaveValue('IN_REVIEW');
-    await page.getByRole('button', { name: 'Gantt' }).click();
+    await projectTab(page, 'Timeline');
     await expect(page.locator('.gantt-link').first()).toBeAttached();
-    await page.locator('nav.tabs').getByRole('link', { name: 'Risks & issues' }).click();
+    await projectTab(page, 'Risks & issues');
     await expect(page.getByRole('grid', { name: 'Risk matrix' })).toBeVisible();
     await page.getByRole('button', { name: 'Project actions' }).click();
     await page.getByRole('menuitem', { name: /Status report/ }).click();
@@ -199,8 +208,7 @@ test.describe('changing task dates in the table', () => {
     await login(page, 'manager@demo.local');
     await page.goto('/projects');
     await page.getByRole('link', { name: /Customer Mobile App/ }).first().click();
-    await page.locator('nav.tabs').getByRole('link', { name: 'Tasks' }).click();
-    await page.getByRole('button', { name: 'Table' }).click();
+    await projectTab(page, 'List');
 
     // 1. Type a new due date digit by digit: exactly one save, with the full date.
     const due = page.getByLabel('Due date of Push notifications');
@@ -243,7 +251,7 @@ test.describe('changing task dates in the table', () => {
     expect(await page.getByLabel('Start of Security penetration test').inputValue() > pen).toBe(true);
 
     // 5. The Plan tab now reports the moved work against the approved plan.
-    await page.locator('nav.tabs').getByRole('link', { name: 'Plan vs original' }).click();
+    await projectTab(page, 'Plan vs original');
     await page.getByRole('tab', { name: /Late/ }).click();
     await expect(page.locator('.cmp-table')).toContainText('Payments & transfers API');
   });

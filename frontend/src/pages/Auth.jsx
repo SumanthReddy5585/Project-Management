@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { ShieldCheck, Zap, BookOpen, FolderKanban } from 'lucide-react';
 import { APP_NAME, BrandMark } from '../components/Layout.jsx';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
@@ -8,26 +7,12 @@ import { ErrorBox, Field, Notice, fieldErrors, Loading } from '../components/ui.
 
 function Shell({ children }) {
   return (
-    <div className="auth-wrap">
-      <div className="auth-art">
-        <div className="brand"><BrandMark /><div>{APP_NAME}<small>Projects & customer support</small></div></div>
-        <div>
-          <h1>Plan projects, run your team and support clients — in one hub.</h1>
-          <p className="mt-3" style={{ maxWidth: 480 }}>Phases, Gantt timelines, tasks, timesheets and budgets — plus a ticket desk with SLAs. Live updates, and clients only see what you share.</p>
-          <div className="auth-points">
-            <div><FolderKanban size={17} /><span>Projects with phases, milestones, Gantt and critical path</span></div>
-            <div><Zap size={17} /><span>Live updates — changes appear instantly for everyone</span></div>
-            <div><ShieldCheck size={17} /><span>Ticket desk with SLA timers in working hours</span></div>
-            <div><BookOpen size={17} /><span>Client portal and self-service help center</span></div>
-          </div>
-          <div className="demo-floats mt-4" aria-hidden="true">
-            <div className="f"><span className="pill pill-ok">On track</span>Store Modernization · Build phase<span className="ms-auto small" style={{ color: '#93c5fd' }}>64%</span></div>
-            <div className="f"><span className="pill pill-solid-risk">Urgent</span>Checkout fails on Safari<span className="ms-auto small" style={{ color: '#fca5a5' }}>42m to reply</span></div>
-          </div>
-        </div>
-        <div className="small" style={{ color: '#6f819b' }}>© {new Date().getFullYear()} {APP_NAME} · Invitation-only workspace</div>
+    <div className="j-auth">
+      <div className="j-auth-card">
+        <div className="j-auth-brand"><BrandMark /><span>{APP_NAME}</span></div>
+        {children}
       </div>
-      <div className="auth-form"><div className="box">{children}</div></div>
+      <div className="j-auth-foot">Projects, timelines and customer support in one place · Invitation-only workspace · © {new Date().getFullYear()}</div>
     </div>
   );
 }

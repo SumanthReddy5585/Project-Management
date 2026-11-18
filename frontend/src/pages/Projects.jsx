@@ -7,7 +7,7 @@ import { useLive } from '../lib/live.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { addDaysISO, todayISO, fmtDate, projectColor, labelize } from '../lib/format.js';
 import { ScheduleChip, DaysVar } from '../lib/schedule.jsx';
-import { Avatar, Card, Empty, ErrorBox, Field, HealthBadge, Notice, Loading, Modal, Pagination, Segmented, Select, StatusBadge, useToast, fieldErrors, ProjectDot } from '../components/ui.jsx';
+import { Avatar, Card, Empty, ErrorBox, Field, HealthBadge, Notice, Loading, Modal, Pagination, Segmented, Select, StatusBadge, useToast, fieldErrors, ProjectDot, ProjectChip } from '../components/ui.jsx';
 import { ProjectCard } from './Home.jsx';
 
 /** Short project code from the name: initials of up to 4 words, or the first 3 letters. */
@@ -233,7 +233,7 @@ export default function Projects() {
             <thead><tr><th>Project</th>{!isCustomer && <th>Manager</th>}<th>Status</th>{!isCustomer && <th title="Automatic: compared with the approved plan">Schedule</th>}<th title="The project manager's own rating">Manager's view</th><th style={{ width: 170 }}>Progress</th><th>Tasks</th><th>Milestones</th><th title="Planned end date (from the approved plan when there is one)">Planned end</th>{!isCustomer && <th>Team</th>}</tr></thead>
             <tbody>{rows.map((p) => (
               <tr key={p.id} className="row-link" onClick={() => nav(`/projects/${p.id}`)}>
-                <td><Link to={`/projects/${p.id}`} className="fw-semibold text-body d-inline-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()}><ProjectDot code={p.code} />{p.name}</Link><div className="tk-meta"><span className="mono">{p.code}</span> · {p.customerName || 'Internal'}</div></td>
+                <td style={{ minWidth: 240 }}><div className="d-flex align-items-center gap-2"><ProjectChip code={p.code} size={24} /><div className="min-w-0"><Link to={`/projects/${p.id}`} className="fw-semibold" onClick={(e) => e.stopPropagation()}>{p.name}</Link><div className="tk-meta"><span className="mono">{p.code}</span> · {p.customerName || 'Internal'}</div></div></div></td>
                 {!isCustomer && <td className="small text-nowrap">{p.managerName ? <span className="d-inline-flex align-items-center gap-2"><Avatar sm name={p.managerName} />{p.managerName}</span> : '—'}</td>}
                 <td><StatusBadge status={p.status} /></td>
                 {!isCustomer && <td className="small">{p.schedule ? <div><ScheduleChip status={p.schedule.status} />{p.schedule.finishVariance ? <div className="mt-1"><DaysVar days={p.schedule.finishVariance} /></div> : null}</div> : ['CANCELLED', 'ARCHIVED'].includes(p.status) ? <span className="text-muted">—</span> : <span className="text-muted" title="The plan has not been approved yet">Plan not approved</span>}</td>}

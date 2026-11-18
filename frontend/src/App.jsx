@@ -12,7 +12,7 @@ import SettingsPage from './pages/Settings.jsx';
 import TimePage from './pages/TimePage.jsx';
 import ProjectWorkspace from './pages/project/Workspace.jsx';
 import { Overview } from './pages/project/Overview.jsx';
-import { TasksTab } from './pages/project/Work.jsx';
+import { TasksTab, BoardTab, ListTab, TimelineTab, CalendarTab } from './pages/project/Work.jsx';
 import { Deliverables, UpdatesTab, ProjectFiles } from './pages/project/Engagement.jsx';
 import { Registers, Team, ProjectSettings, Activity } from './pages/project/Manage.jsx';
 import { StatusReport } from './pages/project/Report.jsx';
@@ -69,7 +69,11 @@ export default function App() {
                 <Route path="settings" element={<ProjectSettings />} />
                 <Route path="activity" element={<Activity />} />
                 <Route path="report" element={<StatusReport />} />
-                {['work', 'board', 'timeline', 'calendar', 'milestones'].map((p) => <Route key={p} path={p} element={<Redirect to="/projects/:projectId/tasks" />} />)}
+                <Route path="board" element={<BoardTab />} />
+                <Route path="list" element={<ListTab />} />
+                <Route path="timeline" element={<TimelineTab />} />
+                <Route path="calendar" element={<CalendarTab />} />
+                {['work', 'milestones'].map((p) => <Route key={p} path={p} element={<Redirect to="/projects/:projectId/tasks" />} />)}
                 <Route path="deliverables" element={<Redirect to="/projects/:projectId/approvals" />} />
                 <Route path="discussions/:discussionId?" element={<Redirect to="/projects/:projectId/updates" />} />
                 <Route path="registers" element={<Redirect to="/projects/:projectId/risks" />} />

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Info, Inbox, Loader2, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, ChevronDown, Info, Inbox, Loader2, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { labelize, initials, dueInfo, projectColor, avatarColors, fmtDuration } from '../lib/format.js';
 import { Check } from 'lucide-react';
 
@@ -14,7 +14,26 @@ export const STATUS_TONE = {
 export const Pill = ({ tone = 'neutral', children, title }) => <span className={`pill pill-${tone}`} title={title}>{children}</span>;
 export const StatusBadge = ({ status }) => <Pill tone={STATUS_TONE[status] || 'neutral'}>{labelize(status)}</Pill>;
 const PRI_LABEL = { LOW: 'Low', MEDIUM: 'Normal', HIGH: 'High', CRITICAL: 'Urgent' };
-export const PriorityBadge = ({ priority }) => (priority ? <span className={`prio ${priority}`}><i aria-hidden="true" />{PRI_LABEL[priority]}</span> : null);
+const PRI_SHAPE = {
+  CRITICAL: { c: '#c9372c', d: ['M3 9.5 8 5l5 4.5', 'M3 13 8 8.5l5 4.5'] },
+  HIGH: { c: '#e2483d', d: ['M3 10.5 8 6l5 4.5'] },
+  MEDIUM: { c: '#d97008', d: ['M3 6.5h10', 'M3 10h10'] },
+  LOW: { c: '#0c66e4', d: ['M3 6l5 4.5L13 6'] },
+};
+/** Jira-style priority arrow (our own drawing). */
+export const PriorityIcon = ({ priority, title }) => { const p = PRI_SHAPE[priority]; if (!p) return null;
+  return <span className="prio-ic" title={title ?? PRI_LABEL[priority]} aria-label={title ?? `Priority: ${PRI_LABEL[priority]}`} role="img"><svg viewBox="0 0 16 16" fill="none" stroke={p.c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{p.d.map((d) => <path key={d} d={d} />)}</svg></span>; };
+export const PriorityBadge = ({ priority }) => (priority ? <span className={`prio ${priority}`}><PriorityIcon priority={priority} title="" />{PRI_LABEL[priority]}</span> : null);
+const TYPE_GLYPH = {
+  TASK: <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 6.2 5 8.5l4.5-5" /></svg>,
+  SUBTASK: <svg viewBox="0 0 12 12" fill="none" stroke="currentColor"><rect x="1.5" y="1.5" width="5" height="5" rx="0.5" /><rect x="5.5" y="5.5" width="5" height="5" rx="0.5" fill="currentColor" /></svg>,
+  MODULE: <svg viewBox="0 0 12 12" fill="currentColor" stroke="none"><path d="M7 1 2.5 7H6l-1 4 4.5-6H6z" /></svg>,
+  MILESTONE: <svg viewBox="0 0 12 12" fill="currentColor" stroke="none"><path d="M3 1.5v9" stroke="currentColor" strokeWidth="1.6" /><path d="M3.5 2h6l-1.6 2.2L9.5 6.5h-6z" /></svg>,
+  TICKET: <svg viewBox="0 0 12 12" fill="currentColor" stroke="none"><circle cx="6" cy="6" r="3" /></svg>,
+};
+const TYPE_TITLE = { TASK: 'Task', SUBTASK: 'Subtask', MODULE: 'Work package', MILESTONE: 'Milestone', TICKET: 'Ticket' };
+/** Small coloured square that says what kind of item this is (task, subtask, work package, milestone). */
+export const TypeIcon = ({ type, title }) => <span className={`itype ${type}`} title={title ?? TYPE_TITLE[type]} role="img" aria-label={title ?? TYPE_TITLE[type] ?? type}>{TYPE_GLYPH[type] || TYPE_GLYPH.TASK}</span>;
 export const priorityLabel = (p) => PRI_LABEL[p] || p;
 const HEALTH_TONE = { GREEN: 'ok', AMBER: 'warn', RED: 'risk' };
 export const HealthBadge = ({ health }) => <Pill tone={HEALTH_TONE[health]} title="Project health"><span className={`dot dot-${health}`} aria-hidden="true" />{labelize(health)}</Pill>;
@@ -144,6 +163,40 @@ export function Modal({ open, title, onClose, children, footer, size }) {
         <div className="dialog-body">{children}</div>
         {footer && <div className="dialog-footer">{footer}</div>}
       </div>
+    </div>
+  );
+}
+
+/** Jira-style issue dialog: a breadcrumb bar on top, then the content (usually main column + details column). */
+export function IssueDialog({ onClose, crumbs, actions, children, label }) {
+  const ref = useFocusTrap(true, onClose);
+  return (
+    <div className="issue-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      <section className="issue" role="dialog" aria-modal="true" aria-label={label} ref={ref} tabIndex={-1}>
+        <div className="issue-top"><div className="crumbs flex-grow-1 min-w-0">{crumbs}</div>{actions}
+          <button className="btn btn-ghost btn-icon" data-close onClick={onClose} aria-label="Close"><X size={18} /></button></div>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+/** Status as a coloured dropdown button (Jira's transition button). */
+export function StatusSelect({ value, options, onChange, disabled, label = 'Status' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const off = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', off);
+    return () => document.removeEventListener('mousedown', off);
+  }, [open]);
+  return (
+    <div className="status-select" ref={ref}>
+      <button type="button" className={`tone-${STATUS_TONE[value] || 'neutral'}`} disabled={disabled} aria-haspopup="menu" aria-expanded={open} aria-label={`${label}: ${labelize(value)}`} onClick={() => setOpen(!open)}>
+        {labelize(value)}{!disabled && <ChevronDown size={16} />}</button>
+      {open && <div className="menu-pop" role="menu" aria-label={label}>{options.filter((o) => o !== value).map((o) => (
+        <button key={o} role="menuitem" onClick={() => { setOpen(false); onChange(o); }}><StatusBadge status={o} /></button>))}</div>}
     </div>
   );
 }
