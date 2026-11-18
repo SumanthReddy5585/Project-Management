@@ -327,3 +327,22 @@ describe('plan builder: durations, "starts after", parallel work and automatic d
     await expectStatus(dev.post(`/api/projects/${P.id}/plan-items`, { title: 'X', durationDays: 1 }), 404);
   });
 });
+
+describe('dashboard activity feed and time report', () => {
+  it('recent activity lists project work the user can see, with the task named', async () => {
+    const feed = await pm.get('/api/activity/recent?limit=10');
+    expect(feed.data.length).toBeGreaterThan(0);
+    expect(feed.data.every((e) => !e.action.startsWith('auth.') && !e.action.startsWith('member.'))).toBe(true);
+    const task = feed.data.find((e) => e.target?.type === 'task');
+    expect(task.target.link).toMatch(/\/tasks\?item=/);
+    expect(task.project).toMatchObject({ code: expect.any(String), name: expect.any(String) });
+  });
+  it('the time report is for managers and admins only and adds up', async () => {
+    await expectStatus(dev.get('/api/reports/time-summary'), 403);
+    const t = await admin.get('/api/reports/time-summary?weeks=4');
+    expect(t.weeks).toHaveLength(4);
+    const sum = t.weeks.reduce((s, w) => s + w.billable + w.nonBillable, 0);
+    expect(Math.round(sum * 10) / 10).toBe(t.totals.hours);
+    expect(t.byProject.reduce((s, p) => s + p.hours, 0)).toBeCloseTo(t.totals.hours, 1);
+  });
+});

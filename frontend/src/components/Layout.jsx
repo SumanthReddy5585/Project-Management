@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Inbox, BookOpen, FolderKanban, CheckSquare, Clock, Users, Settings, Bell, Search, LogOut, BarChart3, Plus, LifeBuoy, FilePlus2, Timer, Home, CheckCircle2, CalendarRange, PanelLeft, HelpCircle, UserRound, ChevronDown, LayoutGrid } from 'lucide-react';
+import { Inbox, BookOpen, FolderKanban, CheckSquare, Clock, Users, Settings, Bell, Search, LogOut, BarChart3, Plus, LifeBuoy, FilePlus2, Timer, Home, CheckCircle2, CalendarRange, PanelLeft, HelpCircle, UserRound, ChevronDown, LayoutGrid, LayoutDashboard, UserCheck } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { get, post } from '../api/client.js';
 import { useDebounced } from '../lib/hooks.js';
@@ -40,7 +40,7 @@ function GlobalSearch() {
   return (
     <div className="search" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
       <Search size={16} className="icon" aria-hidden="true" />
-      <input id="global-search" className="form-control" placeholder="Search" value={q} aria-label="Search" autoComplete="off"
+      <input id="global-search" className="form-control" placeholder="Search..." value={q} aria-label="Search" autoComplete="off"
         onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)} />
       {!q && <kbd>Ctrl K</kbd>}
       {open && res && (
@@ -101,7 +101,7 @@ function NewMenu() {
   const manager = ['ADMIN', 'MANAGER'].includes(role);
   return (
     <div className="position-relative" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
-      <button className="btn btn-primary create" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu"><Plus size={16} /> Create</button>
+      <button className="btn btn-primary btn-sm create" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu"><Plus size={16} /> Create</button>
       {open && <div className="menu-pop" role="menu" style={{ top: 'calc(100% + 6px)', right: 0, minWidth: 280 }}>
         {!isCustomer && manager && <button role="menuitem" onClick={() => go('/projects?new=1')}><FolderKanban size={16} className="text-primary" /><span>New project<small>Stages, team and plan</small></span></button>}
         <button role="menuitem" onClick={() => go('/tickets?new=1')}><LifeBuoy size={16} className="text-primary" /><span>{isCustomer ? 'Raise a ticket' : 'New ticket'}<small>Report an issue or request</small></span></button>
@@ -122,7 +122,7 @@ function ProfileMenu() {
   const [open, setOpen] = useState(false);
   return (
     <div className="position-relative" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
-      <button className="avatar-btn" onClick={() => setOpen(!open)} aria-label="Your profile and settings" aria-expanded={open}><Avatar name={user?.name} /></button>
+      <button className="avatar-btn" onClick={() => setOpen(!open)} aria-label="Your profile and settings" aria-expanded={open}><Avatar name={user?.name} /><ChevronDown size={14} /></button>
       {open && <div className="menu-pop" role="menu" style={{ top: 'calc(100% + 6px)', right: 0, minWidth: 260 }}>
         <div className="d-flex align-items-center gap-2 px-3 py-2"><Avatar lg name={user?.name} /><div className="min-w-0"><div className="fw-semibold truncate">{user?.name}</div><div className="small text-muted truncate">{user?.email}</div></div></div>
         <div className="small text-muted px-3 pb-2">{isCustomer ? me?.customerCompany?.name : `${user?.title || labelize(role)} · ${me?.organization?.name || ''}`}</div>
@@ -154,19 +154,42 @@ function useRecentProjects() {
 
 function SideProjects() {
   const recent = useRecentProjects();
-  const [open, setOpen] = useState(true);
+  const { role } = useAuth();
   const loc = useLocation();
   const [fallback, setFallback] = useState([]);
   useEffect(() => { if (!recent.length) get('/projects', { pageSize: 5, status: 'ACTIVE,ON_HOLD,DRAFT' }).then((r) => setFallback(r.data || [])).catch(() => {}); }, [recent.length]);
   const list = (recent.length ? recent : fallback).slice(0, 5);
+  const manager = ['ADMIN', 'MANAGER'].includes(role);
   return <>
-    <button className="nav-item" onClick={() => setOpen(!open)} aria-expanded={open}><FolderKanban size={16} />Projects<ChevronDown size={14} className="chev" style={{ transform: open ? 'none' : 'rotate(-90deg)' }} /></button>
-    {open && <div className="sub">
-      {list.length > 0 && <div className="sec" style={{ paddingTop: '0.4rem' }}>Recent</div>}
-      {list.map((p) => <NavLink key={p.id} to={`/projects/${p.id}`} className={() => `nav-item proj-item ${loc.pathname.startsWith(`/projects/${p.id}`) ? 'active' : ''}`}><ProjectChip code={p.code} size={20} /><span className="truncate">{p.name}</span></NavLink>)}
-      <NavLink to="/projects" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><LayoutGrid size={16} />View all projects</NavLink>
-    </div>}
+    <div className="sec"><span>Recent projects</span><span className="d-inline-flex gap-1"><Link to="/projects" aria-label="All projects" title="All projects"><LayoutGrid size={14} /></Link>{manager && <Link to="/projects?new=1" aria-label="New project" title="New project"><Plus size={14} /></Link>}</span></div>
+    {list.map((p) => <NavLink key={p.id} to={`/projects/${p.id}`} className={() => `nav-item proj-item ${loc.pathname.startsWith(`/projects/${p.id}`) ? 'active' : ''}`}><ProjectChip code={p.code} size={20} /><span className="truncate">{p.name}</span></NavLink>)}
+    {!list.length && <div className="small text-muted px-2 py-1">No projects yet.</div>}
   </>;
+}
+
+const PAGES = [
+  [/^\/$/, 'Dashboard', LayoutDashboard], [/^\/my-tasks/, 'My tasks', CheckSquare], [/^\/projects\/[^/]+/, 'Projects', FolderKanban], [/^\/projects/, 'Projects', FolderKanban],
+  [/^\/tickets/, 'Queues', Inbox], [/^\/kb/, 'Knowledge base', BookOpen], [/^\/time/, 'Timesheets', Clock], [/^\/reports/, 'Reports', BarChart3],
+  [/^\/planner/, 'Resource planner', CalendarRange], [/^\/people/, 'Teams', Users], [/^\/notifications/, 'Notifications', Bell], [/^\/profile/, 'Profile', UserRound], [/^\/settings/, 'Settings', Settings],
+];
+function PageCrumb({ isCustomer }) {
+  const loc = useLocation();
+  const hit = PAGES.find(([re]) => re.test(loc.pathname)) || ['', 'O2 Support Hub', LayoutDashboard];
+  let [, title, Icon] = hit;
+  if (isCustomer && title === 'Dashboard') title = 'Home';
+  if (isCustomer && title === 'Queues') title = 'My tickets';
+  if (isCustomer && title === 'Knowledge base') title = 'Help center';
+  return <div className="crumb"><Icon size={16} aria-hidden="true" /><span className="truncate">{title}</span></div>;
+}
+
+function SideFooter({ isCustomer }) {
+  const { me, role } = useAuth();
+  return (
+    <Link to={isCustomer ? '/kb' : '/kb'} className="side-card">
+      <span className="ic"><LifeBuoy size={16} /></span>
+      <span className="min-w-0"><b className="truncate">{me?.organization?.name || me?.customerCompany?.name || 'O2 workspace'}</b><small>{isCustomer ? 'Help center & guides' : `${labelize(role)} · Help & guides`}</small></span>
+    </Link>
+  );
 }
 
 export default function Layout() {
@@ -187,36 +210,33 @@ export default function Layout() {
   const manager = ['ADMIN', 'MANAGER'].includes(role);
   const wide = /^\/projects\/[^/]+\/(board|timeline|list|tasks)/.test(loc.pathname);
   return (
-    <div className={`j-shell ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile-open' : ''}`}>
+    <div className={`app ${collapsed ? 'collapsed' : ''} ${mobile ? 'mobile-open' : ''}`}>
       <a href="#main" className="skip-link">Skip to content</a>
-      <header className="j-top">
-        <button className="btn btn-ghost btn-icon" onClick={toggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title="Sidebar"><PanelLeft size={18} /></button>
-        <Link to="/" className="brand-link" aria-label={`${APP_NAME} home`}><BrandLogo className="d-none d-sm-block" /><span className="d-sm-none"><BrandMark /></span></Link>
-        <GlobalSearch />
-        <NewMenu />
-        <div className="right">
-          <LiveBadge />
-          <Notifications />
-          <Link to="/kb" className="btn btn-ghost btn-icon" aria-label="Help" title="Help"><HelpCircle size={18} /></Link>
-          {role === 'ADMIN' && <Link to="/settings" className="btn btn-ghost btn-icon" aria-label="Settings" title="Settings"><Settings size={18} /></Link>}
-          <ProfileMenu />
+      <div className="side-backdrop" onClick={() => setMobile(false)} aria-hidden="true" />
+      <aside className="side sidebar" aria-label="Main menu">
+        <div className="side-brand">
+          <Link to="/" aria-label={`${APP_NAME} home`}><BrandLogo /></Link>
+          <button className="btn btn-ghost btn-sm btn-icon" onClick={toggle} aria-label="Collapse sidebar" title="Collapse sidebar"><PanelLeft size={16} /></button>
         </div>
-      </header>
-      <aside className="j-side sidebar" aria-label="Main menu">
+        <GlobalSearch />
         <nav>
           {isCustomer ? <>
             <NavItem to="/" icon={Home} end>Home</NavItem>
+            <NavItem to="/notifications" icon={Bell}>Notifications</NavItem>
+            <div className="sec">Workspace</div>
             <NavItem to="/projects" icon={FolderKanban}>My projects</NavItem>
             <NavItem to="/tickets" icon={Inbox} count={views?.open}>My tickets</NavItem>
             <NavItem to="/kb" icon={BookOpen}>Help center</NavItem>
           </> : <>
-            <NavItem to="/" icon={UserRound} end>For you</NavItem>
-            <NavItem to="/my-tasks" icon={CheckSquare}>My tasks</NavItem>
-            <SideProjects />
-            <div className="sec">Planning</div>
-            {manager && <NavItem to="/planner" icon={CalendarRange}>Resource planner</NavItem>}
+            <NavItem to="/notifications" icon={Bell}>Notifications</NavItem>
+            <NavItem to="/" icon={LayoutDashboard} end>Dashboard</NavItem>
+            <NavItem to="/my-tasks" icon={UserCheck}>Assigned to me</NavItem>
+            <NavItem to="/projects" icon={FolderKanban} end>Projects</NavItem>
             <NavItem to="/time" icon={Clock}>Timesheets</NavItem>
-            {manager && <NavItem to="/reports" icon={BarChart3}>Reports</NavItem>}
+            <SideProjects />
+            {manager && <><div className="sec">Planning</div>
+            <NavItem to="/planner" icon={CalendarRange}>Resource planner</NavItem>
+            <NavItem to="/reports" icon={BarChart3}>Reports</NavItem></>}
             <div className="sec">Service</div>
             <NavItem to="/tickets" icon={Inbox} count={views?.overdue || views?.unassigned} hot={views?.overdue > 0}>Queues</NavItem>
             <NavItem to="/kb" icon={BookOpen}>Knowledge base</NavItem>
@@ -225,9 +245,25 @@ export default function Layout() {
             {role === 'ADMIN' && <NavItem to="/settings" icon={Settings}>Settings</NavItem>}
           </>}
         </nav>
+        <div className="grow" />
+        <SideFooter isCustomer={isCustomer} />
       </aside>
-      <div className="j-main main">
-        <main id="main" className={`content ${wide ? 'wide' : ''}`} tabIndex={-1}><Outlet /></main>
+      <div className="app-main main">
+        <div className="panel">
+          <header className="page-bar">
+            <button className={`btn btn-ghost btn-sm btn-icon side-toggle ${collapsed ? '' : 'd-lg-none'}`} onClick={toggle} aria-label={collapsed ? 'Expand sidebar' : 'Open menu'} title="Sidebar"><PanelLeft size={16} /></button>
+            <PageCrumb isCustomer={isCustomer} />
+            <div className="right">
+              <LiveBadge />
+              <NewMenu />
+              <Notifications />
+              <Link to="/kb" className="btn btn-ghost btn-icon" aria-label="Help" title="Help"><HelpCircle size={18} /></Link>
+              {role === 'ADMIN' && <Link to="/settings" className="btn btn-ghost btn-icon d-none d-md-inline-flex" aria-label="Settings" title="Settings"><Settings size={18} /></Link>}
+              <ProfileMenu />
+            </div>
+          </header>
+          <main id="main" className={`content ${wide ? 'wide' : ''}`} tabIndex={-1}><Outlet /></main>
+        </div>
       </div>
     </div>
   );

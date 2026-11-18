@@ -56,7 +56,7 @@ export function LineChart({ labels, series, height = 240, label }) {
       type: 'line',
       data: { labels, datasets: series.map((s, i) => {
         const color = s.color || Object.values(PALETTE)[i % 7];
-        return { label: s.name, data: s.data, borderColor: color, backgroundColor: `${color}1f`, fill: i === 0, tension: 0.35, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 };
+        return { label: s.name, data: s.data, borderColor: color, backgroundColor: `${color}1f`, fill: i === 0, tension: 0.35, cubicInterpolationMode: 'monotone', pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 };
       }) },
       options: {
         responsive: true, maintainAspectRatio: false, animation: { duration: 250 }, interaction: { mode: 'index', intersect: false },
