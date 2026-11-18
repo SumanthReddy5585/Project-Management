@@ -254,7 +254,7 @@ async function upgradeDemo(base) {
 }
 
 const app = createApp();
-const server = app.listen(0, '127.0.0.1');
+const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
 const base = `http://127.0.0.1:${server.address().port}`;
 try {
   if (REGISTERS) { await seedRegisters(base); console.log('[demo-upgrade] registers added'); process.exitCode = 0; } else if (UPGRADE) { await upgradeDemo(base); process.exitCode = 0; } else await seedDemo(base);
