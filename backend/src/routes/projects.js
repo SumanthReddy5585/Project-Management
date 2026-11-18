@@ -19,7 +19,8 @@ const enumH = z.enum(['GREEN', 'AMBER', 'RED']);
 
 r.get('/', async (req, res) => {
   const q = parse(listQuery.extend({ status: z.string().optional(), customerCompanyId: uuid.optional(), health: enumH.optional() }), req.query);
-  const statuses = q.status?.split(',').filter(Boolean);
+  const PROJECT_STATUSES = ['DRAFT', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED', 'ARCHIVED'];
+  const statuses = q.status?.split(',').map((x) => x.trim().toUpperCase()).filter((x) => PROJECT_STATUSES.includes(x));
   const where = { ...visibleProjectsWhere(req.auth), ...(statuses?.length && { status: { in: statuses } }), ...(q.health && { health: q.health }),
     ...(q.customerCompanyId && { customerCompanyId: q.customerCompanyId }),
     ...(q.q && { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { code: { contains: q.q, mode: 'insensitive' } }] }) };

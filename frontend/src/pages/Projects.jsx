@@ -236,7 +236,7 @@ export default function Projects() {
                 {!isCustomer && <td className="small text-nowrap">{p.managerName ? <span className="d-inline-flex align-items-center gap-2"><Avatar sm name={p.managerName} />{p.managerName}</span> : '—'}</td>}
                 <td><StatusBadge status={p.status} /></td>
                 <td><HealthBadge health={p.health} /></td>
-                {!isCustomer && <td className="small text-nowrap">{p.schedule ? <span className="d-inline-flex align-items-center gap-1"><ScheduleChip status={p.schedule.status} /><DaysVar days={p.schedule.finishVariance} /></span> : <span className="text-muted" title="The plan has not been approved yet">Plan in draft</span>}</td>}
+                {!isCustomer && <td className="small text-nowrap">{p.schedule ? <span className="d-inline-flex align-items-center gap-1"><ScheduleChip status={p.schedule.status} /><DaysVar days={p.schedule.finishVariance} /></span> : ['CANCELLED', 'ARCHIVED'].includes(p.status) ? <span className="text-muted">—</span> : <span className="text-muted" title="The plan has not been approved yet">Plan in draft</span>}</td>}
                 <td><div className="d-flex align-items-center gap-2"><div className="meter flex-grow-1" style={{ '--pc': projectColor(p.code) }}><span style={{ width: `${p.progress || 0}%` }} /></div><span className="small num">{Math.round(p.progress || 0)}%</span></div></td>
                 <td className="small text-nowrap num">{p.counts?.open ?? '—'} open{p.counts?.overdue ? <span className="text-danger fw-semibold"> · {p.counts.overdue} late</span> : ''}</td>
                 <td className="small num">{p.milestones ? `${p.milestones.done}/${p.milestones.total}` : '—'}</td>
