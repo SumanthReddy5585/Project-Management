@@ -42,14 +42,18 @@ export function slipDays(from, to, cal) {
 
 const maxDate = (xs) => xs.filter(Boolean).sort().at(-1) ?? null;
 
-/** Share (0..1) of the original window [s, f] that has elapsed by `today`, in working days. */
+/**
+ * Share (0..1) of the original window [s, f] that has elapsed by the start of `today`, in working days.
+ * Today itself is still in progress, so work planned for today is not yet "expected" (the same rule as
+ * overdue: a task due today is late only from tomorrow). A project that starts today expects 0%.
+ */
 export function elapsedShare(s, f, today, cal) {
   if (!s || !f) return 0;
-  if (today >= f) return 1;
-  if (today < s) return 0;
+  if (today > f) return 1;
+  if (today <= s) return 0;
   const total = workingDaysBetween(s, f, cal);
   if (!total) return 1;
-  return Math.min(1, workingDaysBetween(s, today, cal) / total);
+  return Math.min(1, workingDaysBetween(s, addDays(today, -1), cal) / total);
 }
 
 export function classify(row, today, cal) {

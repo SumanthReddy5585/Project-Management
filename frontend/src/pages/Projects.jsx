@@ -79,7 +79,7 @@ export function NewProjectDialog({ onClose }) {
   const refs = useLoad(() => Promise.all([get('/org/customers'), get('/org/members', { pageSize: 200 }), get('/org/templates'), get('/workload').catch(() => ({ data: [] }))]), []);
   const [customers, members, templates, workload] = refs.data ? refs.data.map((r) => r.data) : [[], [], [], []];
   const [step, setStep] = useState('details');
-  const [f, setF] = useState({ name: '', code: '', customerCompanyId: '', plannedStart: todayISO(), plannedFinish: addDaysISO(todayISO(), 90), share: true, templateId: '', managerId: user.id, priority: 'MEDIUM', description: '', objectives: '', budgetAmount: '', budgetCurrency: 'USD', customerContactIds: null });
+  const [f, setF] = useState({ name: '', code: '', customerCompanyId: '', plannedStart: todayISO(), plannedFinish: addDaysISO(todayISO(), 90), share: true, templateId: 'simple', managerId: user.id, priority: 'MEDIUM', description: '', objectives: '', budgetAmount: '', budgetCurrency: 'USD', customerContactIds: null });
   const [team, setTeam] = useState({});
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -88,7 +88,7 @@ export function NewProjectDialog({ onClose }) {
   const managers = internal.filter((m) => ['ADMIN', 'MANAGER'].includes(m.role));
   const contacts = members.filter((m) => m.role === 'CUSTOMER' && m.status === 'ACTIVE' && m.customerCompany?.id === f.customerCompanyId);
   const chosenContacts = f.customerContactIds ?? contacts.map((c) => c.userId);
-  const tpl = templates.find((t) => t.id === f.templateId) || templates.find((t) => t.isDefault);
+  const tpl = templates.find((t) => t.id === f.templateId);
   const detailsOk = f.name.trim().length >= 2 && f.plannedFinish >= f.plannedStart && f.managerId;
   const submit = async () => {
     setErr(null); setBusy(true);
@@ -129,11 +129,12 @@ export function NewProjectDialog({ onClose }) {
             <div className="col-md-6"><Field label="Project manager">{(id) => <Select id={id} value={f.managerId} onChange={set('managerId')} disabled={role !== 'ADMIN' && managers.length <= 1} options={managers.map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user.id ? ' (you)' : ''}${m.title ? ` — ${m.title}` : ''}` }))} />}</Field></div>
             <div className="col-md-6"><Field label="Client" hint="Leave empty for an internal project">{(id) => <Select id={id} value={f.customerCompanyId} onChange={(v) => setF((x) => ({ ...x, customerCompanyId: v || '', customerContactIds: null }))} placeholder="Internal project" options={customers.map((c) => ({ value: c.id, label: c.name }))} />}</Field></div>
             <div className="col-6 col-md-3"><Field label="Start date">{(id) => <input id={id} type="date" className="form-control" value={f.plannedStart} onChange={set('plannedStart')} />}</Field></div>
-            <div className="col-6 col-md-3"><Field label="Target finish" error={f.plannedFinish < f.plannedStart ? 'Must be after the start' : fe.plannedFinish}>{(id) => <input id={id} type="date" className="form-control" value={f.plannedFinish} min={f.plannedStart} onChange={set('plannedFinish')} />}</Field></div>
+            <div className="col-6 col-md-3"><Field label="Target finish" hint="Rough guess is fine — the end date follows your tasks" error={f.plannedFinish < f.plannedStart ? 'Must be after the start' : fe.plannedFinish}>{(id) => <input id={id} type="date" className="form-control" value={f.plannedFinish} min={f.plannedStart} onChange={set('plannedFinish')} />}</Field></div>
             <div className="col-6 col-md-3"><Field label="Priority">{(id) => <Select id={id} value={f.priority} onChange={set('priority')} options={[['LOW', 'Low'], ['MEDIUM', 'Normal'], ['HIGH', 'High'], ['CRITICAL', 'Critical']].map(([v, l]) => ({ value: v, label: l }))} />}</Field></div>
             <div className="col-6 col-md-3"><Field label="Budget (optional)">{(id) => <div className="input-group"><input id={id} type="number" min="0" className="form-control" value={f.budgetAmount} onChange={set('budgetAmount')} /><select className="form-select" style={{ maxWidth: 82 }} value={f.budgetCurrency} onChange={set('budgetCurrency')} aria-label="Currency">{['USD', 'EUR', 'GBP', 'INR', 'AED', 'OMR', 'SAR'].map((c) => <option key={c}>{c}</option>)}</select></div>}</Field></div>
           </div>
-          <Field label="Plan template" hint={tpl ? `Creates ${tpl.phases.length} phases: ${tpl.phases.map((p) => p.name).join(' → ')}` : undefined}>{(id) => <Select id={id} value={f.templateId} onChange={set('templateId')} placeholder={`${templates.find((t) => t.isDefault)?.name || 'Standard plan'} (default)`} options={templates.filter((t) => !t.isDefault).map((t) => ({ value: t.id, label: t.name }))} />}</Field>
+          <Field label="Start the plan with" hint={f.templateId === 'simple' ? 'Four stages — Plan → Build → Test → Close. You add the tasks; dates are calculated for you.' : f.templateId === 'none' ? 'No stages. Add your own stages and tasks on the next screen.' : tpl ? `Creates ${tpl.phases.length} stages: ${tpl.phases.map((p) => p.name).join(' → ')}, with their milestones` : undefined}>{(id) => <Select id={id} value={f.templateId} onChange={set('templateId')}
+            options={[{ value: 'simple', label: 'Simple stages (recommended)' }, { value: 'none', label: 'Empty plan' }, ...templates.map((t) => ({ value: t.id, label: `Template: ${t.name}` }))]} />}</Field>
           <Field label="Goal / objectives" hint="What does success look like? Shown on the project overview.">{(id) => <textarea id={id} rows={2} className="form-control" value={f.objectives} onChange={set('objectives')} placeholder="e.g. Launch the new portal by Q2 and cut support calls by 20%" />}</Field>
         </>
       ) : step === 'team' ? (
@@ -151,7 +152,7 @@ export function NewProjectDialog({ onClose }) {
             <dt>Project</dt><dd className="fw-semibold">{f.name} <span className="mono">{f.code || codeFrom(f.name)}</span></dd>
             <dt>Client</dt><dd>{customers.find((c) => c.id === f.customerCompanyId)?.name || 'Internal project'}</dd>
             <dt>Dates</dt><dd>{fmtDate(f.plannedStart)} → {fmtDate(f.plannedFinish)}</dd>
-            <dt>Plan</dt><dd>{tpl ? `${tpl.name}: ${tpl.phases.length} phases with milestones` : 'Standard plan'}</dd>
+            <dt>Plan</dt><dd>{f.templateId === 'simple' ? 'Simple stages: Plan → Build → Test → Close' : f.templateId === 'none' ? 'Empty plan' : tpl ? `${tpl.name}: ${tpl.phases.length} stages with milestones` : 'Simple stages'}</dd>
             <dt>Manager</dt><dd>{mgrName}</dd>
             <dt>Team</dt><dd>{Object.keys(team).length ? <span className="d-flex flex-wrap gap-2">{Object.entries(team).map(([id, t]) => { const p = internal.find((m) => m.userId === id); return <span key={id} className="pill pill-neutral"><Avatar sm name={p?.name} />{p?.name} · {t.role === 'MANAGER' ? 'Co-manager' : labelize(t.role)}{t.allocationPct < 100 ? ` · ${t.allocationPct}%` : ''}</span>; })}</span> : <span className="text-muted">Only the manager for now</span>}</dd>
             {f.budgetAmount && <><dt>Budget</dt><dd>{Number(f.budgetAmount).toLocaleString()} {f.budgetCurrency}</dd></>}

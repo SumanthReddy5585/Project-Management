@@ -422,6 +422,7 @@ Modules, tasks, subtasks and milestones: hierarchy, assignee, status, priority, 
 | `plannedFinish` | date | yes |  |  |
 | `actualStart` | date | yes |  |  |
 | `actualFinish` | date | yes |  |  |
+| `startConstraint` | date | yes |  | Fixed start ("not before"); empty = starts as soon as the tasks it waits for are done |
 | `estimateHours` | numeric(8,2) | yes |  |  |
 | `percentComplete` | integer | no | `0` |  |
 | `customerVisible` | boolean | no | `false` |  |

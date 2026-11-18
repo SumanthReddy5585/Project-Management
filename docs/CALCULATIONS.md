@@ -90,7 +90,8 @@ Per task/subtask/milestone (working days on the project calendar; + = later than
 
 Forecast finish of unfinished work = its planned finish, but not earlier than today if already overdue.
 Project and phase: original finish = latest original finish; forecast finish = latest forecast finish; planned % (PV) =
-original effort (estimate hours, or equal weights) scheduled to be done by today, pro rata by working days; done % (EV) =
+original effort (estimate hours, or equal weights) scheduled to be done by the start of today, pro rata by working days
+(today is still in progress, so a project that starts today expects 0%); done % (EV) =
 the same items by % complete. SPI = done % ÷ planned %. Added work counts in neither, so new scope cannot hide delays.
 Status: DELAYED if the end slips > 5 working days or SPI < 0.8; AT_RISK if the end slips, any task is overdue/delayed or
 SPI < 0.95; AHEAD if the end moves earlier (SPI ≥ 1) or SPI > 1.1; COMPLETED when all work is done; otherwise ON_TRACK.
@@ -103,8 +104,10 @@ Every date edit (task table, task panel, Gantt drag) goes through one endpoint:
 - Moving the **start** keeps the task's length in working days on the project calendar; the due date moves with it.
 - Changing the **due date** keeps the start; a due date before the start is refused with a message.
 - Milestones have one date (start = due).
-- If finish-to-start dependents would start too early, nothing is saved until the user chooses "Move them too"
-  (each keeps its working-day length) or "Only change this task". A stale version is refused (409).
+- After saving, the plan is recalculated automatically (see below): every task that waits for this one moves
+  with it, keeping its working-day length. A stale version is refused (409).
+- A start typed by the manager becomes the task's fixed start ("not before"); if the task waits for a task that
+  finishes later, it is held after that task and the answer says which one (`heldBy`). `autoStart: true` frees it.
 - A dependent may start on the working day after its predecessor finishes (+ lag); a weekend/holiday finish
   counts as finished that day (Sat finish → Mon start).
 - Lateness = working days after the planned date up to the actual/expected date (Fri→Mon = 1, Sat→Mon = 1).
@@ -112,3 +115,34 @@ Every date edit (task table, task panel, Gantt drag) goes through one endpoint:
 
 In the browser, a date is saved once — on Enter, Tab, leaving the field or picking from the calendar pop-up — never
 while digits are being typed.
+
+## Automatic scheduling (`src/domain/autoSchedule.js`, `src/services/autoSchedule.js`)
+
+The working plan is recalculated after every change that can move dates (task added, changed, removed; link added or
+removed; project start, calendar or status changed; plan builder edits) and once an hour for active projects.
+
+- **Parallel work:** a task that waits for nothing starts at the project start (or at its fixed start). Several such
+  tasks therefore run at the same time.
+- **Dependencies (finish-to-start):** a task that waits for others starts on the working day after the **last** of them
+  finishes (+ lag in working days). Its finish keeps its length in working days. A task whose start does not move keeps
+  its due date exactly as typed.
+- **Fixed start ("start no earlier than"):** set when the manager types a start date. Links can only push such a task
+  later, never earlier. Without a fixed start, a task also moves **earlier** when the work it waits for gets shorter.
+- **Milestones** fall on the day their last predecessor finishes (+ lag), or on their fixed date if that is later.
+- **Started and finished work never moves.** Finished work hands on its actual finish date.
+- **Delays:** in an active project, unfinished work whose due date has passed is expected to finish today at the
+  earliest, so everything that waits for it moves out day by day until it is done. The late task itself keeps its
+  dates, so it still shows as overdue.
+- **Parents** (work packages, tasks with sub-tasks) span their children; a link to or from a parent applies to all
+  of its children. Cancelled and undated items are ignored. A circular set of links is refused.
+- **Project end:** until the plan is approved, the project's end date is the end of its last task. After approval
+  the original end stays fixed and the expected end (forecast) moves.
+- **Upgrade:** existing plans keep their dates. Tasks that already started right after the task they wait for are
+  switched to automatic; the others keep their start as a fixed start.
+
+### Plan builder (`/projects/:id/plan-items`)
+
+Each row is *task · who · working days · starts after*. Effort defaults to days × 8 h and follows the length while it
+is still the default. "Starts after" offers: project start, after the previous task, at the same time as the previous
+task (same predecessors = parallel), or any set of tasks. Removing a task reconnects what waited for it to what it
+waited for, so a chain is never broken.

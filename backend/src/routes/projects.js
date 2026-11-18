@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { parse, listQuery, pageArgs, paged, dateOnly, toDate, fmtDate, uuid, orderBy } from '../lib/http.js';
+import { parse, listQuery, pageArgs, paged, dateOnly, toDate, fmtDate, uuid, orderBy, partialNoDefaults } from '../lib/http.js';
 import { badRequest, conflict, notFound, forbidden } from '../lib/errors.js';
 import { requireOrg, projectAccess, visibleProjectsWhere } from '../policies/access.js';
 import * as S from '../policies/serializers.js';
@@ -12,6 +12,10 @@ import { projectProgress, projectCalendar, loadSchedule } from '../services/proj
 import { workingDaysBetween, nextWorkingDay, addWorkingDays } from '../domain/calendar.js';
 import { PROJECT_TRANSITIONS, READ_ONLY_PROJECT } from '../domain/workflow.js';
 import { planVariance, scheduleSummary, originalBaseline } from '../services/planVariance.js';
+import { reschedule } from '../services/autoSchedule.js';
+
+// Built-in starting point for new projects: four plain stages, no preset milestones.
+const SIMPLE_TEMPLATE = { id: 'simple', name: 'Simple stages', phases: ['Plan', 'Build', 'Test', 'Close'].map((name, i) => ({ name, sortOrder: i, durationDays: [2, 5, 2, 1][i], completionCriteria: null, milestones: [], deliverables: [] })) };
 
 const r = Router();
 const enumP = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
@@ -57,7 +61,7 @@ const createBody = z.object({
   status: z.enum(['DRAFT', 'ACTIVE']).default('DRAFT'), calendarId: uuid.optional().nullable(), timezone: z.string().max(60).default('UTC'),
   budgetAmount: z.number().min(0).max(1e12).optional().nullable(), budgetCurrency: z.string().length(3).toUpperCase().optional().nullable(),
   billingEnabled: z.boolean().default(false), hourlyRate: z.number().min(0).max(1e6).optional().nullable(),
-  templateId: uuid.optional().nullable(), customerVisible: z.boolean().default(false),
+  templateId: z.union([uuid, z.literal('simple'), z.literal('none')]).optional().nullable(), customerVisible: z.boolean().default(false),
 });
 
 r.post('/', async (req, res) => {
@@ -82,10 +86,11 @@ r.post('/', async (req, res) => {
   const calRow = await loadCalendar(prisma, b.calendarId, orgId);
   if (b.calendarId && !calRow) throw badRequest('Unknown calendar');
   const cal = toWorkCalendar(calRow);
-  const template = b.templateId
+  // 'simple' = four plain stages and nothing else; 'none' = an empty plan; otherwise a saved template
+  const template = b.templateId === 'none' ? null : b.templateId === 'simple' ? SIMPLE_TEMPLATE : b.templateId
     ? await prisma.projectTemplate.findFirst({ where: { id: b.templateId, organizationId: orgId }, include: { phases: { orderBy: { sortOrder: 'asc' } } } })
     : await prisma.projectTemplate.findFirst({ where: { organizationId: orgId, isDefault: true }, include: { phases: { orderBy: { sortOrder: 'asc' } } } });
-  if (b.templateId && !template) throw badRequest('Unknown template');
+  if (b.templateId && b.templateId !== 'none' && !template) throw badRequest('Unknown template');
 
   // Scale template phase durations to the project's working-day window, sequentially.
   const start = nextWorkingDay(b.plannedStart, cal);
@@ -108,7 +113,7 @@ r.post('/', async (req, res) => {
       organizationId: orgId, name: b.name, code: b.code, description: b.description, objectives: b.objectives, customerCompanyId: b.customerCompanyId || null,
       managerId: b.managerId, status: b.status, priority: b.priority, health: b.health, plannedStart: toDate(b.plannedStart), plannedFinish: toDate(b.plannedFinish),
       calendarId: calRow?.id ?? null, timezone: b.timezone, budgetAmount: b.budgetAmount, budgetCurrency: b.budgetCurrency, billingEnabled: b.billingEnabled,
-      hourlyRate: b.hourlyRate, templateId: template?.id ?? null, customerVisible: b.customerVisible,
+      hourlyRate: b.hourlyRate, templateId: template?.id && template !== SIMPLE_TEMPLATE ? template.id : null, customerVisible: b.customerVisible,
     } });
     const members = [{ userId: b.managerId, role: 'MANAGER' }, ...[...roster.values()].map((t) => ({ userId: t.userId, role: t.role, allocationPct: t.allocationPct })), ...b.customerContactIds.map((userId) => ({ userId, role: 'CUSTOMER' }))];
     if (req.auth.userId !== b.managerId && req.auth.orgRole === 'MANAGER' && !team.includes(req.auth.userId)) members.push({ userId: req.auth.userId, role: 'MANAGER' });
@@ -117,7 +122,7 @@ r.post('/', async (req, res) => {
     for (const [i, ph] of phasePlan.entries()) {
       const phase = await tx.phase.create({ data: { projectId: p.id, name: ph.t.name, sortOrder: i, ownerId: b.managerId, plannedStart: toDate(ph.start), plannedFinish: toDate(ph.finish), completionCriteria: ph.t.completionCriteria } });
       for (const [j, m] of ph.t.milestones.entries()) {
-        await tx.workItem.create({ data: { projectId: p.id, phaseId: phase.id, type: 'MILESTONE', number: ++seq, title: m, plannedStart: toDate(ph.finish), plannedFinish: toDate(ph.finish), customerVisible: b.customerVisible, sortOrder: 1000 + j, createdById: req.auth.userId } });
+        await tx.workItem.create({ data: { projectId: p.id, phaseId: phase.id, type: 'MILESTONE', number: ++seq, title: m, plannedStart: toDate(ph.finish), plannedFinish: toDate(ph.finish), startConstraint: toDate(ph.finish), customerVisible: b.customerVisible, sortOrder: 1000 + j, createdById: req.auth.userId } });
       }
       for (const d of ph.t.deliverables) await tx.deliverable.create({ data: { projectId: p.id, phaseId: phase.id, name: d, dueDate: toDate(ph.finish) } });
     }
@@ -126,7 +131,8 @@ r.post('/', async (req, res) => {
     await notify(tx, { orgId, userIds: members.filter((m) => m.role !== 'CUSTOMER').map((m) => m.userId), exclude: req.auth.userId, type: 'project.added', title: `You were added to ${p.code} · ${p.name}`, link: `/projects/${p.id}` });
     return p;
   });
-  res.status(201).json(S.project(project, await projectAccess(req.auth, project.id)));
+  await reschedule(project.id);
+  res.status(201).json(S.project(await prisma.project.findUnique({ where: { id: project.id } }), await projectAccess(req.auth, project.id)));
 });
 
 async function projectDetail(req, access) {
@@ -168,9 +174,8 @@ r.get('/:projectId', async (req, res) => {
   res.json(await projectDetail(req, access));
 });
 
-const patchBody = createBody.pick({ name: true, description: true, objectives: true, priority: true, health: true, plannedStart: true, plannedFinish: true,
-  calendarId: true, timezone: true, budgetAmount: true, budgetCurrency: true, billingEnabled: true, hourlyRate: true, customerVisible: true, customerCompanyId: true, managerId: true })
-  .partial().extend({ version: z.number().int() });
+const patchBody = partialNoDefaults(createBody.pick({ name: true, description: true, objectives: true, priority: true, health: true, plannedStart: true, plannedFinish: true,
+  calendarId: true, timezone: true, budgetAmount: true, budgetCurrency: true, billingEnabled: true, hourlyRate: true, customerVisible: true, customerCompanyId: true, managerId: true })).extend({ version: z.number().int() });
 
 r.patch('/:projectId', async (req, res) => {
   const access = await projectAccess(req.auth, req.params.projectId);
@@ -195,6 +200,8 @@ r.patch('/:projectId', async (req, res) => {
     }
     await audit(tx, req.auth, { action: 'project.updated', entityType: 'Project', entityId: p.id, projectId: p.id, metadata: { fields: Object.keys(b) } }, req.ip);
   });
+  // a new start date or calendar moves every task that is not fixed; in a draft the end follows the tasks
+  if (b.plannedStart || b.calendarId !== undefined || b.plannedFinish) await reschedule(p.id);
   res.json(await projectDetail(req, await projectAccess(req.auth, p.id)));
 });
 
@@ -211,6 +218,7 @@ r.post('/:projectId/status', async (req, res) => {
   const n = await prisma.project.updateMany({ where: { id: p.id, version }, data: { status, version: { increment: 1 } } });
   if (!n.count) throw conflict('This project was changed by someone else. Reload and try again.');
   await audit(prisma, req.auth, { action: 'project.status_changed', entityType: 'Project', entityId: p.id, projectId: p.id, metadata: { from: p.status, to: status, reason } }, req.ip);
+  await reschedule(p.id);
   res.json(await projectDetail(req, await projectAccess(req.auth, p.id)));
 });
 
@@ -282,7 +290,7 @@ r.post('/:projectId/clone', async (req, res) => {
       const n = await tx.workItem.create({ data: {
         projectId: np.id, phaseId: phaseMap.get(it.phaseId) ?? null, parentId: itemMap.get(it.parentId) ?? null, type: it.type, number: it.number, title: it.title,
         description: it.description, acceptanceCriteria: it.acceptanceCriteria, assigneeId: b.includeAssignees ? it.assigneeId : null, priority: it.priority,
-        plannedStart: shiftDate(it.plannedStart, offset), plannedFinish: shiftDate(it.plannedFinish, offset), estimateHours: it.estimateHours,
+        plannedStart: shiftDate(it.plannedStart, offset), plannedFinish: shiftDate(it.plannedFinish, offset), startConstraint: shiftDate(it.startConstraint, offset), estimateHours: it.estimateHours,
         customerVisible: it.customerVisible, labels: it.labels, sortOrder: it.sortOrder, createdById: req.auth.userId,
       } });
       itemMap.set(it.id, n.id);
@@ -370,7 +378,7 @@ r.patch('/:projectId/phases/:phaseId', async (req, res) => {
   access.require('phase.manage');
   const ph = await prisma.phase.findFirst({ where: { id: req.params.phaseId, projectId: access.project.id } });
   if (!ph) throw notFound('Phase');
-  const { version, ...b } = parse(phaseBody.partial().extend({ version: z.number().int() }), req.body);
+  const { version, ...b } = parse(partialNoDefaults(phaseBody).extend({ version: z.number().int() }), req.body);
   checkRange(b.plannedStart ?? fmtDate(ph.plannedStart), b.plannedFinish ?? fmtDate(ph.plannedFinish));
   const data = { ...b, version: { increment: 1 } };
   if ('plannedStart' in b) data.plannedStart = toDate(b.plannedStart);

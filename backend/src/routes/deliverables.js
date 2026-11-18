@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { parse, dateOnly, toDate, fmtDate, uuid } from '../lib/http.js';
+import { parse, dateOnly, toDate, fmtDate, uuid, partialNoDefaults } from '../lib/http.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import { projectAccess } from '../policies/access.js';
 import * as S from '../policies/serializers.js';
@@ -55,7 +55,7 @@ r.patch('/deliverables/:id', async (req, res) => {
   const access = await projectAccess(req.auth, req.params.projectId);
   access.require('deliverable.manage');
   const d = await load(access, req.params.id);
-  const { version, ...b } = parse(body.partial().extend({ version: z.number().int() }), req.body);
+  const { version, ...b } = parse(partialNoDefaults(body).extend({ version: z.number().int() }), req.body);
   if (b.customerVisible && !access.project.customerVisible) throw badRequest('Share the project with the customer first');
   const n = await prisma.deliverable.updateMany({ where: { id: d.id, version }, data: { ...b, ...('dueDate' in b && { dueDate: toDate(b.dueDate) }), version: { increment: 1 } } });
   if (!n.count) throw conflict('This deliverable changed meanwhile. Reload and try again.');

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, CheckCircle2, AlertTriangle, XCircle, Plus, Flag, ClipboardCheck, GanttChart, Info, ArrowRight } from 'lucide-react';
+import { Lock, CheckCircle2, AlertTriangle, XCircle, Plus, Flag, ClipboardCheck, GanttChart, Info, ArrowRight, ListChecks } from 'lucide-react';
 import { get, post } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { useLive, emitLocal } from '../../lib/live.js';
 import { fmtDate, fmtMoney } from '../../lib/format.js';
 import { Avatar, Card, ErrorBox, Field, Loading, Modal, Notice, useToast, fieldErrors, Empty } from '../../components/ui.jsx';
 import { TaskVarChip, DaysVar, diffText, verdict, TASK_GROUPS } from '../../lib/schedule.jsx';
-import { TaskGrid } from './Grid.jsx';
+import { PlanBuilder } from './PlanBuilder.jsx';
 import { useProject } from './Workspace.jsx';
 
 /** Plan tab: build the plan → approve & lock it as the ORIGINAL plan → track the working plan against it. */
@@ -31,45 +31,6 @@ function Steps({ approved }) {
   );
 }
 
-function QuickAdd({ onAdded }) {
-  const { project, people } = useProject();
-  const toast = useToast();
-  const assignable = people.filter((m) => ['MANAGER', 'MEMBER'].includes(m.role));
-  // The next row starts on the working day after the previous one ends (Mon–Fri).
-  const nextDay = (iso) => { if (!iso) return ''; const d = new Date(`${iso}T00:00:00Z`); do d.setUTCDate(d.getUTCDate() + 1); while ([0, 6].includes(d.getUTCDay())); return d.toISOString().slice(0, 10); };
-  const blank = (keep = {}) => ({ type: 'TASK', title: '', phaseId: keep.phaseId ?? project.phases[0]?.id ?? '', assigneeId: keep.assigneeId ?? '', plannedStart: nextDay(keep.plannedFinish), plannedFinish: '', estimateHours: '' });
-  const [f, setF] = useState(blank());
-  const [err, setErr] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const ms = f.type === 'MILESTONE';
-  const add = async (e) => {
-    e.preventDefault(); setErr(null); setBusy(true);
-    try {
-      await post(`/projects/${project.id}/work-items`, { type: f.type, title: f.title, phaseId: f.phaseId || null, assigneeId: ms ? null : f.assigneeId || null,
-        plannedStart: (ms ? f.plannedFinish : f.plannedStart) || null, plannedFinish: f.plannedFinish || null, estimateHours: ms || f.estimateHours === '' ? null : Number(f.estimateHours) });
-      toast(`Added: ${f.title}`, 'success');
-      setF(blank(f)); onAdded();
-    } catch (x) { setErr(x); } finally { setBusy(false); }
-  };
-  const fe = fieldErrors(err);
-  return (
-    <form className="plan-qa" onSubmit={add}>
-      <div className="qa-grid">
-        <select className="form-select form-select-sm" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} aria-label="Type"><option value="TASK">Task</option><option value="MILESTONE">Milestone</option></select>
-        <input className={`form-control form-control-sm qa-title ${fe.title ? 'is-invalid' : ''}`} placeholder={ms ? 'Milestone, e.g. Design signed off' : 'Task name, e.g. Build checkout API'} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} aria-label="Title" required />
-        <select className="form-select form-select-sm" value={f.phaseId} onChange={(e) => setF({ ...f, phaseId: e.target.value })} aria-label="Phase"><option value="">No phase</option>{project.phases.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-        <select className="form-select form-select-sm" value={f.assigneeId} disabled={ms} onChange={(e) => setF({ ...f, assigneeId: e.target.value })} aria-label="Assignee"><option value="">{ms ? '—' : 'Assign to…'}</option>{assignable.map((m) => <option key={m.id} value={m.id}>{m.name}{m.title ? ` · ${m.title}` : ''}</option>)}</select>
-        {!ms && <input type="date" className="form-control form-control-sm" value={f.plannedStart} onChange={(e) => setF({ ...f, plannedStart: e.target.value })} aria-label="Start date" title="Start" />}
-        <input type="date" className={`form-control form-control-sm ${fe.plannedFinish ? 'is-invalid' : ''}`} value={f.plannedFinish} min={ms ? undefined : f.plannedStart || undefined} onChange={(e) => setF({ ...f, plannedFinish: e.target.value })} aria-label={ms ? 'Date' : 'Due date'} title={ms ? 'Date' : 'Due'} />
-        {!ms && <input type="number" min="0" step="0.5" className="form-control form-control-sm" placeholder="Hours" value={f.estimateHours} onChange={(e) => setF({ ...f, estimateHours: e.target.value })} aria-label="Estimate in hours" />}
-        <button className="btn btn-sm btn-primary qa-btn" disabled={busy || !f.title.trim()}><Plus size={14} /> Add {ms ? 'milestone' : 'task'}</button>
-      </div>
-      {err && <div className="small text-danger mt-1">{err.message}</div>}
-      <div className="form-text">Press Enter to add. Phase and person are kept, and the next task starts the working day after this one ends, so you can enter the plan row after row. Edit anything in the table below, link tasks on the <Link to="../tasks">Gantt</Link>, or import a CSV.</div>
-    </form>
-  );
-}
-
 function BuildPlan({ plan, reload }) {
   const { project, reload: reloadProject } = useProject();
   const toast = useToast();
@@ -87,34 +48,25 @@ function BuildPlan({ plan, reload }) {
       reloadProject(); reload(); emitLocal({ type: 'work.changed', projectId: project.id });
     } catch (x) { setErr(x); } finally { setBusy(false); }
   };
+  const n = checks.tasks + checks.milestones;
   return (
     <>
       <Steps approved={false} />
-      <div className="row g-3 mb-3">
-        <div className="col-xl-8">
-          <Card title={<span className="d-inline-flex align-items-center gap-2"><Plus size={16} /> Add tasks and milestones</span>}>
-            {plan.canApprove ? <QuickAdd onAdded={() => { reload({ silent: true }); emitLocal({ type: 'work.changed', projectId: project.id }); }} /> : <div className="small text-muted">Only the project manager can build the plan.</div>}
-          </Card>
+      <div className={`ready-bar ${ready ? 'ok' : ''}`}>
+        <ClipboardCheck size={18} className="flex-shrink-0" />
+        <div className="flex-grow-1">
+          <div className="fw-semibold">{ready ? 'The plan can be approved' : n ? 'Not ready to approve yet' : 'Start by adding the first task below'}</div>
+          <div className="small">
+            {[`${checks.tasks} task${checks.tasks === 1 ? '' : 's'}`, `${checks.milestones} milestone${checks.milestones === 1 ? '' : 's'}`, `${checks.team} on the team`].join(' · ')}
+            {blockers.map((b) => <span key={b} className="text-danger ms-2"><XCircle size={13} /> {b}</span>)}
+            {warnings.map((w) => <span key={w} className="text-warning-emphasis ms-2"><AlertTriangle size={13} /> {w}</span>)}
+          </div>
         </div>
-        <div className="col-xl-4">
-          <Card title={<span className="d-inline-flex align-items-center gap-2"><ClipboardCheck size={16} /> Ready to approve?</span>}>
-            <ul className="list-plain readiness">
-              <li><span>Tasks</span><b>{checks.tasks}</b></li>
-              <li><span>Milestones</span><b>{checks.milestones}</b></li>
-              <li><span>People on the team</span><b>{checks.team}</b></li>
-              <li className={checks.undated ? 'bad' : ''}><span>Without dates</span><b>{checks.undated}</b></li>
-              <li className={checks.unassigned ? 'warn' : ''}><span>Nobody assigned</span><b>{checks.unassigned}</b></li>
-              <li className={checks.unestimated ? 'warn' : ''}><span>No estimate</span><b>{checks.unestimated}</b></li>
-            </ul>
-            {blockers.map((b) => <div key={b} className="small text-danger d-flex gap-1 mt-1"><XCircle size={14} className="flex-shrink-0 mt-1" />{b}</div>)}
-            {warnings.map((w) => <div key={w} className="small text-warning-emphasis d-flex gap-1 mt-1"><AlertTriangle size={14} className="flex-shrink-0 mt-1" />{w}</div>)}
-            {plan.canApprove && <button className="btn btn-primary w-100 mt-3" disabled={!ready} onClick={() => setConfirm(true)}><Lock size={15} /> Approve &amp; lock original plan</button>}
-            <div className="form-text">Once approved, today's dates, effort and owners are frozen as the <b>original plan</b>. You keep working on the plan; every change is compared with the original.</div>
-          </Card>
-        </div>
+        {plan.canApprove && <button className="btn btn-primary flex-shrink-0" disabled={!ready} onClick={() => setConfirm(true)}><Lock size={15} /> Approve &amp; lock original plan</button>}
       </div>
-      <h2 className="h6 mb-2">Plan ({checks.tasks + checks.milestones} items)</h2>
-      <TaskGrid />
+      {!plan.canApprove && <Notice>Only the project manager can build and approve the plan.</Notice>}
+      <PlanBuilder />
+      <div className="form-text mt-3">Prefer a spreadsheet? You can also edit everything in the <Link to="../tasks">Tasks</Link> table or Gantt chart, or import a CSV there. Once approved, the plan is frozen as the <b>original plan</b> and every later change is compared with it.</div>
       <Modal open={confirm} onClose={() => setConfirm(false)} title="Approve and lock the original plan" footer={<><button className="btn btn-light" onClick={() => setConfirm(false)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={approve}><Lock size={14} /> {busy ? 'Locking…' : 'Approve & lock'}</button></>}>
         <ErrorBox error={err} />
         <p className="mb-2">This saves a permanent copy of the plan: <b>{checks.tasks} tasks and {checks.milestones} milestones</b> with their start and due dates, effort and assigned people.</p>
@@ -128,6 +80,18 @@ function BuildPlan({ plan, reload }) {
         {project.status === 'DRAFT' && <div className="form-check"><input className="form-check-input" type="checkbox" id="act" checked={activate} onChange={(e) => setActivate(e.target.checked)} /><label className="form-check-label" htmlFor="act">Also start the project (status Active)</label></div>}
       </Modal>
     </>
+  );
+}
+
+function WorkingPlanEditor() {
+  const { can, project } = useProject();
+  const [open, setOpen] = useState(false);
+  if (!can('work.schedule') || project.readOnly) return null;
+  return (
+    <Card className="mb-3" title={<span className="d-inline-flex align-items-center gap-2"><ListChecks size={16} /> Working plan</span>}
+      actions={<button className="btn btn-sm btn-light" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? 'Close' : 'Change lengths, links and owners'}</button>}>
+      {open ? <PlanBuilder compact /> : <div className="small text-muted">Change how long tasks take, what they wait for or who does them. Dates are recalculated and everything that waits moves with it; the original plan above never changes.</div>}
+    </Card>
   );
 }
 
@@ -247,6 +211,7 @@ function PlanVsOriginal({ plan }) {
       <Card title="Timeline: approved plan vs now" className="mb-3">
         <PlanTimeline plan={plan} />
       </Card>
+      <WorkingPlanEditor />
       <Card title="Tasks compared with the approved plan" actions={<Link to="../tasks" className="small fw-semibold d-inline-flex align-items-center gap-1"><GanttChart size={14} /> Open the Gantt chart</Link>}>
         <div className="seg-tabs mb-2" role="tablist">{TASK_GROUPS.map((g) => <button key={g[0]} role="tab" aria-selected={tab === g[0]} className={`${tab === g[0] ? 'on' : ''} ${g[0] === 'late' && count(g) ? 'alert' : ''}`} onClick={() => setTab(g[0])}>{g[1]} <span className="n">{count(g)}</span></button>)}</div>
         <div className="small text-muted mb-2">{group[3]}</div>

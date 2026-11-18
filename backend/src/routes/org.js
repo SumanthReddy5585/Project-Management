@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { config } from '../config.js';
 import { sendMail } from '../services/mail.js';
-import { parse, listQuery, pageArgs, paged, dateOnly, toDate, fmtDate, uuid } from '../lib/http.js';
+import { parse, listQuery, pageArgs, paged, dateOnly, toDate, fmtDate, uuid, partialNoDefaults } from '../lib/http.js';
 import { randomToken, sha256 } from '../lib/crypto.js';
 import { badRequest, notFound, conflict } from '../lib/errors.js';
 import { requireOrg } from '../policies/access.js';
@@ -211,7 +211,7 @@ r.post('/teams', async (req, res) => {
 r.patch('/teams/:id', async (req, res) => {
   admin(req);
   await inOrg('team', req.params.id, req.auth.orgId, 'Team');
-  const { memberIds, ...b } = parse(teamBody.partial(), req.body);
+  const { memberIds, ...b } = parse(partialNoDefaults(teamBody), req.body);
   await prisma.$transaction(async (tx) => {
     await tx.team.update({ where: { id: req.params.id }, data: b });
     await setTeamMembers(tx, req.params.id, memberIds, req.auth.orgId);
@@ -239,7 +239,7 @@ r.post('/customers', async (req, res) => {
 r.patch('/customers/:id', async (req, res) => {
   admin(req);
   await inOrg('customerCompany', req.params.id, req.auth.orgId, 'Customer company');
-  res.json(await prisma.customerCompany.update({ where: { id: req.params.id }, data: parse(customerBody.partial(), req.body) }));
+  res.json(await prisma.customerCompany.update({ where: { id: req.params.id }, data: parse(partialNoDefaults(customerBody), req.body) }));
 });
 
 // ----- Working calendars -----
@@ -253,7 +253,7 @@ const calBody = z.object({ name: z.string().trim().min(1).max(80), timezone: z.s
   dayStart: hhmm, dayEnd: hhmm, isDefault: z.boolean().optional(), holidays: z.array(z.object({ date: dateOnly, name: z.string().trim().min(1).max(80) })).max(400).optional() });
 async function saveCalendar(req, id) {
   admin(req);
-  const b = parse(id ? calBody.partial() : calBody, req.body);
+  const b = parse(id ? partialNoDefaults(calBody) : calBody, req.body);
   if (b.timezone && !Intl.supportedValuesOf('timeZone').includes(b.timezone) && b.timezone !== 'UTC') throw badRequest('Unknown timezone');
   if (b.dayStart && b.dayEnd && b.dayEnd <= b.dayStart) throw badRequest('Day end must be after day start');
   const { holidays, ...data } = b;
@@ -282,7 +282,7 @@ const tplBody = z.object({ name: z.string().trim().min(1).max(120), description:
     milestones: z.array(z.string().trim().min(1).max(120)).max(10).default([]), deliverables: z.array(z.string().trim().min(1).max(120)).max(10).default([]) })).min(1).max(30) });
 async function saveTemplate(req, id) {
   admin(req);
-  const { phases, ...data } = parse(id ? tplBody.partial() : tplBody, req.body);
+  const { phases, ...data } = parse(id ? partialNoDefaults(tplBody) : tplBody, req.body);
   return prisma.$transaction(async (tx) => {
     if (data.isDefault) await tx.projectTemplate.updateMany({ where: { organizationId: req.auth.orgId }, data: { isDefault: false } });
     const t = id ? await tx.projectTemplate.update({ where: { id }, data }) : await tx.projectTemplate.create({ data: { ...data, organizationId: req.auth.orgId } });

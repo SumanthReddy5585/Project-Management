@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Search, Flag, ChevronDown, ChevronRight, ArrowUp, ArrowDown, Upload } from 'lucide-react';
 import { ImportTasksDialog } from './Import.jsx';
-import { DateCell, useDateChange } from './DateChange.jsx';
+import { DateCell, useDateChange, movedText } from './DateChange.jsx';
 import { get, patch, post } from '../../api/client.js';
 import { useLoad, useDebounced } from '../../lib/hooks.js';
 import { useLive } from '../../lib/live.js';
@@ -71,7 +71,7 @@ export function TaskGrid() {
     try {
       const r = await patch(`/projects/${project.id}/work-items/${i.id}`, { ...changes, version: i.version });
       setData((d) => ({ ...d, data: d.data.map((x) => (x.id === i.id ? { ...x, ...changes, version: r.version ?? x.version + 1 } : x)) }));
-      if (r.downstreamConflicts?.length) toast(`${r.downstreamConflicts.length} dependent task(s) now start too early — see Timeline`, 'error');
+      if (r.rescheduled?.moved?.length) { const t = movedText(r.rescheduled.moved.filter((m) => m.id !== i.id && m.type !== 'MODULE'), project.code); if (t) toast(`${i.title}: ${t}`, 'success'); reload({ silent: true }); }
       reloadProject();
     } catch (e) { toast(e.status === 409 ? 'Someone else changed this task — refreshed.' : e.status === 403 ? 'You can only update tasks assigned to you' : e.message, 'error'); reload({ silent: true }); }
   };

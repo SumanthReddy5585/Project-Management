@@ -201,30 +201,38 @@ describe('changing task dates', () => {
     const still = await pm.get(`/api/projects/${P.id}/work-items/${A.id}`);
     expect([still.plannedStart, still.plannedFinish]).toEqual([monday, addWD(monday, 4)]);
   });
-  it('moving the start keeps the length; dependents need confirmation and then move', async () => {
+  it('moving the start keeps the length and moves everything that waits for it, automatically', async () => {
     const newStart = addWD(monday, 2);
-    const ask = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedStart: newStart, version: A.version });
-    expect(ask).toMatchObject({ applied: false, needsConfirmation: true, start: newStart, finish: addWD(monday, 6) });
-    expect(ask.adjusted).toMatchObject({ finish: addWD(monday, 6), days: 5 });
-    expect(ask.moves.map((m) => m.title).sort()).toEqual(['B', 'C']);
-    const unchanged = await pm.get(`/api/projects/${P.id}/work-items/${A.id}`);
-    expect(unchanged.version).toBe(A.version);
-    const done = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedStart: newStart, version: A.version, moveDependents: true, expectedMoves: ask.moves.map((m) => ({ id: m.id, start: m.to.start, finish: m.to.finish })) });
-    expect(done).toMatchObject({ applied: true, dependentsStartingTooEarly: 0 });
-    expect(done.moved.length).toBe(2);
+    const done = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedStart: newStart, version: A.version });
+    expect(done).toMatchObject({ applied: true, start: newStart, finish: addWD(monday, 6), heldBy: null });
+    expect(done.adjusted).toMatchObject({ finish: addWD(monday, 6), days: 5 });
+    expect(done.moved.map((m) => m.title).sort()).toEqual(['B', 'C']);
     const b = await pm.get(`/api/projects/${P.id}/work-items/${B.id}`);
-    expect(b.plannedStart > addWD(monday, 6)).toBe(true);
+    expect(b.plannedStart).toBe(addWD(monday, 7)); // the working day after A now ends
     expect(b.plannedFinish).toBe(addWD(b.plannedStart, 4)); // B keeps its 5 working days
+    const c = await pm.get(`/api/projects/${P.id}/work-items/${C.id}`);
+    expect([c.plannedStart, c.plannedFinish]).toEqual([addWD(b.plannedFinish, 1), addWD(b.plannedFinish, 3)]);
     // stale version is refused
-    await expectStatus(pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: addWD(monday, 20), version: A.version, moveDependents: false }), 409);
+    await expectStatus(pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: addWD(monday, 20), version: A.version }), 409);
   });
-  it('"only this task" leaves dependents and reports the clash; earlier dates never need confirmation', async () => {
-    const a = await pm.get(`/api/projects/${P.id}/work-items/${A.id}`);
-    const r = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: addWD(a.plannedFinish, 10), version: a.version, moveDependents: false });
-    expect(r).toMatchObject({ applied: true, moved: [] });
-    expect(r.dependentsStartingTooEarly).toBe(1);
-    const back = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: a.plannedFinish, version: r.item.version });
-    expect(back).toMatchObject({ applied: true, dependentsStartingTooEarly: 0 });
+  it('a delay pushes the chain; a shorter task pulls it back; a start typed too early is held after its predecessor', async () => {
+    let a = await pm.get(`/api/projects/${P.id}/work-items/${A.id}`);
+    const longer = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: addWD(a.plannedFinish, 10), version: a.version });
+    let b = await pm.get(`/api/projects/${P.id}/work-items/${B.id}`);
+    expect(longer.moved.map((m) => m.title).sort()).toEqual(['B', 'C']);
+    expect(b.plannedStart).toBe(addWD(a.plannedFinish, 11));
+    a = longer.item;
+    const shorter = await pm.post(`/api/projects/${P.id}/work-items/${A.id}/dates`, { plannedFinish: a.plannedStart, version: a.version });
+    b = await pm.get(`/api/projects/${P.id}/work-items/${B.id}`);
+    expect(b.plannedStart).toBe(addWD(monday, 5)); // back to B's own fixed start, not earlier
+    const free = await pm.post(`/api/projects/${P.id}/work-items/${B.id}/dates`, { autoStart: true, version: b.version });
+    expect(free.start).toBe(addWD(shorter.item.plannedFinish, 1)); // automatic: straight after A
+    expect(free.item.fixedStart).toBeNull();
+    const early = await pm.post(`/api/projects/${P.id}/work-items/${B.id}/dates`, { plannedStart: monday, version: free.item.version });
+    expect(early.start).toBe(addWD(shorter.item.plannedFinish, 1));
+    expect(early.heldBy).toMatchObject({ title: 'A' });
+    const proj = await pm.get(`/api/projects/${P.id}/plan-items`);
+    expect(proj.rows.find((r) => r.title === 'B').after).toEqual([A.id]);
   });
   it('phase dates follow their tasks and the project reports where the work ends', async () => {
     const d = await pm.get(`/api/projects/${P.id}`);
@@ -239,3 +247,83 @@ describe('changing task dates', () => {
   });
 });
 
+
+describe('plan builder: durations, "starts after", parallel work and automatic dates', () => {
+  let P; let ids = {};
+  const isWD = (iso) => ![0, 6].includes(new Date(`${iso}T00:00:00Z`).getUTCDay());
+  const addWD = (iso, n) => { const d = new Date(`${iso}T00:00:00Z`); let k = n; while (k > 0) { d.setUTCDate(d.getUTCDate() + 1); if (isWD(d.toISOString().slice(0, 10))) k--; } return d.toISOString().slice(0, 10); };
+  const start = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + 21); while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+  const rows = async () => Object.fromEntries((await pm.get(`/api/projects/${P.id}/plan-items`)).rows.map((r) => [r.title, r]));
+  it('a new project with simple stages has no preset milestones', async () => {
+    const me = await pm.get('/api/auth/me');
+    P = await pm.post('/api/projects', { name: 'Builder', code: 'BLD', managerId: me.user.id, plannedStart: start, plannedFinish: addWD(start, 30), templateId: 'simple' });
+    const plan = await pm.get(`/api/projects/${P.id}/plan-items`);
+    expect(plan.phases.map((p) => p.name)).toEqual(['Plan', 'Build', 'Test', 'Close']);
+    expect(plan.rows).toEqual([]);
+    ids.stage = plan.phases[1].id;
+  });
+  it('calculates dates from length and "starts after"; unlinked tasks run in parallel', async () => {
+    const add = async (title, durationDays, after = [], extra = {}) => { const r = await pm.post(`/api/projects/${P.id}/plan-items`, { title, durationDays, after, phaseId: ids.stage, ...extra }); ids[title] = r.item.id; return r.item; };
+    const kick = await add('Kick-off', 1);
+    expect([kick.plannedStart, kick.plannedFinish, kick.estimateHours]).toEqual([start, start, 8]);
+    await add('Design', 5, [ids['Kick-off']]);
+    await add('Data model', 3, [ids['Kick-off']]); // in parallel with Design
+    await add('Build', 10, [ids.Design, ids['Data model']]);
+    await add('Go-live', 1, [ids.Build], { type: 'MILESTONE' });
+    const r = await rows();
+    expect([r.Design.start, r.Design.finish]).toEqual([addWD(start, 1), addWD(start, 5)]);
+    expect([r['Data model'].start, r['Data model'].finish]).toEqual([addWD(start, 1), addWD(start, 3)]);
+    expect([r.Build.start, r.Build.finish]).toEqual([addWD(start, 6), addWD(start, 15)]); // waits for the longer branch
+    expect([r['Go-live'].start, r['Go-live'].finish, r['Go-live'].durationDays]).toEqual([addWD(start, 15), addWD(start, 15), 0]);
+    const proj = await pm.get(`/api/projects/${P.id}`);
+    expect(proj.plannedFinish).toBe(addWD(start, 15)); // draft: the project ends when its last task ends
+  });
+  it('longer work pushes everything after it; the effort estimate follows a default length', async () => {
+    const r0 = await rows();
+    const res = await pm.patch(`/api/projects/${P.id}/plan-items/${ids.Design}`, { durationDays: 8, version: r0.Design.version });
+    expect(res.item.estimateHours).toBe(64);
+    expect(res.rescheduled.moved.map((m) => m.title).sort()).toEqual(['Build', 'Go-live']);
+    const r = await rows();
+    expect(r.Build.start).toBe(addWD(start, 9));
+    expect((await pm.get(`/api/projects/${P.id}`)).plannedFinish).toBe(addWD(start, 18));
+  });
+  it('changes what a task waits for, refuses circles, and fixes or frees a start date', async () => {
+    let r = await rows();
+    await expectStatus(pm.patch(`/api/projects/${P.id}/plan-items/${ids['Kick-off']}`, { after: [ids.Build], version: r['Kick-off'].version }), 400);
+    await pm.patch(`/api/projects/${P.id}/plan-items/${ids.Build}`, { after: [ids['Data model']], version: r.Build.version });
+    r = await rows();
+    expect(r.Build.start).toBe(addWD(start, 4)); // now parallel with Design
+    expect(r['Go-live'].start).toBe(addWD(start, 13));
+    const fixed = addWD(start, 7);
+    await pm.patch(`/api/projects/${P.id}/plan-items/${ids.Build}`, { fixedStart: fixed, version: r.Build.version });
+    r = await rows();
+    expect([r.Build.start, r.Build.fixedStart]).toEqual([fixed, fixed]);
+    await pm.patch(`/api/projects/${P.id}/plan-items/${ids.Build}`, { fixedStart: null, version: r.Build.version });
+    r = await rows();
+    expect([r.Build.start, r.Build.fixedStart]).toEqual([addWD(start, 4), null]);
+  });
+  it('deleting a task keeps the chain: what waited for it now waits for what it waited for', async () => {
+    let r = await rows();
+    await pm.del(`/api/projects/${P.id}/plan-items/${ids['Data model']}`);
+    r = await rows();
+    expect(r.Build.after).toEqual([ids['Kick-off']]);
+    expect(r.Build.start).toBe(addWD(start, 1));
+  });
+  it('moving the project start moves the whole plan', async () => {
+    const p = await pm.get(`/api/projects/${P.id}`);
+    const later = addWD(start, 5);
+    await pm.patch(`/api/projects/${P.id}`, { plannedStart: later, version: p.version });
+    const r = await rows();
+    expect(r['Kick-off'].start).toBe(later);
+    expect(r.Design.start).toBe(addWD(later, 1));
+  });
+  it('editing one project field never resets the others to their defaults', async () => {
+    let p = await pm.get(`/api/projects/${P.id}`);
+    p = await pm.patch(`/api/projects/${P.id}`, { priority: 'HIGH', health: 'AMBER', customerVisible: true, version: p.version });
+    p = await pm.patch(`/api/projects/${P.id}`, { name: 'Builder 2', version: p.version });
+    expect(p).toMatchObject({ name: 'Builder 2', priority: 'HIGH', health: 'AMBER', customerVisible: true });
+  });
+  it('the team cannot edit the plan', async () => {
+    await expectStatus(dev.post(`/api/projects/${P.id}/plan-items`, { title: 'X', durationDays: 1 }), 404);
+  });
+});

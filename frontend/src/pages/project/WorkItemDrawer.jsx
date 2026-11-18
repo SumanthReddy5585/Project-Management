@@ -8,7 +8,7 @@ import { fmtDate, fmtHours, labelize } from '../../lib/format.js';
 import { Drawer, ErrorBox, Loading, StatusBadge, Meter, Select, useToast, ConfirmButton, Notice, CheckButton, DueChip, Avatar, STATUS_TONE } from '../../components/ui.jsx';
 import { CommentThread, FileList } from '../../components/collab.jsx';
 import { useProject } from './Workspace.jsx';
-import { useDateChange } from './DateChange.jsx';
+import { useDateChange, movedText } from './DateChange.jsx';
 
 const STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE', 'CANCELLED'];
 const TYPE_NAME = { TASK: 'Task', SUBTASK: 'Subtask', MODULE: 'Group', MILESTONE: 'Milestone', PHASE: 'Phase' };
@@ -54,8 +54,8 @@ export function WorkItemDrawer({ itemId, onClose }) {
     try {
       const r = await patch(`/projects/${project.id}/work-items/${it.id}`, { ...changes, version });
       setData((d) => ({ ...d, ...r }));
-      if (r.downstreamConflicts?.length) toast(`${r.downstreamConflicts.length} task(s) that wait for this now start too early. Check the Timeline view.`, 'error');
-      else toast('Saved', 'success');
+      const mv = movedText((r.rescheduled?.moved || []).filter((m) => m.id !== it.id && m.type !== 'MODULE'), project.code);
+      toast(mv ? `Saved · ${mv}` : 'Saved', 'success');
       reload(); reloadProject();
       return true;
     } catch (e) { toast(e.status === 409 ? 'Someone else just changed this — showing the latest version.' : e.message, 'error'); reload(); return false; }
@@ -143,7 +143,7 @@ export function WorkItemDrawer({ itemId, onClose }) {
               {d.type !== 'FS' && <span className="pill pill-outline" title="Saved, but not used when calculating dates">{d.type}</span>}
               {it.canSchedule && <ConfirmButton className="btn btn-sm btn-ghost btn-icon" title="Remove this link?" confirmLabel="Remove" onConfirm={async () => { await del(`/projects/${project.id}/dependencies/${d.id}`); reload(); }}><Trash2 size={14} aria-label="Remove link" /></ConfirmButton>}</li>)}
               {it.dependencies.length === 0 && <li className="text-muted small">This doesn't wait for anything.</li>}</ul>
-            {it.canSchedule && !project.readOnly && it.type !== 'MODULE' && <form className="d-flex gap-2 mt-2" onSubmit={async (e) => { e.preventDefault(); if (!depFor) return; try { const r = await post(`/projects/${project.id}/dependencies`, { predecessorId: depFor, successorId: it.id }); toast(r.conflict ? 'Linked — but this now starts before that task finishes' : 'Linked', r.conflict ? 'error' : 'success'); setDepFor(''); reload(); } catch (x) { toast(x.message, 'error'); } }}>
+            {it.canSchedule && !project.readOnly && it.type !== 'MODULE' && <form className="d-flex gap-2 mt-2" onSubmit={async (e) => { e.preventDefault(); if (!depFor) return; try { const r = await post(`/projects/${project.id}/dependencies`, { predecessorId: depFor, successorId: it.id }); { const moved = (r.rescheduled?.moved || []).filter((m) => m.type !== 'MODULE'); toast(moved.some((m) => m.id === it.id) ? `Linked — ${it.title} now starts ${fmtDate(moved.find((m) => m.id === it.id).to.start)}, after that task` : 'Linked', 'success'); if (r.rescheduled?.cycle) toast(r.rescheduled.cycle, 'error'); } setDepFor(''); reload(); } catch (x) { toast(x.message, 'error'); } }}>
               <Select aria-label="Task this waits for" value={depFor} onChange={(v) => setDepFor(v || '')} placeholder="This waits for…" options={(all.data?.data || []).filter((x) => x.id !== it.id && x.type !== 'MODULE' && !it.dependencies.some((d) => d.item.id === x.id)).map((x) => ({ value: x.id, label: x.title }))} />
               <button className="btn btn-sm btn-light" disabled={!depFor}><Link2 size={14} /> Link</button></form>}
           </>}

@@ -40,3 +40,12 @@ export const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a date
 export const uuid = z.string().uuid();
 export const toDate = (s) => (s == null ? s : new Date(`${s}T00:00:00.000Z`));
 export const fmtDate = (d) => (d ? d.toISOString().slice(0, 10) : null);
+
+/**
+ * Like schema.partial(), but fields that are not sent stay unset. (zod 4 applies .default() values even
+ * inside .partial(), which would silently reset unsent fields such as priority or visibility on every edit.)
+ */
+export function partialNoDefaults(schema) {
+  const strip = (t) => { let x = t; while (x?.def?.type === 'default' || x?.def?.type === 'optional') x = x.unwrap(); return x; };
+  return z.object(Object.fromEntries(Object.entries(schema.shape).map(([k, v]) => [k, strip(v).optional()])));
+}

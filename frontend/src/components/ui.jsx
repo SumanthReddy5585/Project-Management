@@ -187,7 +187,7 @@ export function ToastProvider({ children }) {
   const push = useCallback((message, tone = 'info') => {
     const id = Math.random().toString(36).slice(2);
     setItems((x) => [...x, { id, message, tone }]);
-    setTimeout(() => setItems((x) => x.filter((t) => t.id !== id)), tone === 'error' ? 7000 : 3500);
+    setTimeout(() => setItems((x) => x.filter((t) => t.id !== id)), Math.min(10000, Math.max(tone === 'error' ? 7000 : 3500, String(message).length * 55)));
   }, []);
   return (
     <ToastCtx.Provider value={push}>

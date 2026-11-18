@@ -462,6 +462,9 @@ model WorkItem {
   plannedFinish      DateTime?    @db.Date
   actualStart        DateTime?    @db.Date
   actualFinish       DateTime?    @db.Date
+  /// "Start no earlier than": set when the manager fixes a start date. Null = start as soon as the
+  /// tasks it waits for are finished (or at the project start when it waits for nothing).
+  startConstraint    DateTime?    @db.Date
   estimateHours      Decimal?     @db.Decimal(8, 2)
   percentComplete    Int          @default(0)
   customerVisible    Boolean      @default(false)

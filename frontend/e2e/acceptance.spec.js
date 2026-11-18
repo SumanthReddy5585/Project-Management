@@ -30,18 +30,32 @@ test.describe.serial('manager → client → request workflow', () => {
     await expect(page.locator('.plan-steps .ps.cur')).toContainText('Build the plan');
     projectUrl = page.url().replace(/\/plan$/, '');
 
-    // build the plan with quick-add, then approve & lock it as the original plan
-    const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-    for (const [title, s, f] of [['Shared onboarding task', 1, 3], ['Internal pricing review', 2, 5]]) {
-      const qa = page.locator('.plan-qa');
-      await qa.getByLabel('Title').fill(title);
-      await qa.getByLabel('Assignee').selectOption({ index: 1 });
-      await qa.getByLabel('Start date').fill(day(s));
-      await qa.getByLabel('Due date').fill(day(f));
-      await qa.getByLabel('Estimate in hours').fill('8');
-      await qa.getByRole('button', { name: 'Add task' }).click();
-      await expect(page.getByRole('button', { name: title, exact: true })).toBeVisible();
-    }
+    // build the plan in the simple builder: name · who · days · starts after — dates are calculated
+    await expect(page.locator('.pb-stage-name').first()).toContainText('Plan');
+    const addIn = async (title, days, { parallel = false, milestone = false } = {}) => {
+      const row = page.locator('.pb-stage').first().locator('tr.pb-add');
+      if (milestone) await row.getByRole('button', { name: /Milestone/ }).click();
+      await row.getByLabel(/^New task in/).fill(title);
+      if (!milestone) { await row.getByLabel('Who does the new task').selectOption({ index: 1 }); await row.getByLabel('Working days for the new task').fill(String(days)); }
+      if (parallel) { await row.getByLabel('What the new task waits for').click(); await page.getByRole('button', { name: /At the same time as the previous task/ }).click(); }
+      await row.getByRole('button', { name: 'Add', exact: true }).click();
+      await expect(page.locator(`.pb-table input[value="${title}"]`)).toBeVisible();
+    };
+    await addIn('Shared onboarding task', 3);
+    await addIn('Internal pricing review', 2, { parallel: true });
+    await addIn('Onboarding finished', 0, { milestone: true });
+    const startOf = async (title) => page.locator('.pb-table tr', { has: page.locator(`input[value="${title}"]`) }).locator('td.c-date').first().innerText();
+    expect(await startOf('Internal pricing review')).toBe(await startOf('Shared onboarding task')); // parallel: same start
+    const finishOf = async (title) => page.locator('.pb-table tr', { has: page.locator(`input[value="${title}"]`) }).locator('td.c-date').nth(1).innerText();
+    // the milestone waits for the previous task, so it falls on that task's last day
+    expect(await startOf('Onboarding finished')).toBe(await finishOf('Internal pricing review'));
+    // a longer task gets a later finish; the milestone keeps waiting for the task it follows
+    const before = await finishOf('Shared onboarding task');
+    const days = page.getByLabel(/^Working days for .+-\d+$/).first();
+    await days.fill('6'); await days.press('Enter');
+    await expect.poll(() => finishOf('Shared onboarding task')).not.toBe(before);
+    expect(await startOf('Onboarding finished')).toBe(await finishOf('Internal pricing review'));
+    await expect(page.locator('.pb-summary')).toContainText('Plan ends');
     await page.getByRole('button', { name: 'Approve & lock original plan' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Approve & lock' }).click();
     await expect(page.locator('.locked-bar')).toContainText('Plan approved on');
@@ -59,9 +73,9 @@ test.describe.serial('manager → client → request workflow', () => {
       await page.getByRole('button', { name: 'Close panel' }).click();
     }
     // tick one off from the list
-    await page.getByRole('button', { name: 'Mark Internal pricing review as done' }).click();
+    await page.getByRole('button', { name: 'Mark Internal pricing review as done' }).first().click();
     await page.getByRole('group', { name: 'Which tasks' }).getByRole('button', { name: 'Done' }).click();
-    await expect(page.getByRole('button', { name: 'Mark Internal pricing review as not done' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mark Internal pricing review as not done' }).first()).toBeVisible();
   });
 
   test('client sees the shared task but never the team-only one', async ({ page }) => {
@@ -179,7 +193,7 @@ test.describe('changing task dates in the table', () => {
   const toDay = async (input) => { await input.focus(); for (let k = 0; k < 4; k++) await input.press('ArrowLeft'); }; // start at the day part
   const typeDate = async (page, input, iso) => { await toDay(input); await page.keyboard.type(ddmmyyyy(iso), { delay: 60 }); };
 
-  test('typing a date saves it once, keeps lengths, moves dependents on request and never saves half-typed dates', async ({ page }) => {
+  test('typing a date saves it once, keeps lengths, moves dependents automatically and never saves half-typed dates', async ({ page }) => {
     const calls = [];
     page.on('request', (r) => { if (r.url().includes('/dates') || (r.method() === 'PATCH' && r.url().includes('/work-items/'))) calls.push(r.postDataJSON()); });
     await login(page, 'manager@demo.local');
@@ -194,7 +208,7 @@ test.describe('changing task dates in the table', () => {
     const newDue = shift(oldDue, 3);
     await typeDate(page, due, newDue);
     await due.press('Tab');
-    await expect(page.getByText('Push notifications: dates saved')).toBeVisible();
+    await expect(page.getByText(/^Push notifications: (dates saved|.*moved)/)).toBeVisible();
     expect(calls.length).toBe(1);
     expect(calls[0]).toMatchObject({ plannedFinish: newDue });
     await page.reload();
@@ -215,17 +229,14 @@ test.describe('changing task dates in the table', () => {
     await expect(page.getByText(/can't be before the start date/)).toBeVisible();
     await expect(d2).toHaveValue(newDue);
 
-    // 4. Moving the start of a task that others depend on: the due date keeps the length and dependents move after confirming.
+    // 4. Moving the start of a task that others depend on: the due date keeps the length and everything that waits for it moves automatically.
     const pay = page.getByLabel('Start of Payments & transfers API');
     const payStart = await pay.inputValue(); const payDue = await page.getByLabel('Due date of Payments & transfers API').inputValue();
     const pen = await page.getByLabel('Start of Security penetration test').inputValue();
     await typeDate(page, pay, shift(payStart, 7));
     await pay.press('Tab');
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('Move the tasks that depend on');
-    await expect(dialog).toContainText('Security penetration test');
-    await dialog.getByRole('button', { name: /^Move \d+ tasks? too$/ }).click();
-    await expect(page.getByText(/Payments & transfers API: Due date moved to .* dependent task/)).toBeVisible();
+    await expect(page.getByText(/Payments & transfers API: due date moved to .*wait.* for it moved later/)).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.reload();
     expect(await page.getByLabel('Start of Payments & transfers API').inputValue()).toBe(shift(payStart, 7));
     expect(await page.getByLabel('Due date of Payments & transfers API').inputValue()).toBe(shift(payDue, 7)); // same weekday, same length

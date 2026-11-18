@@ -30,6 +30,7 @@ export function workItem(i, access, extra = {}) {
   if (access?.isCustomer) return { ...base, ...extra.customer };
   return {
     ...base, assigneeId: i.assigneeId, priority: i.priority, actualStart: fmtDate(i.actualStart), actualFinish: fmtDate(i.actualFinish),
+    fixedStart: i.startConstraint === undefined ? undefined : fmtDate(i.startConstraint),
     estimateHours: num(i.estimateHours), customerVisible: i.customerVisible, labels: i.labels, version: i.version,
     createdAt: i.createdAt, updatedAt: i.updatedAt, ...extra.internal,
   };

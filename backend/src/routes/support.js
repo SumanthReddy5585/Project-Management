@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { parse, uuid } from '../lib/http.js';
+import { parse, uuid, partialNoDefaults } from '../lib/http.js';
 import { forbidden, notFound } from '../lib/errors.js';
 import { orgCan } from '../policies/permissions.js';
 import { audit } from '../services/audit.js';
@@ -40,7 +40,7 @@ async function ownCanned(req) {
 
 r.patch('/canned-responses/:id', async (req, res) => {
   const c = await ownCanned(req);
-  const b = parse(cannedBody.partial(), req.body);
+  const b = parse(partialNoDefaults(cannedBody), req.body);
   const u = await prisma.cannedResponse.update({ where: { id: c.id }, data: b });
   res.json({ id: u.id, title: u.title, body: u.body, canEdit: true });
 });
@@ -99,7 +99,7 @@ r.patch('/kb/articles/:id', async (req, res) => {
   staff(req.auth);
   const a = await prisma.knowledgeArticle.findFirst({ where: { id: id(req.params.id), organizationId: req.auth.orgId } });
   if (!a) throw notFound('Article');
-  const b = parse(articleBody.partial(), req.body);
+  const b = parse(partialNoDefaults(articleBody), req.body);
   const u = await prisma.knowledgeArticle.update({ where: { id: a.id }, data: b });
   await audit(prisma, req.auth, { action: 'kb.updated', entityType: 'KnowledgeArticle', entityId: a.id, metadata: { fields: Object.keys(b) } }, req.ip);
   publish({ orgId: req.auth.orgId, type: 'kb.changed', actorId: req.auth.userId });

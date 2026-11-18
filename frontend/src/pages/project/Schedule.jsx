@@ -16,38 +16,23 @@ const keepLength = (s, f, ns) => { const len = Math.max(1, wdBetween(s, f)); let
 
 const dayDiff = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
 
-function RescheduleModal({ item, onClose, onApplied, initial }) {
-  const { project } = useProject();
-  const toast = useToast();
-  const [start, setStart] = useState(initial?.start || item.plannedStart || todayISO());
-  const [finish, setFinish] = useState(initial?.finish || item.plannedFinish || item.plannedStart || todayISO());
-  const [preview, setPreview] = useState(initial?.preview || null);
-  const [withDown, setWithDown] = useState(true);
-  const [err, setErr] = useState(null);
+function RescheduleModal({ item, onClose, dates }) {
+  const [start, setStart] = useState(item.plannedStart || todayISO());
+  const [finish, setFinish] = useState(item.plannedFinish || item.plannedStart || todayISO());
   const [busy, setBusy] = useState(false);
   const isMs = item.type === 'MILESTONE';
-  const doPreview = async () => { setErr(null); try { setPreview(await post(`/projects/${project.id}/schedule/preview`, { itemId: item.id, plannedStart: start, plannedFinish: isMs ? start : finish })); } catch (e) { setErr(e); } };
-  const apply = async () => {
-    setBusy(true); setErr(null);
-    try {
-      const r = await post(`/projects/${project.id}/schedule/apply`, { itemId: item.id, plannedStart: start, plannedFinish: isMs ? start : finish, includeDownstream: withDown && preview.moves.length > 0, expectedMoves: withDown ? preview.moves.map((m) => ({ id: m.id, start: m.to.start, finish: m.to.finish })) : [] });
-      toast(`${r.updated} task(s) moved`, 'success'); onApplied(); onClose();
-    } catch (e) { setErr(e); if (e.status === 409) setPreview(null); } finally { setBusy(false); }
+  const save = async () => {
+    setBusy(true);
+    const changes = isMs ? { plannedFinish: start } : { ...(start !== item.plannedStart && { plannedStart: start }), ...(finish !== item.plannedFinish && { plannedFinish: finish }) };
+    try { if (!Object.keys(changes).length || (await dates.change(item, changes))) onClose(); } finally { setBusy(false); }
   };
   return (
-    <Modal open onClose={onClose} title="Change dates" size="lg" footer={<><button className="btn btn-light" onClick={onClose}>Cancel</button>
-      {!preview ? <button className="btn btn-primary" onClick={doPreview}>Check what else moves</button> : <button className="btn btn-primary" disabled={busy} onClick={apply}>{busy ? 'Applying…' : `Save ${1 + (withDown ? preview.moves.length : 0)} change(s)`}</button>}</>}>
+    <Modal open onClose={onClose} title="Change dates" footer={<><button className="btn btn-light" onClick={onClose}>Cancel</button>
+      <button className="btn btn-primary" disabled={busy || (!isMs && finish < start)} onClick={save}>{busy ? 'Saving…' : 'Save'}</button></>}>
       <p className="mb-2 fw-medium">{item.title}</p>
-      <ErrorBox error={err} />
-      <div className="row"><div className="col-6"><Field label={isMs ? 'Date' : 'Start'}>{(id) => <input id={id} type="date" className="form-control" value={start} onChange={(e) => { setStart(e.target.value); setPreview(null); }} />}</Field></div>
-        {!isMs && <div className="col-6"><Field label="Due">{(id) => <input id={id} type="date" className="form-control" value={finish} min={start} onChange={(e) => { setFinish(e.target.value); setPreview(null); }} />}</Field></div>}</div>
-      {preview && (preview.moves.length === 0 ? <Notice>Nothing else needs to move.</Notice> : <>
-        <Notice tone="warn">{preview.moves.length} task(s) that wait for this one would now start too early. We can push them later and keep their length.</Notice>
-        <table className="table table-sm mt-2"><thead><tr><th>Task</th><th>Now</th><th>New dates</th></tr></thead>
-          <tbody>{preview.moves.map((m) => <tr key={m.id}><td><span className="mono text-muted">{project.code}-{m.number}</span> {m.title}</td><td className="small">{fmtDate(m.from.start)} → {fmtDate(m.from.finish)}</td><td className="small fw-semibold">{fmtDate(m.to.start)} → {fmtDate(m.to.finish)}</td></tr>)}</tbody></table>
-        <div className="form-check"><input className="form-check-input" type="checkbox" id="wd" checked={withDown} onChange={(e) => setWithDown(e.target.checked)} /><label className="form-check-label" htmlFor="wd">Move these too</label></div>
-        {!withDown && <div className="form-text">Only this task changes; the others will be flagged as starting too early.</div>}
-      </>)}
+      <div className="row"><div className="col-6"><Field label={isMs ? 'Date' : 'Start'}>{(id) => <input id={id} type="date" className="form-control" value={start} onChange={(e) => setStart(e.target.value)} />}</Field></div>
+        {!isMs && <div className="col-6"><Field label="Due" error={finish < start ? 'Must be on or after the start' : undefined}>{(id) => <input id={id} type="date" className="form-control" value={finish} min={start} onChange={(e) => setFinish(e.target.value)} />}</Field></div>}</div>
+      <Notice>Tasks that wait for this one move with it automatically and keep their length.</Notice>
     </Modal>
   );
 }
@@ -234,7 +219,7 @@ export function Timeline() {
       </div>
       {dated.length === 0 && <div className="form-text mt-2">Add planned dates to work items to see them on the timeline.</div>}
       {dates.dialog}
-      {moving && <RescheduleModal item={moving} initial={moving._initial} onClose={() => setMoving(null)} onApplied={() => { items.reload(); reloadProject(); }} />}
+      {moving && <RescheduleModal item={moving} dates={dates} onClose={() => setMoving(null)} />}
       {selDep && <div className="bulkbar rounded mt-2"><span>Link: <strong>{byId.get(selDep.predecessorId)?.key}</strong> {selDep.type === 'FS' ? 'must finish before' : selDep.type === 'SS' ? 'must start before' : selDep.type === 'FF' ? 'must finish before finishing' : 'starts before finishing'} <strong>{byId.get(selDep.successorId)?.key}</strong>{selDep.lagDays ? ` (+${selDep.lagDays}d lag)` : ''}</span>
         <button className="btn btn-sm btn-outline-danger ms-auto" onClick={() => removeDep(selDep)}>Remove link</button><button className="btn btn-sm btn-ghost" onClick={() => setSelDep(null)}>Close</button></div>}
       <Modal open={blName != null} onClose={() => setBlName(null)} title="Save a snapshot of the plan" footer={<><button className="btn btn-light" onClick={() => setBlName(null)}>Cancel</button><button className="btn btn-primary" disabled={!blName?.trim()} onClick={saveBaseline}>Save</button></>}>

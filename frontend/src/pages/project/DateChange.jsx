@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarClock } from 'lucide-react';
 import { post } from '../../api/client.js';
 import { fmtDate } from '../../lib/format.js';
 import { emitLocal } from '../../lib/live.js';
-import { Modal, useToast } from '../../components/ui.jsx';
+import { useToast } from '../../components/ui.jsx';
 
 /** A complete, real date the server will accept (the browser reports half-typed dates such as 0002-12-04). */
 export function isCompleteDate(v) {
@@ -12,60 +11,43 @@ export function isCompleteDate(v) {
   const d = new Date(`${v}T00:00:00Z`); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
 }
 
+/** One line that says what the scheduler did after a change ("3 tasks that wait for it moved: …"). */
+export function movedText(moved = [], code) {
+  if (!moved?.length) return '';
+  const later = moved.filter((m) => (m.to.start || '') > (m.from.start || '')).length;
+  const dir = later === moved.length ? 'later' : later === 0 ? 'earlier' : '';
+  const list = moved.slice(0, 3).map((m) => `${code ? `${code}-` : '#'}${m.number} ${m.title} → ${fmtDate(m.to.start)}`).join(', ');
+  return `${moved.length} task${moved.length === 1 ? '' : 's'} that wait${moved.length === 1 ? 's' : ''} for it moved${dir ? ` ${dir}` : ''}: ${list}${moved.length > 3 ? ` and ${moved.length - 3} more` : ''}`;
+}
+
 /**
  * Changing planned dates, everywhere in the app: one request that applies the project's date rules
- * (moving the start keeps the length; the due date can't be before the start) and asks before moving
- * tasks that depend on this one. Returns { change(item, changes), dialog }.
+ * (moving the start keeps the length; the due date can't be before the start). The server then
+ * recalculates the plan, so every task that waits for this one moves with it. Returns { change(item, changes, extra), dialog }.
  */
 export function useDateChange({ project, onChanged }) {
   const toast = useToast();
-  const [ask, setAsk] = useState(null); // { item, changes, res, resolve }
-  const [busy, setBusy] = useState(false);
-  const done = (r, item) => {
-    const parts = [];
-    if (r.adjusted) parts.push(`Due date moved to ${fmtDate(r.adjusted.finish)} to keep the task's ${r.adjusted.days} ${r.adjusted.unit === 'working' ? 'working ' : ''}day${r.adjusted.days === 1 ? '' : 's'}`);
-    if (r.moved?.length) parts.push(`${r.moved.length} dependent task${r.moved.length === 1 ? '' : 's'} moved`);
-    toast(parts.length ? `${item.title}: ${parts.join(' · ')}` : `${item.title}: dates saved`, 'success');
-    if (r.dependentsStartingTooEarly) toast(`${r.dependentsStartingTooEarly} dependent task(s) now start before ${item.title} finishes — see the Gantt chart.`, 'error');
-    emitLocal({ type: 'work.changed', projectId: project.id });
-    onChanged?.(r.item);
-  };
-  const send = async (item, changes, extra = {}) => post(`/projects/${project.id}/work-items/${item.id}/dates`, { ...changes, version: item.version, ...extra });
-  const change = async (item, changes) => {
-    for (const [k, v] of Object.entries(changes)) if (v != null && !isCompleteDate(v)) { toast('Please enter a complete date (day, month and year).', 'error'); return false; }
+  const change = async (item, changes, extra = {}) => {
+    for (const v of Object.values(changes)) if (v != null && !isCompleteDate(v)) { toast('Please enter a complete date (day, month and year).', 'error'); return false; }
     try {
-      const r = await send(item, changes);
-      if (r.applied) { done(r, item); return true; }
-      return await new Promise((resolve) => setAsk({ item, changes, res: r, resolve }));
+      const r = await post(`/projects/${project.id}/work-items/${item.id}/dates`, { ...changes, version: item.version, ...extra });
+      const parts = [];
+      if (r.heldBy) parts.push(`starts ${fmtDate(r.start)} — it waits for ${project.code}-${r.heldBy.number} ${r.heldBy.title}, which ends ${fmtDate(r.heldBy.finish)}`);
+      else if (r.adjusted) parts.push(`due date moved to ${fmtDate(r.adjusted.finish)} to keep its ${r.adjusted.days} working day${r.adjusted.days === 1 ? '' : 's'}`);
+      const mv = movedText(r.moved, project.code);
+      if (mv) parts.push(mv);
+      toast(parts.length ? `${item.title}: ${parts.join(' · ')}` : `${item.title}: dates saved`, r.heldBy ? 'info' : 'success');
+      if (r.rescheduled?.cycle) toast(r.rescheduled.cycle, 'error');
+      emitLocal({ type: 'work.changed', projectId: project.id });
+      onChanged?.(r.item);
+      return true;
     } catch (e) {
       toast(e.status === 409 ? 'This task was just changed by someone else — showing the latest version.' : e.message, 'error');
       onChanged?.(null);
       return false;
     }
   };
-  const decide = async (moveDependents) => {
-    const { item, changes, res, resolve } = ask;
-    if (moveDependents === null) { setAsk(null); onChanged?.(null); resolve(false); return; }
-    setBusy(true);
-    try {
-      const r = await send(item, changes, { moveDependents, ...(moveDependents && { expectedMoves: res.moves.map((m) => ({ id: m.id, start: m.to.start, finish: m.to.finish })) }) });
-      setAsk(null); done(r, item); resolve(true);
-    } catch (e) { toast(e.status === 409 ? 'The plan changed meanwhile — please try again.' : e.message, 'error'); setAsk(null); onChanged?.(null); resolve(false); }
-    finally { setBusy(false); }
-  };
-  const dialog = ask && (
-    <Modal open size="lg" onClose={() => decide(null)} title={<span className="d-inline-flex align-items-center gap-2"><CalendarClock size={18} /> Move the tasks that depend on “{ask.item.title}”?</span>}
-      footer={<><button className="btn btn-light" disabled={busy} onClick={() => decide(null)}>Cancel</button>
-        <button className="btn btn-outline-secondary" disabled={busy} onClick={() => decide(false)}>Only change this task</button>
-        <button className="btn btn-primary" disabled={busy} onClick={() => decide(true)}>{busy ? 'Saving…' : `Move ${ask.res.moves.length} task${ask.res.moves.length === 1 ? '' : 's'} too`}</button></>}>
-      <p className="mb-2">New dates for <b>{ask.item.title}</b>: <b>{fmtDate(ask.res.start)}</b>{ask.res.finish !== ask.res.start ? <> → <b>{fmtDate(ask.res.finish)}</b></> : null}.
-        {ask.res.adjusted && <> The due date moves with the start to keep the task's {ask.res.adjusted.days} working days.</>}</p>
-      <p className="small text-muted">These tasks can only start after it finishes, so they would start too early. Moving them keeps each task's length.</p>
-      <table className="table table-sm"><thead><tr><th>Task</th><th>Now</th><th>Would move to</th></tr></thead>
-        <tbody>{ask.res.moves.map((m) => <tr key={m.id}><td>{project.code}-{m.number} {m.title}</td><td className="text-nowrap">{fmtDate(m.from.start)} → {fmtDate(m.from.finish)}</td><td className="text-nowrap fw-semibold">{fmtDate(m.to.start)} → {fmtDate(m.to.finish)}</td></tr>)}</tbody></table>
-    </Modal>
-  );
-  return { change, dialog };
+  return { change, dialog: null };
 }
 
 /**

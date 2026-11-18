@@ -11,7 +11,9 @@ describe('slip and elapsed share (working days)', () => {
     expect(slipDays('2026-11-13', '2026-11-16', cal)).toBe(1); // Fri -> Mon
     expect(slipDays('2026-11-16', '2026-11-13', cal)).toBe(-1);
     expect(slipDays('2026-11-16', '2026-11-16', cal)).toBe(0);
-    expect(elapsedShare('2026-11-16', '2026-11-20', '2026-11-18', cal)).toBeCloseTo(0.6);
+    expect(elapsedShare('2026-11-16', '2026-11-20', '2026-11-18', cal)).toBeCloseTo(0.4); // Mon+Tue done by the start of Wed
+    expect(elapsedShare('2026-11-16', '2026-11-20', '2026-11-16', cal)).toBe(0); // nothing expected on day one
+    expect(elapsedShare('2026-11-16', '2026-11-20', '2026-11-20', cal)).toBeCloseTo(0.8);
   });
 });
 
@@ -45,8 +47,8 @@ describe('project summary', () => {
     expect(v.summary.finishVariance).toBe(5);
     expect(v.summary.counts).toMatchObject({ DONE_ON_TIME: 1, OVERDUE: 1, DELAYED: 2, ADDED: 1 });
     expect(v.summary.plannedPct).toBeGreaterThan(v.summary.actualPct);
-    expect(v.summary.status).toBe('DELAYED'); // 50% done vs 87% planned (SPI 0.58)
-    expect(v.summary.spi).toBeCloseTo(0.58, 1);
+    expect(v.summary.status).toBe('DELAYED'); // 50% done vs 80% planned by the start of today (SPI 0.63)
+    expect(v.summary.spi).toBeCloseTo(0.63, 2);
     expect(v.phases[0]).toMatchObject({ name: 'Build', finishVariance: 5 });
     expect(v.curve.length).toBeGreaterThan(2);
     expect(v.curve[0].planned).toBeLessThanOrEqual(v.curve.at(-1).planned);

@@ -91,3 +91,13 @@ defineJob('notification-email', 60000, async (tx) => {
   }
   return { sent, total: rows.length };
 });
+
+// Plan: once an hour, recalculate active projects so work waiting for overdue tasks moves out
+// (overdue work is expected to finish today at the earliest). Clients refresh through the live stream.
+defineJob('auto-schedule', 60 * 60000, async () => {
+  const { rescheduleActiveProjects } = await import('../services/autoSchedule.js');
+  const { publish } = await import('../services/events.js');
+  const r = await rescheduleActiveProjects();
+  for (const p of r.touched) publish({ orgId: p.organizationId, type: 'work.changed', projectId: p.id });
+  return { projects: r.projects, moved: r.moved };
+});

@@ -531,6 +531,19 @@ async function upgradeDemo(base) {
   console.log('[demo-upgrade] demo data upgraded');
 }
 
+// Seeding writes many dates in a row; the automatic scheduler runs once at the end instead of after every call.
+async function finishScheduling() {
+  await prisma.$executeRawUnsafe(`UPDATE "WorkItem" SET "startConstraint" = "plannedStart" WHERE "startConstraint" IS NULL AND "plannedStart" IS NOT NULL AND type <> 'MODULE'
+    AND "createdAt" > now() - interval '2 hours'`);
+  const { freeChainedTasks } = await import('../scripts/upgrade-schedule.js');
+  await freeChainedTasks({ query: async (sql, params = []) => ({ rows: await prisma.$queryRawUnsafe(sql, ...params) }) }, (m) => console.log(`[demo] ${m}`));
+  delete process.env.AUTO_SCHEDULE;
+  const { rescheduleActiveProjects } = await import('../src/services/autoSchedule.js');
+  const r = await rescheduleActiveProjects();
+  console.log(`[demo] plans recalculated: ${r.moved} item(s) moved in ${r.touched.length} project(s)`);
+}
+
+process.env.AUTO_SCHEDULE = 'off';
 const app = createApp();
 const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
 const base = `http://127.0.0.1:${server.address().port}`;
@@ -541,6 +554,7 @@ try {
     if (SCENARIOS) { await seedScenarios(base); console.log('[demo-upgrade] scenario projects added'); }
     process.exitCode = 0;
   } else if (UPGRADE) { await upgradeDemo(base); process.exitCode = 0; } else await seedDemo(base);
+  await finishScheduling();
   if (!UPGRADE && !REGISTERS && !PLANS && !SCENARIOS) console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
   if (!UPGRADE && !REGISTERS && !PLANS && !SCENARIOS) for (const u of ['admin', 'manager', 'dev1', 'dev2', 'qa', 'customer', 'fabrikam', 'globex.admin']) console.log('  ' + mail(u));
 } catch (e) { console.error('Seed failed:', e.message, JSON.stringify(e.data ?? {})); process.exitCode = 1; }

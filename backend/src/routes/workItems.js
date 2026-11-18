@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { parse, listQuery, pageArgs, paged, dateOnly, toDate, fmtDate, uuid, orderBy } from '../lib/http.js';
+import { parse, listQuery, pageArgs, paged, dateOnly, toDate, fmtDate, uuid, orderBy, partialNoDefaults } from '../lib/http.js';
 import { badRequest, conflict, notFound, forbidden } from '../lib/errors.js';
 import { projectAccess, workItemAccess, workItemScope } from '../policies/access.js';
 import * as S from '../policies/serializers.js';
@@ -13,6 +13,8 @@ import { normalizeProgress, READ_ONLY_PROJECT } from '../domain/workflow.js';
 import { wouldCreateCycle, previewShift, scheduleConflicts, criticalPath } from '../domain/dependencies.js';
 import { toCsv } from '../lib/csv.js';
 import { resolveDateChange, DateRuleError } from '../domain/dates.js';
+import { addWorkingDays, nextWorkingDay, workingDaysBetween } from '../domain/calendar.js';
+import { reschedule } from '../services/autoSchedule.js';
 
 const r = Router({ mergeParams: true });
 const STATUS = z.enum(['TODO', 'IN_PROGRESS', 'BLOCKED', 'IN_REVIEW', 'DONE', 'CANCELLED']);
@@ -116,12 +118,16 @@ r.post('/work-items', async (req, res) => {
       ...b, ...norm, projectId: access.project.id, phaseId, parentId: parent?.id ?? null, number: p.workItemSeq, createdById: req.auth.userId,
       customerVisible: b.customerVisible ?? (parent ? parent.customerVisible : false),
       plannedStart: toDate(b.plannedStart), plannedFinish: toDate(b.plannedFinish), actualStart: toDate(b.actualStart) ?? norm.actualStart, actualFinish: toDate(b.actualFinish) ?? norm.actualFinish,
+      // a start date typed by the manager is kept ("start no earlier than"); links can only push it later
+      startConstraint: b.type !== 'MODULE' ? toDate(b.plannedStart) : null,
     } });
     await audit(tx, req.auth, { action: 'work_item.created', entityType: 'WorkItem', entityId: it.id, projectId: access.project.id, metadata: { number: it.number, type: it.type, title: it.title } }, req.ip);
     await notify(tx, { orgId: req.auth.orgId, userIds: [it.assigneeId], exclude: req.auth.userId, type: 'work_item.assigned', title: `Assigned: ${access.project.code}-${it.number} ${it.title}`, link: `/projects/${access.project.id}/work/${it.id}` });
     return it;
   });
-  res.status(201).json(S.workItem(item, access, { code: access.project.code }));
+  const rescheduled = await reschedule(access.project.id);
+  const fresh = rescheduled.moved.length ? await prisma.workItem.findUnique({ where: { id: item.id } }) : item;
+  res.status(201).json({ ...S.workItem(fresh, access, { code: access.project.code }), rescheduled });
 });
 
 // ----- Detail -----
@@ -160,7 +166,7 @@ r.patch('/work-items/:itemId', async (req, res) => {
   const a = await workItemAccess(req.auth, req.params.projectId, req.params.itemId);
   if (!a.canEdit) throw forbidden('You can only update work assigned to you');
   writable(a);
-  const { version, ...b } = parse(itemBody.omit({ type: true }).partial().extend({ version: z.number().int() }), req.body);
+  const { version, ...b } = parse(partialNoDefaults(itemBody.omit({ type: true })).extend({ version: z.number().int() }), req.body);
   if (!a.can('work.editAny')) for (const k of Object.keys(b)) if (!OWN_FIELDS.has(k)) throw forbidden(`Only project managers can change ${k}`);
   const it = a.item;
   if ('parentId' in b || 'phaseId' in b) {
@@ -177,6 +183,7 @@ r.patch('/work-items/:itemId', async (req, res) => {
   const norm = (b.status || b.percentComplete != null) ? normalizeProgress(it, { status: b.status, percentComplete: b.percentComplete, actualStart: b.actualStart, actualFinish: b.actualFinish }, today()) : {};
   const data = { ...b, ...norm, version: { increment: 1 } };
   for (const k of ['plannedStart', 'plannedFinish', 'actualStart', 'actualFinish']) if (k in b) data[k] = toDate(b[k]);
+  if ('plannedStart' in b && it.type !== 'MODULE') data.startConstraint = toDate(b.plannedStart);
   if (b.status === 'DONE') {
     const openKids = await prisma.workItem.count({ where: { parentId: it.id, status: { notIn: ['DONE', 'CANCELLED'] } } });
     if (openKids) throw badRequest(`Complete or cancel the ${openKids} open child item(s) first`);
@@ -192,21 +199,19 @@ r.patch('/work-items/:itemId', async (req, res) => {
     if (norm.status && norm.status !== it.status && it.assigneeId) await notify(tx, { orgId: req.auth.orgId, userIds: [it.assigneeId], exclude: req.auth.userId, type: 'work_item.status', title: `${a.project.code}-${it.number} moved to ${norm.status.replace('_', ' ').toLowerCase()}`, link: `/projects/${a.project.id}/work/${it.id}` });
     return tx.workItem.findUnique({ where: { id: it.id } });
   });
-  // Date changes never move other items. Report resulting conflicts so the UI can offer a preview.
-  let downstream = [];
-  if ('plannedStart' in b || 'plannedFinish' in b) {
-    const sched = await loadSchedule(a.project.id);
-    downstream = scheduleConflicts(sched.items, sched.deps, await projectCalendar(a.project)).filter((c) => c.predecessorId === it.id);
-  }
-  res.json({ ...S.workItem(updated, a, { code: a.project.code }), downstreamConflicts: downstream });
+  // Dates, status and hierarchy all feed the schedule: recalculate everything that waits on this item.
+  const rescheduled = await reschedule(a.project.id);
+  const fresh = rescheduled.moved.length ? await prisma.workItem.findUnique({ where: { id: it.id } }) : updated;
+  res.json({ ...S.workItem(fresh, a, { code: a.project.code }), rescheduled, downstreamConflicts: [] });
 });
 
-// ----- Change a task's dates (the one path used by the table, the task panel and the plan builder) -----
-// Works out the final dates on the project calendar (moving the start keeps the length), validates them,
-// and finds finish-to-start dependents that would start too early. When there are any, it answers with
-// needsConfirmation and changes nothing until the caller says whether to move them too.
+// ----- Change a task's dates (the one path used by the table, the task panel, the Gantt and the plan builder) -----
+// Works out the final dates on the project calendar (moving the start keeps the length), saves them and then
+// recalculates the plan: everything that waits for this task moves with it, automatically.
+// A start typed by the manager becomes the task's "start no earlier than" date; autoStart clears it so the task
+// starts as soon as what it waits for is finished.
 const datesBody = z.object({ plannedStart: dateOnly.nullable().optional(), plannedFinish: dateOnly.nullable().optional(), version: z.number().int(),
-  moveDependents: z.boolean().optional(), expectedMoves: z.array(z.object({ id: uuid, start: dateOnly, finish: dateOnly })).max(2000).optional() });
+  autoStart: z.boolean().optional(), moveDependents: z.boolean().optional(), expectedMoves: z.array(z.any()).max(2000).optional() });
 r.post('/work-items/:itemId/dates', async (req, res) => {
   const a = await workItemAccess(req.auth, req.params.projectId, req.params.itemId);
   if (!a.can('work.editAny')) throw forbidden('Only project managers can change dates');
@@ -216,38 +221,33 @@ r.post('/work-items/:itemId/dates', async (req, res) => {
   const cal = await projectCalendar(a.project);
   const it = a.item;
   let next;
-  try { next = resolveDateChange({ type: it.type, plannedStart: fmtDate(it.plannedStart), plannedFinish: fmtDate(it.plannedFinish) }, change, cal); }
-  catch (e) { if (e instanceof DateRuleError) throw badRequest(e.message); throw e; }
-  const findMoves = async (db) => {
-    if (!next.start || !next.finish) return { sched: null, moves: [] };
-    const sched = await loadSchedule(a.project.id, db);
-    return { sched, moves: previewShift(sched.items, sched.deps, it.id, next.start, next.finish, cal) };
-  };
-  const pre = await findMoves(prisma);
-  const named = (moves, sched) => { const by = new Map((sched?.items || []).map((x) => [x.id, x])); return moves.map((m) => ({ id: m.id, number: by.get(m.id)?.number, title: by.get(m.id)?.title, from: m.from, to: m.to })); };
-  if (pre.moves.length && b.moveDependents === undefined) {
-    return res.json({ applied: false, needsConfirmation: true, start: next.start, finish: next.finish, adjusted: next.adjusted, moves: named(pre.moves, pre.sched) });
+  if (b.autoStart && !Object.keys(change).length) next = { start: fmtDate(it.plannedStart), finish: fmtDate(it.plannedFinish), adjusted: null };
+  else {
+    try { next = resolveDateChange({ type: it.type, plannedStart: fmtDate(it.plannedStart), plannedFinish: fmtDate(it.plannedFinish) }, change, cal); }
+    catch (e) { if (e instanceof DateRuleError) throw badRequest(e.message); throw e; }
   }
-  const result = await prisma.$transaction(async (tx) => {
+  const startTyped = 'plannedStart' in change || (it.type === 'MILESTONE' && 'plannedFinish' in change);
+  const constraint = b.autoStart ? null : startTyped ? next.start : undefined;
+  await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${a.project.id}))`;
-    const n = await tx.workItem.updateMany({ where: { id: it.id, version: b.version }, data: { plannedStart: toDate(next.start), plannedFinish: toDate(next.finish), version: { increment: 1 } } });
+    const n = await tx.workItem.updateMany({ where: { id: it.id, version: b.version }, data: { plannedStart: toDate(next.start), plannedFinish: toDate(next.finish),
+      ...(constraint !== undefined && it.type !== 'MODULE' && { startConstraint: toDate(constraint) }), version: { increment: 1 } } });
     if (!n.count) throw conflict('This task was changed by someone else. Showing the latest version.');
-    let moved = [];
-    if (b.moveDependents) {
-      const { sched, moves } = await findMoves(tx);
-      const key = (xs) => xs.map((m) => `${m.id}:${m.to?.start ?? m.start}:${m.to?.finish ?? m.finish}`).sort().join('|');
-      if (b.expectedMoves && key(moves) !== key(b.expectedMoves)) throw conflict('The plan changed while you were looking. Please try again.');
-      for (const m of moves) await tx.workItem.update({ where: { id: m.id }, data: { plannedStart: toDate(m.to.start), plannedFinish: toDate(m.to.finish), version: { increment: 1 } } });
-      moved = named(moves, sched);
-    }
     await audit(tx, req.auth, { action: 'work_item.dates_changed', entityType: 'WorkItem', entityId: it.id, projectId: a.project.id,
-      metadata: { number: it.number, from: { start: fmtDate(it.plannedStart), finish: fmtDate(it.plannedFinish) }, to: { start: next.start, finish: next.finish }, movedDependents: moved.length } }, req.ip);
-    return { item: await tx.workItem.findUnique({ where: { id: it.id } }), moved };
+      metadata: { number: it.number, from: { start: fmtDate(it.plannedStart), finish: fmtDate(it.plannedFinish) }, to: { start: next.start, finish: next.finish }, ...(b.autoStart && { autoStart: true }) } }, req.ip);
   });
-  const after = await loadSchedule(a.project.id);
-  const stillEarly = scheduleConflicts(after.items, after.deps, cal).filter((c) => c.predecessorId === it.id).length;
-  res.json({ applied: true, start: next.start, finish: next.finish, adjusted: next.adjusted, moved: result.moved, dependentsStartingTooEarly: stillEarly,
-    item: S.workItem(result.item, a, { code: a.project.code }) });
+  const rescheduled = await reschedule(a.project.id);
+  const item = await prisma.workItem.findUnique({ where: { id: it.id } });
+  const start = fmtDate(item.plannedStart); const finish = fmtDate(item.plannedFinish);
+  // The task could not start on the typed date because it waits for another task: say which one.
+  let heldBy = null;
+  if (startTyped && next.start && start && start > next.start) {
+    const preds = await prisma.dependency.findMany({ where: { successorId: it.id, type: 'FS' }, include: { predecessor: { select: { id: true, number: true, title: true, plannedFinish: true, actualFinish: true, status: true } } } });
+    const p = preds.map((d) => d.predecessor).filter((x) => x.status !== 'CANCELLED').sort((x, y) => fmtDate(y.actualFinish || y.plannedFinish)?.localeCompare(fmtDate(x.actualFinish || x.plannedFinish)))[0];
+    heldBy = p ? { id: p.id, number: p.number, title: p.title, finish: fmtDate(p.actualFinish || p.plannedFinish) } : null;
+  }
+  res.json({ applied: true, start, finish, adjusted: next.adjusted, heldBy, moved: rescheduled.moved.filter((m) => m.id !== it.id && m.type !== 'MODULE'),
+    rescheduled, item: S.workItem(item, a, { code: a.project.code }) });
 });
 
 async function isDescendant(projectId, candidateId, ancestorId) {
@@ -267,6 +267,7 @@ r.delete('/work-items/:itemId', async (req, res) => {
     await tx.workItem.delete({ where: { id: a.item.id } });
     await audit(tx, req.auth, { action: 'work_item.deleted', entityType: 'WorkItem', entityId: a.item.id, projectId: a.project.id, metadata: { number: a.item.number, title: a.item.title } }, req.ip);
   });
+  await reschedule(a.project.id);
   res.status(204).end();
 });
 
@@ -290,7 +291,8 @@ r.post('/work-items/bulk', async (req, res) => {
     }
     await audit(tx, req.auth, { action: 'work_item.bulk_updated', entityType: 'Project', entityId: access.project.id, projectId: access.project.id, metadata: { count: items.length - skipped.length, patch } }, req.ip);
   });
-  res.json({ updated: items.length - skipped.length, skipped });
+  const rescheduled = patch.status ? await reschedule(access.project.id) : undefined;
+  res.json({ updated: items.length - skipped.length, skipped, rescheduled });
 });
 
 // ----- Checklist & collaborators -----
@@ -378,7 +380,7 @@ r.post('/work-items/import', async (req, res) => {
       const seq = await tx.project.update({ where: { id: pid }, data: { workItemSeq: { increment: 1 } }, select: { workItemSeq: true } });
       const norm = normalizeProgress({ status: 'TODO', percentComplete: 0 }, { status: p.status }, t);
       const it = await tx.workItem.create({ data: { projectId: pid, number: seq.workItemSeq, type: p.type, title: p.title, description: p.description, phaseId: p.phaseId, parentId, assigneeId: p.assigneeId,
-        priority: p.priority, ...norm, plannedStart: toDate(p.plannedStart), plannedFinish: toDate(p.plannedFinish), estimateHours: p.estimateHours, createdById: req.auth.userId, customerVisible: false } });
+        priority: p.priority, ...norm, plannedStart: toDate(p.plannedStart), plannedFinish: toDate(p.plannedFinish), startConstraint: p.type !== 'MODULE' ? toDate(p.plannedStart) : null, estimateHours: p.estimateHours, createdById: req.auth.userId, customerVisible: false } });
       ids.set(plan.indexOf(p), it.id);
       out.push(it);
     }
@@ -387,7 +389,8 @@ r.post('/work-items/import', async (req, res) => {
     for (const [uid, n] of byAssignee) await notify(tx, { orgId: req.auth.orgId, userIds: [uid], exclude: req.auth.userId, type: 'work_item.assigned', title: `${n} imported task(s) assigned to you in ${access.project.code}`, link: `/projects/${pid}/tasks` });
     return out;
   }, { timeout: 30000 });
-  res.status(201).json({ dryRun: false, summary, created: created.length });
+  const rescheduled = await reschedule(pid);
+  res.status(201).json({ dryRun: false, summary, created: created.length, rescheduled });
 });
 
 r.post('/work-items/:itemId/checklist', async (req, res) => {
@@ -449,9 +452,9 @@ r.post('/dependencies', async (req, res) => {
     await audit(tx, req.auth, { action: 'dependency.created', entityType: 'Dependency', entityId: d.id, projectId: access.project.id, metadata: b }, req.ip);
     return d;
   });
-  const sched = await loadSchedule(access.project.id);
-  const conflicts = scheduleConflicts(sched.items, sched.deps, await projectCalendar(access.project)).filter((c) => c.successorId === b.successorId && c.predecessorId === b.predecessorId);
-  res.status(201).json({ ...dep, conflict: conflicts[0] ?? null, scheduled: dep.type === 'FS' });
+  // the task that now waits is moved straight away (and everything after it)
+  const rescheduled = await reschedule(access.project.id);
+  res.status(201).json({ ...dep, conflict: null, scheduled: dep.type === 'FS', rescheduled });
 });
 
 r.delete('/dependencies/:depId', async (req, res) => {
@@ -460,7 +463,182 @@ r.delete('/dependencies/:depId', async (req, res) => {
   const n = await prisma.dependency.deleteMany({ where: { id: req.params.depId, projectId: access.project.id } });
   if (!n.count) throw notFound('Dependency');
   await audit(prisma, req.auth, { action: 'dependency.deleted', entityType: 'Dependency', entityId: req.params.depId, projectId: access.project.id }, req.ip);
+  await reschedule(access.project.id);
   res.status(204).end();
+});
+
+// ----- Plan builder -----
+// The simple way to enter a plan: each row is "what · who · how many working days · starts after which tasks".
+// Dates are never typed here unless the manager wants to fix a start; the scheduler calculates them, runs
+// unlinked tasks in parallel and moves everything that waits for a task when that task moves.
+const planItemBody = z.object({
+  type: z.enum(['TASK', 'MILESTONE']).default('TASK'), title: z.string().trim().min(1).max(300), phaseId: uuid.nullable().optional(), assigneeId: uuid.nullable().optional(),
+  durationDays: z.number().int().min(1).max(1000).default(5), after: z.array(uuid).max(50).default([]), fixedStart: dateOnly.nullable().optional(),
+  estimateHours: z.number().min(0).max(100000).nullable().optional(),
+});
+const HOURS_PER_DAY = 8;
+
+async function checkPlanRefs(projectId, { phaseId, assigneeId, after = [] }, selfId = null) {
+  if (phaseId && !(await prisma.phase.findFirst({ where: { id: phaseId, projectId } }))) throw badRequest('Stage not found in this project');
+  await validateAssignee(projectId, assigneeId);
+  const ids = [...new Set(after)];
+  if (selfId && ids.includes(selfId)) throw badRequest('A task cannot wait for itself');
+  if (ids.length) {
+    const rows = await prisma.workItem.findMany({ where: { id: { in: ids }, projectId }, select: { id: true, type: true } });
+    if (rows.length !== ids.length) throw badRequest('A task it should wait for is not in this project');
+    if (rows.some((x) => x.type === 'MODULE')) throw badRequest('Pick tasks or milestones to wait for, not work packages');
+  }
+  return ids;
+}
+
+r.get('/plan-items', async (req, res) => {
+  const access = await projectAccess(req.auth, req.params.projectId);
+  access.require('project.viewInternal');
+  const p = access.project;
+  const [rows, deps, phases, cal] = await Promise.all([
+    prisma.workItem.findMany({ where: { projectId: p.id, status: { not: 'CANCELLED' } }, orderBy: [{ sortOrder: 'asc' }, { number: 'asc' }] }),
+    prisma.dependency.findMany({ where: { projectId: p.id } }),
+    prisma.phase.findMany({ where: { projectId: p.id }, orderBy: { sortOrder: 'asc' } }),
+    projectCalendar(p),
+  ]);
+  const after = new Map(); for (const d of deps) if (d.type === 'FS') after.set(d.successorId, [...(after.get(d.successorId) || []), d.predecessorId]);
+  const parents = new Set(rows.map((x) => x.parentId).filter(Boolean));
+  const leaf = rows.filter((x) => !parents.has(x.id));
+  const fin = leaf.map((x) => fmtDate(x.plannedFinish)).filter(Boolean).sort().at(-1) ?? null;
+  const st = leaf.map((x) => fmtDate(x.plannedStart)).filter(Boolean).sort()[0] ?? null;
+  res.json({
+    projectStart: fmtDate(p.plannedStart), projectFinish: fmtDate(p.plannedFinish), approved: Boolean(p.planApprovedAt),
+    canEdit: access.can('work.schedule') && !READ_ONLY_PROJECT.has(p.status),
+    calculatedStart: st, calculatedFinish: fin, workingDays: st && fin ? workingDaysBetween(st, fin, cal) : 0,
+    workDays: [...cal.workDays], holidays: [...cal.holidays],
+    phases: phases.map((ph) => ({ id: ph.id, name: ph.name, sortOrder: ph.sortOrder, version: ph.version })),
+    rows: rows.map((x) => ({
+      id: x.id, number: x.number, key: `${p.code}-${x.number}`, type: x.type, title: x.title, phaseId: x.phaseId, parentId: x.parentId, isParent: parents.has(x.id),
+      assigneeId: x.assigneeId, status: x.status, version: x.version, estimateHours: x.estimateHours == null ? null : Number(x.estimateHours),
+      start: fmtDate(x.plannedStart), finish: fmtDate(x.plannedFinish), fixedStart: fmtDate(x.startConstraint),
+      durationDays: x.type === 'MILESTONE' ? 0 : x.plannedStart && x.plannedFinish ? Math.max(1, workingDaysBetween(x.plannedStart, x.plannedFinish, cal)) : null,
+      after: after.get(x.id) || [],
+    })),
+  });
+});
+
+r.post('/plan-items', async (req, res) => {
+  const access = await projectAccess(req.auth, req.params.projectId);
+  access.require('work.schedule');
+  writable(access);
+  const b = parse(planItemBody, req.body);
+  const p = access.project;
+  const after = await checkPlanRefs(p.id, b);
+  const cal = await projectCalendar(p);
+  const ms = b.type === 'MILESTONE';
+  const start = nextWorkingDay(b.fixedStart || fmtDate(p.plannedStart), cal);
+  const finish = ms ? start : addWorkingDays(start, b.durationDays - 1, cal);
+  const item = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${p.id}))`;
+    const seq = await tx.project.update({ where: { id: p.id }, data: { workItemSeq: { increment: 1 } }, select: { workItemSeq: true } });
+    const last = await tx.workItem.aggregate({ where: { projectId: p.id }, _max: { sortOrder: true } });
+    const it = await tx.workItem.create({ data: {
+      projectId: p.id, type: b.type, title: b.title, phaseId: b.phaseId ?? null, assigneeId: ms ? null : b.assigneeId ?? null, number: seq.workItemSeq,
+      plannedStart: toDate(start), plannedFinish: toDate(finish), startConstraint: b.fixedStart ? toDate(start) : null,
+      estimateHours: ms ? null : b.estimateHours !== undefined ? b.estimateHours : b.durationDays * HOURS_PER_DAY,
+      sortOrder: (last._max.sortOrder ?? 0) + 1, createdById: req.auth.userId,
+    } });
+    if (after.length) await tx.dependency.createMany({ data: after.map((pid) => ({ projectId: p.id, predecessorId: pid, successorId: it.id, type: 'FS', lagDays: 0 })) });
+    await audit(tx, req.auth, { action: 'work_item.created', entityType: 'WorkItem', entityId: it.id, projectId: p.id, metadata: { number: it.number, type: it.type, title: it.title, after: after.length } }, req.ip);
+    if (it.assigneeId) await notify(tx, { orgId: req.auth.orgId, userIds: [it.assigneeId], exclude: req.auth.userId, type: 'work_item.assigned', title: `Assigned: ${p.code}-${it.number} ${it.title}`, link: `/projects/${p.id}/work/${it.id}` });
+    return it;
+  });
+  const rescheduled = await reschedule(p.id);
+  res.status(201).json({ item: S.workItem(await prisma.workItem.findUnique({ where: { id: item.id } }), access, { code: p.code }), rescheduled });
+});
+
+r.patch('/plan-items/:itemId', async (req, res) => {
+  const a = await workItemAccess(req.auth, req.params.projectId, req.params.itemId);
+  a.require('work.schedule');
+  writable(a);
+  // no defaults here: a field that is not sent is not changed
+  const b = parse(z.object({ type: z.enum(['TASK', 'MILESTONE']).optional(), title: z.string().trim().min(1).max(300).optional(), phaseId: uuid.nullable().optional(),
+    assigneeId: uuid.nullable().optional(), durationDays: z.number().int().min(1).max(1000).optional(), after: z.array(uuid).max(50).optional(),
+    fixedStart: dateOnly.nullable().optional(), estimateHours: z.number().min(0).max(100000).nullable().optional(), version: z.number().int() }), req.body);
+  const it = a.item; const p = a.project;
+  if (it.type === 'MODULE') throw badRequest('Work packages take their dates from the tasks inside them');
+  const after = b.after ? await checkPlanRefs(p.id, b, it.id) : (await checkPlanRefs(p.id, { phaseId: b.phaseId, assigneeId: b.assigneeId }), null);
+  const cal = await projectCalendar(p);
+  const type = b.type ?? it.type; const ms = type === 'MILESTONE';
+  if (b.type && b.type !== it.type && !['TASK', 'MILESTONE'].includes(it.type)) throw badRequest('Only tasks and milestones can be switched');
+  if (ms && b.type && (await prisma.workItem.count({ where: { parentId: it.id } }))) throw badRequest('A task with sub-tasks cannot become a milestone');
+  const oldDur = it.plannedStart && it.plannedFinish ? Math.max(1, workingDaysBetween(it.plannedStart, it.plannedFinish, cal)) : null;
+  let start = fmtDate(it.plannedStart) || fmtDate(p.plannedStart);
+  if (b.fixedStart) start = b.fixedStart;
+  start = nextWorkingDay(start, cal);
+  const dur = b.durationDays ?? (it.type === 'MILESTONE' ? 5 : oldDur ?? 5);
+  const finish = ms ? start : addWorkingDays(start, dur - 1, cal);
+  const data = { version: { increment: 1 }, plannedStart: toDate(start), plannedFinish: toDate(finish), type };
+  if (b.title !== undefined) data.title = b.title;
+  if (b.phaseId !== undefined) data.phaseId = b.phaseId;
+  if (b.assigneeId !== undefined) data.assigneeId = ms ? null : b.assigneeId;
+  if (ms) { data.assigneeId = b.assigneeId !== undefined || b.type ? null : undefined; data.estimateHours = null; }
+  if (b.estimateHours !== undefined && !ms) data.estimateHours = b.estimateHours;
+  else if (!ms && (b.durationDays || b.type)) {
+    // effort follows the length while it is still the default (days × 8 h)
+    const est = it.estimateHours == null ? null : Number(it.estimateHours);
+    if (est == null || (oldDur && est === oldDur * HOURS_PER_DAY) || it.type === 'MILESTONE') data.estimateHours = dur * HOURS_PER_DAY;
+  }
+  if (b.fixedStart !== undefined) data.startConstraint = b.fixedStart ? toDate(start) : null;
+  else if (b.type === 'MILESTONE' && it.type !== 'MILESTONE') data.startConstraint = it.startConstraint;
+  if (data.assigneeId === undefined) delete data.assigneeId;
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${p.id}))`;
+    const n = await tx.workItem.updateMany({ where: { id: it.id, version: b.version }, data });
+    if (!n.count) throw conflict('This task was changed by someone else. Showing the latest version.');
+    if (after) {
+      const current = await tx.dependency.findMany({ where: { projectId: p.id } });
+      const mine = current.filter((d) => d.successorId === it.id && d.type === 'FS');
+      const keep = new Set(after);
+      const others = current.filter((d) => !(d.successorId === it.id && d.type === 'FS'));
+      for (const pid of after) if (wouldCreateCycle(others.concat(after.filter((x) => x !== pid).map((x) => ({ predecessorId: x, successorId: it.id }))), pid, it.id)) {
+        const t = await tx.workItem.findUnique({ where: { id: pid }, select: { number: true, title: true } });
+        throw badRequest(`#${t.number} ${t.title} already waits for this task, so this task cannot wait for it`);
+      }
+      const drop = mine.filter((d) => !keep.has(d.predecessorId)).map((d) => d.id);
+      if (drop.length) await tx.dependency.deleteMany({ where: { id: { in: drop } } });
+      const have = new Set(mine.map((d) => d.predecessorId));
+      const add = after.filter((x) => !have.has(x));
+      if (add.length) await tx.dependency.createMany({ data: add.map((pid) => ({ projectId: p.id, predecessorId: pid, successorId: it.id, type: 'FS', lagDays: 0 })) });
+    }
+    const fields = Object.keys(b).filter((k) => k !== 'version');
+    await audit(tx, req.auth, { action: 'work_item.updated', entityType: 'WorkItem', entityId: it.id, projectId: p.id, metadata: { number: it.number, fields } }, req.ip);
+    if (b.assigneeId && b.assigneeId !== it.assigneeId) await notify(tx, { orgId: req.auth.orgId, userIds: [b.assigneeId], exclude: req.auth.userId, type: 'work_item.assigned', title: `Assigned: ${p.code}-${it.number} ${b.title ?? it.title}`, link: `/projects/${p.id}/work/${it.id}` });
+  });
+  const rescheduled = await reschedule(p.id);
+  res.json({ item: S.workItem(await prisma.workItem.findUnique({ where: { id: it.id } }), a, { code: p.code }), rescheduled });
+});
+
+r.delete('/plan-items/:itemId', async (req, res) => {
+  const a = await workItemAccess(req.auth, req.params.projectId, req.params.itemId);
+  a.require('work.delete');
+  writable(a);
+  const it = a.item; const p = a.project;
+  if (await prisma.workItem.count({ where: { parentId: it.id } })) throw badRequest('Delete or move the items inside it first');
+  if (await prisma.timeEntry.count({ where: { workItemId: it.id } })) throw badRequest('Time has been logged against this task. Cancel it instead of deleting so the history is kept.');
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${p.id}))`;
+    // whatever waited for this task now waits for what this task waited for, so the chain is not broken
+    const all = await tx.dependency.findMany({ where: { projectId: p.id } });
+    const preds = all.filter((d) => d.successorId === it.id && d.type === 'FS').map((d) => d.predecessorId);
+    const succs = all.filter((d) => d.predecessorId === it.id && d.type === 'FS').map((d) => d.successorId);
+    let edges = all.filter((d) => d.predecessorId !== it.id && d.successorId !== it.id);
+    const add = [];
+    for (const s2 of succs) for (const p2 of preds) {
+      if (edges.some((e) => e.predecessorId === p2 && e.successorId === s2) || wouldCreateCycle(edges, p2, s2)) continue;
+      edges = edges.concat({ predecessorId: p2, successorId: s2 }); add.push({ projectId: p.id, predecessorId: p2, successorId: s2, type: 'FS', lagDays: 0 });
+    }
+    await tx.workItem.delete({ where: { id: it.id } });
+    if (add.length) await tx.dependency.createMany({ data: add, skipDuplicates: true });
+    await audit(tx, req.auth, { action: 'work_item.deleted', entityType: 'WorkItem', entityId: it.id, projectId: p.id, metadata: { number: it.number, title: it.title, relinked: add.length } }, req.ip);
+  });
+  const rescheduled = await reschedule(p.id);
+  res.json({ deleted: true, rescheduled });
 });
 
 // ----- Scheduling: preview, explicit apply, analysis -----
@@ -499,11 +677,12 @@ r.post('/schedule/apply', async (req, res) => {
     if (b.includeDownstream && key(want) !== key(b.expectedMoves)) throw conflict('The schedule changed since the preview. Preview again before applying.');
     const target = await tx.workItem.findFirst({ where: { id: b.itemId, projectId: access.project.id } });
     const changes = [{ id: b.itemId, start: b.plannedStart, finish: target.type === 'MILESTONE' ? b.plannedStart : b.plannedFinish }, ...want.map((m) => ({ id: m.id, start: m.to.start, finish: m.to.finish }))];
-    for (const c of changes) await tx.workItem.update({ where: { id: c.id }, data: { plannedStart: toDate(c.start), plannedFinish: toDate(c.finish), version: { increment: 1 } } });
+    for (const c of changes) await tx.workItem.update({ where: { id: c.id }, data: { plannedStart: toDate(c.start), plannedFinish: toDate(c.finish), ...(c.id === b.itemId && target.type !== 'MODULE' && { startConstraint: toDate(c.start) }), version: { increment: 1 } } });
     await audit(tx, req.auth, { action: 'schedule.applied', entityType: 'Project', entityId: access.project.id, projectId: access.project.id, metadata: { itemId: b.itemId, downstream: want.length, changes } }, req.ip);
     return changes.map((c) => c.id);
   });
-  res.json({ updated: updatedIds.length, ids: updatedIds });
+  const rescheduled = await reschedule(access.project.id);
+  res.json({ updated: updatedIds.length, ids: updatedIds, rescheduled });
 });
 
 r.get('/schedule/analysis', async (req, res) => {
@@ -613,7 +792,7 @@ r.patch('/registers/:kind/:id', async (req, res) => {
   access.require('register.manage');
   const row = await prisma[model].findFirst({ where: { id: req.params.id, projectId: access.project.id } });
   if (!row) throw notFound('Record');
-  const ext = model === 'changeRequest' ? body.partial().extend({ status: z.enum(['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED']).optional(), outcomeNote: z.string().max(5000).optional() }) : body.partial();
+  const ext = model === 'changeRequest' ? partialNoDefaults(body).extend({ status: z.enum(['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED']).optional(), outcomeNote: z.string().max(5000).optional() }) : partialNoDefaults(body);
   const b = parse(ext, req.body);
   await checkRefs(access.project.id, req.auth.orgId, b);
   if (model === 'changeRequest' && b.status && ['APPROVED', 'REJECTED'].includes(b.status)) {

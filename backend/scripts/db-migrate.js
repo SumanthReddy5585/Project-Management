@@ -20,7 +20,7 @@ export async function applyMigrations(url, log = (m) => console.log(`[migrate] $
       "started_at" TIMESTAMPTZ NOT NULL DEFAULT now(), "applied_steps_count" INTEGER NOT NULL DEFAULT 0)`);
     const applied = new Set((await c.query('SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL')).rows.map((r) => r.migration_name));
     const names = fs.readdirSync(migDir).filter((n) => fs.existsSync(path.join(migDir, n, 'migration.sql'))).sort();
-    let count = 0;
+    let count = 0; const done = [];
     for (const name of names) {
       if (applied.has(name)) continue;
       const sql = fs.readFileSync(path.join(migDir, name, 'migration.sql'));
@@ -31,10 +31,14 @@ export async function applyMigrations(url, log = (m) => console.log(`[migrate] $
         await c.query('INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, applied_steps_count) VALUES ($1, $2, now(), $3, 1)',
           [crypto.randomUUID(), crypto.createHash('sha256').update(sql).digest('hex'), name]);
         await c.query('COMMIT');
-        count++;
+        count++; done.push(name);
       } catch (e) { await c.query('ROLLBACK'); throw e; }
     }
     log(count ? `${count} migration(s) applied` : 'database is up to date');
+    if (done.includes('20261119000000_auto_schedule')) {
+      const { freeChainedTasks } = await import('./upgrade-schedule.js');
+      await freeChainedTasks(c, log);
+    }
     return count;
   } finally { await c.end(); }
 }

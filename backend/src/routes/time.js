@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { parse, dateOnly, toDate, fmtDate, uuid, listQuery, pageArgs, paged } from '../lib/http.js';
+import { parse, dateOnly, toDate, fmtDate, uuid, listQuery, pageArgs, paged, partialNoDefaults } from '../lib/http.js';
 import { badRequest, conflict, forbidden, notFound } from '../lib/errors.js';
 import { projectAccess, requireOrg } from '../policies/access.js';
 import { audit } from '../services/audit.js';
@@ -76,7 +76,7 @@ async function ownEntry(auth, id) {
 
 r.patch('/entries/:id', async (req, res) => {
   const e = await ownEntry(req.auth, req.params.id);
-  const b = parse(entryBody.partial(), req.body);
+  const b = parse(partialNoDefaults(entryBody), req.body);
   const merged = { projectId: e.projectId, workItemId: e.workItemId, date: fmtDate(e.date), hours: Number(e.hours), billable: e.billable, ...b };
   await validateEntry(req.auth, merged, e.id);
   const updated = await prisma.$transaction(async (tx) => {
