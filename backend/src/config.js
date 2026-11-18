@@ -45,7 +45,8 @@ export const config = {
   emailConfigured: Boolean(env.SMTP_URL),
 };
 
-if (config.isProd && !config.cookieSecure) {
-  console.error('Refusing to start: COOKIE_SECURE must be true in production.');
+// Plain-HTTP intranet installs (no TLS yet) must opt in explicitly; session cookies are then sent unencrypted.
+if (config.isProd && !config.cookieSecure && process.env.ALLOW_INSECURE_HTTP !== 'true') {
+  console.error('Refusing to start: COOKIE_SECURE must be true in production (or set ALLOW_INSECURE_HTTP=true for a plain-HTTP internal network).');
   process.exit(1);
 }

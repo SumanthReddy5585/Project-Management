@@ -29,6 +29,10 @@ cd frontend && npm ci && npm run dev     # http://localhost:5173
 
 Docker: `POSTGRES_PASSWORD=… docker compose up --build`, then open http://localhost:8080. Full setup, production deployment, backup and restore are in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
+## Deploying on your own Windows Server
+
+See `deploy/windows/README-DEPLOY-WINDOWS.md` (installer, Windows service, IIS/HTTPS, backups, updates) and `deploy/windows/BUILD-PACKAGE.md` to build the ready-to-run package. Database schema, structure reference and scripts: `docs/database/`.
+
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): scope, assumptions, architecture, **permission matrix**, data model diagram, timezones, file storage, phase status
