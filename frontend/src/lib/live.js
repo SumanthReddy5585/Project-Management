@@ -42,3 +42,6 @@ export function useLiveStatus() {
   useEffect(() => { statusListeners.add(setS); return () => statusListeners.delete(setS); }, []);
   return s;
 }
+
+/** Broadcast a local event to this tab's listeners (e.g. after a bulk change the server marks as "self"). */
+export function emitLocal(evt) { listeners.forEach((f) => f(evt)); }

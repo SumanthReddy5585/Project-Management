@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Inbox, BookOpen, FolderKanban, CheckSquare, Clock, Users, Settings, Bell, Search, LogOut, Menu, BarChart3, Plus, LifeBuoy, FilePlus2, Timer, Home, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Inbox, BookOpen, FolderKanban, CheckSquare, Clock, Users, Settings, Bell, Search, LogOut, Menu, BarChart3, Plus, LifeBuoy, FilePlus2, Timer, Home, CheckCircle2, CalendarRange } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { get, post } from '../api/client.js';
 import { useDebounced } from '../lib/hooks.js';
@@ -143,6 +143,7 @@ export default function Layout() {
             <NavItem to="/" icon={LayoutDashboard} end>Dashboard</NavItem>
             <NavItem to="/projects" icon={FolderKanban}>Projects</NavItem>
             <NavItem to="/my-tasks" icon={CheckSquare}>My tasks</NavItem>
+            {manager && <NavItem to="/planner" icon={CalendarRange}>Resource planner</NavItem>}
             <NavItem to="/time" icon={Clock}>Timesheets</NavItem>
             <div className="nav-label">Support</div>
             <NavItem to="/tickets" icon={Inbox} count={views?.overdue || views?.unassigned} hot={views?.overdue > 0}>Tickets</NavItem>

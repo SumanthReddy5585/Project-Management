@@ -88,6 +88,40 @@ r.get('/workload', async (req, res) => {
     method: 'Capacity = working days × weekly hours ÷ working days per week. Planned = remaining estimate of assigned open tasks spread evenly over their planned working days. Logged time is shown separately.' });
 });
 
+// Resource planner: people x weeks heatmap of planned load vs capacity.
+r.get('/workload/weeks', async (req, res) => {
+  requireOrg(req.auth, 'workload.view');
+  const t = iso(new Date());
+  const q = parse(z.object({ from: dateOnly.default(weekStartOf(t)), weeks: z.coerce.number().int().min(1).max(26).default(8), projectId: uuid.optional() }), req.query);
+  const from = weekStartOf(q.from);
+  const weeks = [...Array(q.weeks)].map((_, i) => ({ start: addDays(from, i * 7), end: addDays(from, i * 7 + 6) }));
+  const to = weeks.at(-1).end;
+  const visible = await prisma.project.findMany({ where: { ...visibleProjectsWhere(req.auth), ...(q.projectId && { id: q.projectId }) }, select: { id: true, code: true, name: true } });
+  const pids = visible.map((p) => p.id);
+  const pmap = new Map(visible.map((p) => [p.id, p]));
+  const members = await prisma.membership.findMany({ where: { organizationId: req.auth.orgId, status: 'ACTIVE', role: { in: ['ADMIN', 'MANAGER', 'EMPLOYEE'] },
+    ...((req.auth.orgRole !== 'ADMIN' || q.projectId) && { user: { projectMembers: { some: { projectId: { in: pids } } } } }) }, include: { user: true }, orderBy: { user: { name: 'asc' } } });
+  const cal = toWorkCalendar(await loadCalendar(prisma, null, req.auth.orgId));
+  const tasks = await prisma.workItem.findMany({ where: { projectId: { in: pids }, assigneeId: { in: members.map((m) => m.userId) }, type: { in: ['TASK', 'SUBTASK'] }, status: { notIn: ['DONE', 'CANCELLED'] } },
+    select: { id: true, number: true, title: true, projectId: true, assigneeId: true, plannedStart: true, plannedFinish: true, estimateHours: true, status: true, percentComplete: true, priority: true } });
+  const data = members.map((m) => {
+    const mine = tasks.filter((x) => x.assigneeId === m.userId).map((x) => ({ ...x, plannedStart: fmtDate(x.plannedStart), plannedFinish: fmtDate(x.plannedFinish), estimateHours: x.estimateHours == null ? null : Number(x.estimateHours) }));
+    const inWindow = mine.filter((x) => x.plannedStart && x.plannedFinish && x.plannedStart <= to && x.plannedFinish >= from);
+    const cells = weeks.map((w) => {
+      const capacity = capacityHours(m.user.weeklyCapacityHours, w.start, w.end, cal);
+      const planned = plannedLoad(inWindow, w.start, w.end, cal);
+      const taskIds = inWindow.filter((x) => x.plannedStart <= w.end && x.plannedFinish >= w.start).map((x) => x.id);
+      return { start: w.start, capacity, planned, taskIds, ...utilization(capacity, planned) };
+    });
+    return { userId: m.userId, name: m.user.name, title: m.user.title, department: m.user.department, weeklyCapacityHours: Number(m.user.weeklyCapacityHours), weeks: cells,
+      totals: { capacity: Math.round(cells.reduce((s, c) => s + c.capacity, 0) * 10) / 10, planned: Math.round(cells.reduce((s, c) => s + c.planned, 0) * 10) / 10 },
+      unscheduled: mine.filter((x) => !x.plannedStart || !x.plannedFinish).length, unestimated: inWindow.filter((x) => !x.estimateHours).length,
+      tasks: inWindow.map((x) => ({ id: x.id, key: `${pmap.get(x.projectId).code}-${x.number}`, title: x.title, projectId: x.projectId, projectCode: pmap.get(x.projectId).code, plannedStart: x.plannedStart, plannedFinish: x.plannedFinish, estimateHours: x.estimateHours, status: x.status, priority: x.priority, percentComplete: x.percentComplete })) };
+  });
+  res.json({ from, to, weeks: weeks.map((w) => w.start), projects: visible, data,
+    method: 'Each cell = remaining estimate of open tasks spread over their planned working days, against that week\'s capacity (weekly hours × working days). Over 100% means the person is overbooked that week.' });
+});
+
 r.get('/dashboard', async (req, res) => {
   const a = req.auth;
   const today = iso(new Date());

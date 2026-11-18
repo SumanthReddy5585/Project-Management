@@ -131,3 +131,29 @@ test.describe.serial('manager → client → request workflow', () => {
     await expect(page.getByText(/Not found or you no longer have access/)).toBeVisible();
   });
 });
+
+test.describe('planning tools', () => {
+  test('manager edits tasks in the table, sees the Gantt links, risk matrix, status report and resource planner', async ({ page }) => {
+    await login(page, 'manager@demo.local');
+    await page.goto('/projects');
+    await page.getByRole('link', { name: /Contoso Store Modernization/ }).first().click();
+    await page.locator('nav.tabs').getByRole('link', { name: 'Tasks' }).click();
+    await page.getByRole('button', { name: 'Table' }).click();
+    const status = page.getByLabel('Status of Requirements specification');
+    await status.selectOption('IN_REVIEW');
+    await expect(page.getByText(/Someone else changed|can only update/)).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByLabel('Status of Requirements specification')).toHaveValue('IN_REVIEW');
+    await page.getByRole('button', { name: 'Gantt' }).click();
+    await expect(page.locator('.gantt-link').first()).toBeAttached();
+    await page.locator('nav.tabs').getByRole('link', { name: 'Risks & issues' }).click();
+    await expect(page.getByRole('grid', { name: 'Risk matrix' })).toBeVisible();
+    await page.getByRole('button', { name: 'Project actions' }).click();
+    await page.getByRole('menuitem', { name: /Status report/ }).click();
+    await expect(page.getByText('Project status report', { exact: false })).toBeVisible();
+    await expect(page.getByText('Top risks')).toBeVisible();
+    await page.goto('/planner');
+    await expect(page.getByRole('heading', { name: 'Resource planner' })).toBeVisible();
+    await expect(page.locator('.planner tbody tr').first()).toBeVisible();
+  });
+});

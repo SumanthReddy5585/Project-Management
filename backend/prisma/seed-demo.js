@@ -10,7 +10,8 @@ import { ApiClient } from '../scripts/api-client.js';
 
 if (config.isProd && process.env.ALLOW_DEMO_SEED !== 'true') { console.error('Refusing to seed demo data in production (set ALLOW_DEMO_SEED=true to override).'); process.exit(1); }
 const UPGRADE = process.argv.includes('--upgrade');
-if ((await prisma.organization.count()) && !process.argv.includes('--force') && !UPGRADE) { console.error('Database already has organizations. Re-run with --force to add demo orgs anyway.'); process.exit(1); }
+const REGISTERS = process.argv.includes('--registers');
+if ((await prisma.organization.count()) && !process.argv.includes('--force') && !UPGRADE && !REGISTERS) { console.error('Database already has organizations. Re-run with --force to add demo orgs anyway.'); process.exit(1); }
 
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Demo-pass-2026';
 if (config.isProd && DEMO_PASSWORD === 'Demo-pass-2026') { console.error('Set DEMO_PASSWORD to a private value before seeding a public deployment.'); process.exit(1); }
@@ -105,7 +106,38 @@ export async function seedDemo(base) {
   await mgr.post(`/api/tickets/${t.id}/messages`, { body: 'Likely the report query; legacy DB has no index on order_date.', visibility: 'INTERNAL' });
   await seedMoreProjects(base, { mgr, ids, fabrikam });
   await seedSupportDesk(base, { mgr, cust, ids, project });
+  await seedRegisters(base);
   return { project, ids };
+}
+
+// Risks, issues and decisions so the risk matrix and status report have real content. Idempotent per project.
+async function seedRegisters(base) {
+  const day = (off) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + off); return x.toISOString().slice(0, 10); };
+  const sets = {
+    CSM: { who: 'manager', risks: [
+      ['Payment provider certification slips', 5, 4, 'Book the certification slot now; keep the legacy gateway as fallback for launch.'],
+      ['Legacy order data has duplicates', 4, 3, 'Run the de-duplication script in the second migration rehearsal.'],
+      ['Key developer on leave in January', 3, 4, 'Pair a second developer on the cart service before the break.'],
+      ['Client UAT testers not available', 3, 3, 'Agree named testers and dates in the next steering meeting.'],
+      ['Hosting costs above estimate', 2, 2, 'Review autoscaling limits after load test.'],
+    ], issues: [['Staging environment unstable after DB upgrade', 4, 5], ['Brand guidelines not yet received', 2, 8]],
+      decisions: [['Use headless commerce API', 'Old storefront cannot be extended.', 'Build the new store on the headless API; keep the legacy admin for 6 months.']] },
+    FPP: { who: 'pm2', risks: [
+      ['Health-records integration API rate limits', 4, 5, 'Ask Fabrikam IT for a dedicated integration quota.'],
+      ['Accessibility audit findings late in the cycle', 3, 3, 'Run an automated audit every sprint.'],
+    ], issues: [['SSO metadata from client is expired', 3, 4]], decisions: [] },
+  };
+  for (const [code, set] of Object.entries(sets)) {
+    const c = new ApiClient(base);
+    try { await c.login(mail(set.who), DEMO_PASSWORD); } catch { continue; }
+    const p = (await c.get(`/api/projects?q=${code}`)).data.find((x) => x.code === code);
+    if (!p) continue;
+    if ((await c.get(`/api/projects/${p.id}/registers/risks`)).data.length) continue;
+    const me = await c.get('/api/auth/me');
+    for (const [title, probability, impact, mitigation] of set.risks) await c.post(`/api/projects/${p.id}/registers/risks`, { title, probability, impact, mitigation, ownerId: me.user.id, status: 'OPEN' });
+    for (const [title, severity, inDays] of set.issues) await c.post(`/api/projects/${p.id}/registers/issues`, { title, severity, ownerId: me.user.id, targetDate: day(inDays), status: 'OPEN' });
+    for (const [title, context, decision] of set.decisions) await c.post(`/api/projects/${p.id}/registers/decisions`, { title, context, decision, decidedById: me.user.id, decidedOn: day(-10) });
+  }
 }
 
 // Two more projects so the portfolio, capacity and timeline views have something to show.
@@ -217,6 +249,7 @@ async function upgradeDemo(base) {
   if (project) for (const u of ['design']) await mgr.put(`/api/projects/${project.id}/members/${ids[u]}`, { role: 'MEMBER', allocationPct: 50 }).catch(() => {});
   await seedMoreProjects(base, { mgr, ids, fabrikam });
   if (project) await seedSupportDesk(base, { mgr, cust, ids, project });
+  await seedRegisters(base);
   console.log('[demo-upgrade] demo data upgraded');
 }
 
@@ -224,8 +257,8 @@ const app = createApp();
 const server = app.listen(0);
 const base = `http://127.0.0.1:${server.address().port}`;
 try {
-  if (UPGRADE) { await upgradeDemo(base); process.exitCode = 0; } else await seedDemo(base);
-  if (!UPGRADE) console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
-  for (const u of ['admin', 'manager', 'dev1', 'dev2', 'qa', 'customer', 'fabrikam', 'globex.admin']) console.log('  ' + mail(u));
+  if (REGISTERS) { await seedRegisters(base); console.log('[demo-upgrade] registers added'); process.exitCode = 0; } else if (UPGRADE) { await upgradeDemo(base); process.exitCode = 0; } else await seedDemo(base);
+  if (!UPGRADE && !REGISTERS) console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
+  if (!UPGRADE && !REGISTERS) for (const u of ['admin', 'manager', 'dev1', 'dev2', 'qa', 'customer', 'fabrikam', 'globex.admin']) console.log('  ' + mail(u));
 } catch (e) { console.error('Seed failed:', e.message, JSON.stringify(e.data ?? {})); process.exitCode = 1; }
 finally { server.close(); await prisma.$disconnect(); }

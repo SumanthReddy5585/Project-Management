@@ -32,7 +32,7 @@ export default function ProjectWorkspace() {
   const team = p.members.filter((m) => m.role !== 'CUSTOMER');
   return (
     <Ctx.Provider value={{ project: p, reload, can, people, assignable, openItem }}>
-      <div className="d-flex align-items-start gap-3 mb-3 mt-2 flex-wrap" style={{ '--pc': projectColor(p.code) }}>
+      <div className="d-flex align-items-start gap-3 mb-3 mt-2 flex-wrap no-print" style={{ '--pc': projectColor(p.code) }}>
         <ProjectChip code={p.code} size={52} />
         <div className="min-w-0 flex-grow-1">
           <h1 className="h-page d-flex align-items-center gap-2 flex-wrap">{p.name}{p.status !== 'ACTIVE' && <StatusBadge status={p.status} />}</h1>
@@ -49,7 +49,7 @@ export default function ProjectWorkspace() {
         </div>
       </div>
       {p.readOnly && <Notice tone="warn">This project is {labelize(p.status).toLowerCase()}. You can look around but not make changes.</Notice>}
-      <nav className="tabs mt-3" aria-label="Project sections">{tabs.map(([to, label]) => <NavLink key={to} to={to ? `${base}/${to}` : base} end={!to}>{label}</NavLink>)}</nav>
+      <nav className="tabs mt-3 no-print" aria-label="Project sections">{tabs.map(([to, label]) => <NavLink key={to} to={to ? `${base}/${to}` : base} end={!to}>{label}</NavLink>)}</nav>
       <Outlet />
       <WorkItemDrawer itemId={itemId} onClose={() => openItem(null)} />
     </Ctx.Provider>

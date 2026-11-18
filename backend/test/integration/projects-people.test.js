@@ -78,3 +78,53 @@ describe('projects', () => {
     expect(b.hours).toMatchObject({ estimate: 8, logged: 0 });
   });
 });
+
+describe('planning tools', () => {
+  it('imports tasks from CSV rows with a dry-run preview, parents, assignees and validation', async () => {
+    const rows = [
+      { title: 'Payments', type: 'Module' },
+      { title: 'Card API', type: 'Task', parent: 'Payments', assignee: 'dee@ppl.test', start: plus(3), due: plus(7), estimate: '16h', priority: 'High', status: 'In progress' },
+      { title: 'Card tests', type: 'Subtask', parent: 'Card API', due: plus(7), estimate: '4' },
+      { title: 'Go live', type: 'Milestone', due: plus(10) },
+      { title: '', type: 'Task' },
+      { title: 'Bad dates', start: plus(5), due: plus(2) },
+      { title: 'Stranger', assignee: 'nobody@else.test', priority: 'whenever' },
+    ];
+    const dry = await pm.post(`/api/projects/${project.id}/work-items/import`, { rows, dryRun: true });
+    expect(dry.summary).toMatchObject({ total: 7, valid: 5, invalid: 2 });
+    expect(dry.rows[6].warnings.length).toBe(2);
+    expect(dry.rows[1]).toMatchObject({ assigneeName: 'Dev Dee', estimateHours: 16, priority: 'HIGH', status: 'IN_PROGRESS' });
+    const before = (await pm.get(`/api/projects/${project.id}/work-items?all=true`)).data.length;
+    expect((await pm.get(`/api/projects/${project.id}/work-items?all=true`)).data.length).toBe(before); // dry run saves nothing
+    const done = await pm.post(`/api/projects/${project.id}/work-items/import`, { rows, dryRun: false });
+    expect(done.created).toBe(5);
+    const items = (await pm.get(`/api/projects/${project.id}/work-items?all=true`)).data;
+    const mod = items.find((i) => i.title === 'Payments'); const api = items.find((i) => i.title === 'Card API'); const sub = items.find((i) => i.title === 'Card tests');
+    expect(api.parentId).toBe(mod.id); expect(sub.parentId).toBe(api.id); expect(api.assigneeId).toBe(dev.userId);
+    expect(items.find((i) => i.title === 'Go live')).toMatchObject({ type: 'MILESTONE', plannedStart: plus(10), plannedFinish: plus(10) });
+    await expectStatus(dev.post(`/api/projects/${project.id}/work-items/import`, { rows, dryRun: true }), 403);
+  });
+  it('returns logged hours per task and a weekly resource plan', async () => {
+    const items = (await pm.get(`/api/projects/${project.id}/work-items?all=true`)).data;
+    const api = items.find((i) => i.title === 'Card API');
+    await dev.post('/api/time/entries', { projectId: project.id, workItemId: api.id, date: today, hours: 3 });
+    const again = (await pm.get(`/api/projects/${project.id}/work-items?all=true`)).data.find((i) => i.id === api.id);
+    expect(again.loggedHours).toBe(3);
+    const plan = await pm.get(`/api/workload/weeks?weeks=4&projectId=${project.id}`);
+    expect(plan.weeks.length).toBe(4);
+    const row = plan.data.find((p) => p.userId === dev.userId);
+    expect(row.weeks.length).toBe(4);
+    expect(row.totals.planned).toBeGreaterThan(0);
+    expect(row.tasks.some((t) => t.id === api.id)).toBe(true);
+    await expectStatus(dev.get('/api/workload/weeks'), 403);
+  });
+  it('links tasks and refuses dependency cycles', async () => {
+    const items = (await pm.get(`/api/projects/${project.id}/work-items?all=true`)).data;
+    const api = items.find((i) => i.title === 'Card API'); const live = items.find((i) => i.title === 'Go live');
+    const d = await pm.post(`/api/projects/${project.id}/dependencies`, { predecessorId: api.id, successorId: live.id, type: 'FS' });
+    await expectStatus(pm.post(`/api/projects/${project.id}/dependencies`, { predecessorId: live.id, successorId: api.id, type: 'FS' }), 400);
+    const deps = await pm.get(`/api/projects/${project.id}/dependencies`);
+    expect(deps.data.some((x) => x.id === d.id)).toBe(true);
+  });
+});
+

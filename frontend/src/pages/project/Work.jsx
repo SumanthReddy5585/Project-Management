@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Plus, ChevronRight, ChevronDown, List, Columns3, GanttChart, CalendarDays, Download, Lock, AlertTriangle, Flag, ListChecks, X } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, List, Columns3, GanttChart, CalendarDays, Download, Lock, AlertTriangle, Flag, ListChecks, X, Table2, Upload } from 'lucide-react';
 import { get, post, patch, download } from '../../api/client.js';
+import { useLive } from '../../lib/live.js';
 import { useLoad, useDebounced } from '../../lib/hooks.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { labelize, todayISO } from '../../lib/format.js';
@@ -8,6 +9,7 @@ import { setDone } from '../../lib/tasks.js';
 import { Avatar, CheckButton, DueChip, Empty, ErrorBox, Field, Loading, Meter, Modal, PriorityBadge, Segmented, Select, StatusBadge, fieldErrors, useToast, Card } from '../../components/ui.jsx';
 import { useProject } from './Workspace.jsx';
 import { Timeline, CalendarView } from './Schedule.jsx';
+import { TaskGrid } from './Grid.jsx';
 
 const STATUSES = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'IN_REVIEW', 'DONE', 'CANCELLED'];
 const CHILD_TYPES = { root: ['TASK', 'MODULE', 'MILESTONE'], MODULE: ['TASK', 'MILESTONE'], TASK: ['SUBTASK'] };
@@ -100,6 +102,7 @@ function TaskList() {
   const [creating, setCreating] = useState(null);
   const dq = useDebounced(q);
   const { data, error, loading, reload, setData } = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true', q: dq || undefined }), [project.id, dq]);
+  useLive((e) => e.type === 'work.changed' && e.projectId === project.id && !e.self, () => reload({ silent: true }), [project.id]);
   const names = new Map(people.map((m) => [m.id, m.name]));
   const visible = (i) => (show === 'open' ? !['DONE', 'CANCELLED'].includes(i.status) : show === 'done' ? i.status === 'DONE' : true) && (who === 'all' || i.assigneeId === user.id);
   const groups = useMemo(() => {
@@ -191,6 +194,7 @@ export function Board() {
   const [over, setOver] = useState(null);
   const [mine, setMine] = useState('all');
   const { data, error, loading, reload, setData } = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true', type: 'TASK,SUBTASK', assigneeId: mine === 'me' ? 'me' : undefined }), [project.id, mine]);
+  useLive((e) => e.type === 'work.changed' && e.projectId === project.id && !e.self, () => reload({ silent: true }), [project.id]);
   const names = new Map(people.map((m) => [m.id, m.name]));
   const move = async (id, status) => {
     const it = data.data.find((x) => x.id === id);
@@ -227,12 +231,13 @@ export function TasksTab() {
   const { isCustomer } = useAuth();
   const [view, setView] = useState(() => { try { return localStorage.getItem('meridian.taskView') || 'list'; } catch { return 'list'; } });
   const choose = (v) => { setView(v); try { localStorage.setItem('meridian.taskView', v); } catch { /* private mode */ } };
-  const options = [['list', 'List', List], ...(isCustomer ? [] : [['board', 'Board', Columns3], ['timeline', 'Timeline', GanttChart]]), ['calendar', 'Calendar', CalendarDays]];
+  const options = [['list', 'List', List], ...(isCustomer ? [] : [['grid', 'Table', Table2], ['board', 'Board', Columns3], ['timeline', 'Gantt', GanttChart]]), ['calendar', 'Calendar', CalendarDays]];
   const current = options.some((o) => o[0] === view) ? view : 'list';
   return (
     <>
       <div className="mb-3"><Segmented label="View" value={current} onChange={choose} options={options} /></div>
       {current === 'list' && <TaskList />}
+      {current === 'grid' && <TaskGrid />}
       {current === 'board' && <Board />}
       {current === 'timeline' && <Timeline />}
       {current === 'calendar' && <CalendarView />}

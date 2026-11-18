@@ -15,6 +15,8 @@ import { Overview } from './pages/project/Overview.jsx';
 import { TasksTab } from './pages/project/Work.jsx';
 import { Deliverables, UpdatesTab, ProjectFiles } from './pages/project/Engagement.jsx';
 import { Registers, Team, ProjectSettings, Activity } from './pages/project/Manage.jsx';
+import { StatusReport } from './pages/project/Report.jsx';
+import ResourcePlanner from './pages/Planner.jsx';
 import { TicketsList, TicketDetail } from './pages/Tickets.jsx';
 import { People, NotificationsPage } from './pages/Resources.jsx';
 import { KnowledgeBase, KnowledgeArticle } from './pages/Knowledge.jsx';
@@ -64,6 +66,7 @@ export default function App() {
                 <Route path="team" element={<Team />} />
                 <Route path="settings" element={<ProjectSettings />} />
                 <Route path="activity" element={<Activity />} />
+                <Route path="report" element={<StatusReport />} />
                 {['work', 'board', 'timeline', 'calendar', 'milestones'].map((p) => <Route key={p} path={p} element={<Redirect to="/projects/:projectId/tasks" />} />)}
                 <Route path="deliverables" element={<Redirect to="/projects/:projectId/approvals" />} />
                 <Route path="discussions/:discussionId?" element={<Redirect to="/projects/:projectId/updates" />} />
@@ -76,7 +79,8 @@ export default function App() {
               <Route path="time" element={<InternalOnly><TimePage /></InternalOnly>} />
               <Route path="time/approvals" element={<Navigate to="/time?tab=approvals" replace />} />
               <Route path="reports" element={<ManagerOnly><Reports /></ManagerOnly>} />
-              <Route path="workload" element={<Navigate to="/reports" replace />} />
+              <Route path="workload" element={<Navigate to="/planner" replace />} />
+              <Route path="planner" element={<ResourcePlanner />} />
               <Route path="people" element={<InternalOnly><People /></InternalOnly>} />
               <Route path="notifications" element={<NotificationsPage />} />
               <Route path="profile" element={<Profile />} />

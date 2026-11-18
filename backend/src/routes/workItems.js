@@ -58,6 +58,11 @@ r.get('/work-items', async (req, res) => {
   ]);
   const roll = rollup(sched.items);
   const extras = {};
+  if (access.internal && rows.length) {
+    // hours logged per item, for the grid view's "Logged" column
+    const logged = await prisma.timeEntry.groupBy({ by: ['workItemId'], where: { projectId: access.project.id, workItemId: { in: rows.map((r) => r.id) } }, _sum: { hours: true } });
+    for (const l of logged) (extras[l.workItemId] ??= {}).loggedHours = Number(l._sum.hours ?? 0);
+  }
   if (access.internal) {
     const cal = await projectCalendar(access.project);
     for (const c of scheduleConflicts(sched.items, sched.deps, cal)) (extras[c.successorId] ??= {}).scheduleConflict = { earliestStart: c.earliestStart, predecessorId: c.predecessorId };
@@ -239,6 +244,102 @@ r.post('/work-items/bulk', async (req, res) => {
 });
 
 // ----- Checklist & collaborators -----
+// ----- CSV import (rows parsed client-side; validated + created here) -----
+const IMPORT_TYPES = { task: 'TASK', subtask: 'SUBTASK', 'sub-task': 'SUBTASK', milestone: 'MILESTONE', module: 'MODULE', epic: 'MODULE', deliverable: 'MODULE' };
+const IMPORT_STATUS = { todo: 'TODO', 'to do': 'TODO', 'not started': 'TODO', open: 'TODO', 'in progress': 'IN_PROGRESS', in_progress: 'IN_PROGRESS', doing: 'IN_PROGRESS', 'in review': 'IN_REVIEW', in_review: 'IN_REVIEW', review: 'IN_REVIEW', blocked: 'BLOCKED', done: 'DONE', complete: 'DONE', completed: 'DONE', closed: 'DONE', cancelled: 'CANCELLED', canceled: 'CANCELLED' };
+const IMPORT_PRIO = { low: 'LOW', medium: 'MEDIUM', normal: 'MEDIUM', high: 'HIGH', critical: 'CRITICAL', urgent: 'CRITICAL', p1: 'CRITICAL', p2: 'HIGH', p3: 'MEDIUM', p4: 'LOW' };
+function importDate(v) {
+  if (!v) return { value: null };
+  const t = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return { value: t };
+  const m = t.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (m) { const d = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; if (!Number.isNaN(Date.parse(`${d}T00:00:00Z`))) return { value: d }; }
+  return { error: `"${t}" is not a date (use YYYY-MM-DD or DD/MM/YYYY)` };
+}
+const importRow = z.object({ title: z.string().optional(), type: z.string().optional(), phase: z.string().optional(), parent: z.string().optional(), assignee: z.string().optional(),
+  start: z.string().optional(), due: z.string().optional(), estimate: z.union([z.string(), z.number()]).optional(), priority: z.string().optional(), status: z.string().optional(), description: z.string().optional() }).passthrough();
+
+r.post('/work-items/import', async (req, res) => {
+  const access = await projectAccess(req.auth, req.params.projectId);
+  access.require('work.editAny');
+  writable(access);
+  const b = parse(z.object({ rows: z.array(importRow).min(1).max(1000), dryRun: z.boolean().default(true) }), req.body);
+  const pid = access.project.id;
+  const [phases, members, existing] = await Promise.all([
+    prisma.phase.findMany({ where: { projectId: pid } }),
+    prisma.projectMember.findMany({ where: { projectId: pid, role: { in: ['MANAGER', 'MEMBER'] } }, include: { user: { select: { id: true, name: true, email: true } } } }),
+    prisma.workItem.findMany({ where: { projectId: pid }, select: { id: true, number: true, title: true, type: true, phaseId: true } }),
+  ]);
+  const lc = (x) => String(x ?? '').trim().toLowerCase();
+  const phaseBy = new Map(phases.map((p) => [lc(p.name), p]));
+  const memberBy = new Map(); for (const m of members) { memberBy.set(lc(m.user.email), m.user); memberBy.set(lc(m.user.name), m.user); }
+  const refBy = new Map(); for (const e of existing) { refBy.set(lc(`${access.project.code}-${e.number}`), e); if (!refBy.has(lc(e.title))) refBy.set(lc(e.title), e); }
+  const plan = [];
+  b.rows.forEach((raw, idx) => {
+    const errors = []; const warnings = [];
+    const title = String(raw.title ?? '').trim();
+    if (!title) errors.push('Title is required');
+    if (title.length > 300) errors.push('Title is longer than 300 characters');
+    const type = raw.type ? IMPORT_TYPES[lc(raw.type)] : 'TASK';
+    if (!type) errors.push(`Unknown type "${raw.type}" (task, subtask, milestone, module)`);
+    let phase = null;
+    if (raw.phase?.trim()) { phase = phaseBy.get(lc(raw.phase)); if (!phase) warnings.push(`Phase "${raw.phase}" not found — left without a phase`); }
+    let parent = null;
+    if (raw.parent?.trim()) {
+      parent = refBy.get(lc(raw.parent));
+      if (!parent) errors.push(`Parent "${raw.parent}" not found (use a task key like ${access.project.code}-12 or the exact title of a row above)`);
+    }
+    if (type && !PARENT_RULES[type].includes(parent?.type ?? null)) errors.push(parent ? `A ${type.toLowerCase()} cannot sit under a ${parent.type.toLowerCase()}` : `A ${type.toLowerCase()} needs a parent task`);
+    let assignee = null;
+    if (raw.assignee?.trim() && type !== 'MILESTONE' && type !== 'MODULE') { assignee = memberBy.get(lc(raw.assignee)); if (!assignee) warnings.push(`"${raw.assignee}" is not on this project's team — left unassigned`); }
+    const st = importDate(raw.start); const du = importDate(raw.due);
+    if (st.error) errors.push(`Start: ${st.error}`); if (du.error) errors.push(`Due: ${du.error}`);
+    let plannedStart = st.value; let plannedFinish = du.value;
+    if (type === 'MILESTONE') { plannedStart = plannedFinish ?? plannedStart; plannedFinish = plannedStart; }
+    if (plannedStart && plannedFinish && plannedFinish < plannedStart) errors.push('Due date is before the start date');
+    let estimateHours = null;
+    if (raw.estimate != null && String(raw.estimate).trim() !== '' && type !== 'MILESTONE') {
+      estimateHours = Number(String(raw.estimate).replace(/h(ours?)?$/i, '').trim());
+      if (!Number.isFinite(estimateHours) || estimateHours < 0 || estimateHours > 100000) { errors.push(`Estimate "${raw.estimate}" is not a number of hours`); estimateHours = null; }
+    }
+    const priority = raw.priority?.trim() ? IMPORT_PRIO[lc(raw.priority)] : 'MEDIUM';
+    if (!priority) warnings.push(`Unknown priority "${raw.priority}" — set to Medium`);
+    const status = raw.status?.trim() ? IMPORT_STATUS[lc(raw.status)] : 'TODO';
+    if (!status) warnings.push(`Unknown status "${raw.status}" — set to To do`);
+    const entry = { row: idx + 2, title, type, phaseId: parent ? parent.phaseId : phase?.id ?? null, phaseName: phase?.name ?? null, parentRef: parent ? { id: parent.id, title: parent.title, pending: !!parent.pending } : null,
+      assigneeId: assignee?.id ?? null, assigneeName: assignee?.name ?? null, plannedStart, plannedFinish, estimateHours, priority: priority || 'MEDIUM', status: status || 'TODO',
+      description: raw.description?.trim() || null, errors, warnings };
+    plan.push(entry);
+    // later rows can use this one as a parent by its title
+    if (!errors.length && title && !refBy.has(lc(title))) refBy.set(lc(title), { id: `pending:${idx}`, pending: true, title, type, phaseId: entry.phaseId, planIndex: plan.length - 1 });
+  });
+  const valid = plan.filter((p) => !p.errors.length);
+  const summary = { total: plan.length, valid: valid.length, invalid: plan.length - valid.length, warnings: plan.reduce((n, p) => n + p.warnings.length, 0) };
+  if (b.dryRun) return res.json({ dryRun: true, summary, rows: plan });
+  if (!valid.length) throw badRequest('No valid rows to import');
+  const created = await prisma.$transaction(async (tx) => {
+    const ids = new Map();
+    const out = [];
+    const t = today();
+    for (const p of plan) {
+      if (p.errors.length) continue;
+      let parentId = p.parentRef?.id ?? null;
+      if (parentId?.startsWith('pending:')) { parentId = ids.get(Number(parentId.slice(8))) ?? null; if (!parentId) continue; }
+      const seq = await tx.project.update({ where: { id: pid }, data: { workItemSeq: { increment: 1 } }, select: { workItemSeq: true } });
+      const norm = normalizeProgress({ status: 'TODO', percentComplete: 0 }, { status: p.status }, t);
+      const it = await tx.workItem.create({ data: { projectId: pid, number: seq.workItemSeq, type: p.type, title: p.title, description: p.description, phaseId: p.phaseId, parentId, assigneeId: p.assigneeId,
+        priority: p.priority, ...norm, plannedStart: toDate(p.plannedStart), plannedFinish: toDate(p.plannedFinish), estimateHours: p.estimateHours, createdById: req.auth.userId, customerVisible: false } });
+      ids.set(plan.indexOf(p), it.id);
+      out.push(it);
+    }
+    await audit(tx, req.auth, { action: 'work_item.imported', entityType: 'Project', entityId: pid, projectId: pid, metadata: { created: out.length, skipped: plan.length - out.length } }, req.ip);
+    const byAssignee = new Map(); for (const it of out) if (it.assigneeId) byAssignee.set(it.assigneeId, (byAssignee.get(it.assigneeId) || 0) + 1);
+    for (const [uid, n] of byAssignee) await notify(tx, { orgId: req.auth.orgId, userIds: [uid], exclude: req.auth.userId, type: 'work_item.assigned', title: `${n} imported task(s) assigned to you in ${access.project.code}`, link: `/projects/${pid}/tasks` });
+    return out;
+  }, { timeout: 30000 });
+  res.status(201).json({ dryRun: false, summary, created: created.length });
+});
+
 r.post('/work-items/:itemId/checklist', async (req, res) => {
   const a = await workItemAccess(req.auth, req.params.projectId, req.params.itemId);
   if (!a.canEdit) throw forbidden();

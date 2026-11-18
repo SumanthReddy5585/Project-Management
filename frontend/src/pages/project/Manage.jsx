@@ -18,6 +18,34 @@ const KINDS = {
     cols: (r, n) => [r.title, `${r.scheduleImpactDays > 0 ? '+' : ''}${r.scheduleImpactDays} d`, r.costImpact ?? '—', n(r.reviewerId), <StatusBadge status={r.status} key="s" />], head: ['Change', 'Schedule', 'Cost', 'Reviewer', 'Status'] },
 };
 
+const heat = (score) => (score >= 15 ? 'h4' : score >= 10 ? 'h3' : score >= 5 ? 'h2' : 'h1');
+function RiskMatrix({ risks, cell, onCell }) {
+  const open = risks.filter((r) => r.status !== 'CLOSED');
+  const count = (p, i) => open.filter((r) => r.probability === p && r.impact === i).length;
+  const high = open.filter((r) => r.probability * r.impact >= 15).length;
+  const med = open.filter((r) => { const s = r.probability * r.impact; return s >= 8 && s < 15; }).length;
+  return (
+    <div className="row g-3 mb-2">
+      <div className="col-lg-7"><Card title="Risk heat map">
+        <div className="small text-muted mb-2">Open risks by probability and impact. Click a cell to filter the list.</div>
+        <div className="riskmx" role="grid" aria-label="Risk matrix">
+          <div className="ylab">Probability →</div>
+          {[5, 4, 3, 2, 1].map((p) => <div key={p} className="mrow" role="row"><span className="ax">{p}</span>
+            {[1, 2, 3, 4, 5].map((i) => { const n = count(p, i); const on = cell && cell[0] === p && cell[1] === i;
+              return <button key={i} role="gridcell" className={`mcell ${heat(p * i)} ${on ? 'on' : ''}`} onClick={() => onCell(on ? null : [p, i])} aria-label={`Probability ${p}, impact ${i}: ${n} risk(s)`} title={`P${p} × I${i} = ${p * i}`}>{n || ''}</button>; })}</div>)}
+          <div className="mrow"><span className="ax" />{[1, 2, 3, 4, 5].map((i) => <span key={i} className="ax x">{i}</span>)}</div>
+          <div className="xlab">Impact →</div>
+        </div></Card></div>
+      <div className="col-lg-5"><Card title="Exposure summary">
+        <div className="d-flex gap-2 mb-3"><div className="mini-kpi risk"><b>{high}</b><span>High (≥15)</span></div><div className="mini-kpi warn"><b>{med}</b><span>Medium (8–14)</span></div><div className="mini-kpi"><b>{open.length - high - med}</b><span>Low</span></div></div>
+        <div className="small-caps mb-1">Top risks</div>
+        <ul className="list-plain">{[...open].sort((a, b) => b.probability * b.impact - a.probability * a.impact).slice(0, 4).map((r) => <li key={r.id}><span className={`score-chip ${heat(r.probability * r.impact)}`}>{r.probability * r.impact}</span><span className="flex-grow-1 small fw-medium">{r.title}</span></li>)}</ul>
+        {open.length === 0 && <div className="small text-muted">No open risks.</div>}
+      </Card></div>
+    </div>
+  );
+}
+
 export function Registers() {
   const { project, can, people } = useProject();
   const toast = useToast();
@@ -35,6 +63,8 @@ export function Registers() {
     try { f.id ? await patch(`/projects/${project.id}/registers/${kind}/${f.id}`, body) : await post(`/projects/${project.id}/registers/${kind}`, body); setF(null); reload(); toast('Saved', 'success'); } catch (e) { setErr(e); }
   };
   const decide = async (r, status) => { try { const res = await patch(`/projects/${project.id}/registers/${kind}/${r.id}`, { status }); toast(res.nextStep || `Change request ${status.toLowerCase()}`, 'success'); reload(); } catch (e) { toast(e.message, 'error'); } };
+  const [cell, setCell] = useState(null);
+  const rowsShown = kind === 'risks' && cell ? (data?.data || []).filter((r) => r.probability === cell[0] && r.impact === cell[1]) : data?.data;
   const blank = () => Object.fromEntries(K.fields.map(([k, , t]) => [k, t === 'score' ? 3 : t === 'number' ? 0 : t === 'date' ? '' : t === 'reg' ? 'OPEN' : '']));
   return (
     <>
@@ -42,9 +72,11 @@ export function Registers() {
         {manage && <button className="btn btn-sm btn-outline-primary ms-auto" onClick={() => setF(blank())}><Plus size={14} /> Add</button>}</div>
       {kind === 'change-requests' && <Notice icon={ShieldAlert}>Approving a change request never changes the baseline. Apply the approved changes, then save a new baseline from the Timeline (it is recorded against the change request in the audit log).</Notice>}
       <ErrorBox error={error} />
+      {kind === 'risks' && data?.data.length > 0 && <RiskMatrix risks={data.data} cell={cell} onCell={setCell} />}
+      {kind === 'risks' && cell && <div className="small mb-1">Showing risks with probability {cell[0]} and impact {cell[1]} · <button className="btn btn-link btn-sm p-0" onClick={() => setCell(null)}>Show all</button></div>}
       <div className="card mt-2">{loading && !data ? <div className="p-3"><Loading /></div> : data?.data.length === 0 ? <Empty title={`No ${K.label.toLowerCase()} recorded`} /> : (
         <table className="table table-hover"><thead><tr>{K.head.map((h) => <th key={h}>{h}</th>)}<th /></tr></thead>
-          <tbody>{data.data.map((r) => <tr key={r.id}>{K.cols(r, nameOf).map((c, i) => <td key={i} className={i === 0 ? 'fw-medium' : 'small'}>{c}</td>)}
+          <tbody>{rowsShown.map((r) => <tr key={r.id}>{K.cols(r, nameOf).map((c, i) => <td key={i} className={i === 0 ? 'fw-medium' : 'small'}>{c}</td>)}
             <td className="text-end text-nowrap">{manage && kind === 'change-requests' && ['SUBMITTED', 'UNDER_REVIEW'].includes(r.status) && <><button className="btn btn-sm btn-light me-1" onClick={() => decide(r, 'APPROVED')}>Approve</button><button className="btn btn-sm btn-light me-1" onClick={() => decide(r, 'REJECTED')}>Reject</button></>}
               {manage && !(kind === 'change-requests' && ['APPROVED', 'REJECTED', 'IMPLEMENTED'].includes(r.status)) && <button className="btn btn-sm btn-ghost" onClick={() => setF({ ...Object.fromEntries(K.fields.map(([k]) => [k, r[k] ?? ''])), id: r.id })}>Edit</button>}</td></tr>)}</tbody></table>)}</div>
       {f && <Modal open size="lg" onClose={() => setF(null)} title={`${f.id ? 'Edit' : 'Add'} ${K.label.toLowerCase().replace(/s$/, '')}`} footer={<><button className="btn btn-light" onClick={() => setF(null)}>Cancel</button><button className="btn btn-primary" onClick={save}>Save</button></>}>

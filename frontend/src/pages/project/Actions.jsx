@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MoreHorizontal, Copy, LayoutTemplate, PauseCircle, PlayCircle, CheckCircle2, Archive, XCircle, Download } from 'lucide-react';
+import { MoreHorizontal, Copy, LayoutTemplate, PauseCircle, PlayCircle, CheckCircle2, Archive, XCircle, Download, Upload, FileText } from 'lucide-react';
+import { ImportTasksDialog } from './Import.jsx';
+import { emitLocal } from '../../lib/live.js';
 import { post, download } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { labelize, todayISO } from '../../lib/format.js';
@@ -21,6 +23,7 @@ export function ProjectActions({ project: p, can, reload }) {
   const [f, setF] = useState({});
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
   const start = (kind) => { setOpen(false); setErr(null); setDialog(kind);
     setF(kind === 'clone' ? { name: `${p.name} (copy)`, code: `${codeFrom(p.name)}2`, plannedStart: todayISO(), includeTeam: true, includeAssignees: false } : kind === 'template' ? { name: `${p.name} plan` } : { status: kind, reason: '' }); };
   const run = async () => {
@@ -42,6 +45,8 @@ export function ProjectActions({ project: p, can, reload }) {
       <button className="btn btn-light btn-sm" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" aria-label="Project actions"><MoreHorizontal size={16} /> Actions</button>
       {open && <div className="new-menu" role="menu">
         {items.map(([k, label, Icon]) => <button key={k} role="menuitem" onClick={() => start(k)}><Icon size={16} className={k === 'CANCELLED' ? 'text-danger' : 'text-primary'} /><span>{label}</span></button>)}
+        <button role="menuitem" onClick={() => { setOpen(false); nav(`/projects/${p.id}/report`); }}><FileText size={16} className="text-primary" /><span>Status report (print / PDF)</span></button>
+        {can('work.editAny') && !p.readOnly && <button role="menuitem" onClick={() => { setOpen(false); setImporting(true); }}><Upload size={16} className="text-primary" /><span>Import tasks (CSV)</span></button>}
         <button role="menuitem" onClick={() => { setOpen(false); download(`/projects/${p.id}/export/work-items.csv`, `${p.code}-tasks.csv`).catch((e) => toast(e.message, 'error')); }}><Download size={16} className="text-primary" /><span>Export tasks (CSV)</span></button>
       </div>}
       {dialog && <Modal open onClose={() => setDialog(null)} title={dialog === 'clone' ? `Duplicate ${p.name}` : dialog === 'template' ? 'Save as template' : STATUS_VERB[dialog]}
@@ -61,6 +66,7 @@ export function ProjectActions({ project: p, can, reload }) {
           <p className="small">{dialog === 'COMPLETED' ? 'All tasks must be done or cancelled first. Time can still be logged afterwards.' : dialog === 'CANCELLED' ? 'The project becomes read-only.' : dialog === 'ARCHIVED' ? 'Archived projects are hidden from lists and read-only.' : dialog === 'ON_HOLD' ? 'The team keeps access; reports show the project as on hold.' : 'The project becomes active for the team.'}</p>
           <Field label="Reason (optional, kept in the activity log)">{(id) => <input id={id} className="form-control" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} />}</Field></>}
       </Modal>}
+      {importing && <ImportTasksDialog project={p} onClose={() => setImporting(false)} onDone={() => { reload(); emitLocal({ type: 'work.changed', projectId: p.id }); nav(`/projects/${p.id}/tasks`); }} />}
     </div>
   );
 }

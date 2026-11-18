@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Save, Flag } from 'lucide-react';
-import { get, post, patch } from '../../api/client.js';
+import { get, post, patch, del } from '../../api/client.js';
+import { useLive } from '../../lib/live.js';
 import { useLoad } from '../../lib/hooks.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { addDaysISO, fmtDate, labelize, todayISO } from '../../lib/format.js';
@@ -9,12 +10,12 @@ import { useProject } from './Workspace.jsx';
 
 const dayDiff = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
 
-function RescheduleModal({ item, onClose, onApplied }) {
+function RescheduleModal({ item, onClose, onApplied, initial }) {
   const { project } = useProject();
   const toast = useToast();
-  const [start, setStart] = useState(item.plannedStart || todayISO());
-  const [finish, setFinish] = useState(item.plannedFinish || item.plannedStart || todayISO());
-  const [preview, setPreview] = useState(null);
+  const [start, setStart] = useState(initial?.start || item.plannedStart || todayISO());
+  const [finish, setFinish] = useState(initial?.finish || item.plannedFinish || item.plannedStart || todayISO());
+  const [preview, setPreview] = useState(initial?.preview || null);
   const [withDown, setWithDown] = useState(true);
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -49,6 +50,7 @@ export function Timeline() {
   const { project, can, openItem, reload: reloadProject } = useProject();
   const toast = useToast();
   const items = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true' }), [project.id]);
+  useLive((e) => e.type === 'work.changed' && e.projectId === project.id && !e.self, () => items.reload({ silent: true }), [project.id]);
   const analysis = useLoad(() => get(`/projects/${project.id}/schedule/analysis`), [project.id, items.data]);
   const baselines = useLoad(() => get(`/projects/${project.id}/baselines`), [project.id]);
   const [blId, setBlId] = useState('');
@@ -57,6 +59,65 @@ export function Timeline() {
   const [zoom, setZoom] = useState(20);
   const [moving, setMoving] = useState(null);
   const [blName, setBlName] = useState(null);
+  const deps = useLoad(() => get(`/projects/${project.id}/dependencies`), [project.id, items.data]);
+  const [drag, setDrag] = useState(null); // { id, mode, x0, s, f, ds, df }
+  const [link, setLink] = useState(null); // { fromId, x, y }
+  const [selDep, setSelDep] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const laneRef = useRef(null);
+  const dragRef = useRef(null);
+  dragRef.current = drag;
+  const live = useRef({});
+  useEffect(() => {
+    if (!drag) return undefined;
+    const move = (e) => {
+      const d = dragRef.current; if (!d) return;
+      const n = Math.round((e.clientX - d.x0) / live.current.zoom);
+      let ds = d.s; let df = d.f;
+      if (d.mode === 'move') { ds = addDaysISO(d.s, n); df = addDaysISO(d.f, n); }
+      if (d.mode === 'start') { ds = addDaysISO(d.s, n); if (ds > df) ds = df; }
+      if (d.mode === 'end') { df = addDaysISO(d.f, n); if (df < ds) df = ds; }
+      setDrag({ ...d, ds, df, moved: d.moved || Math.abs(e.clientX - d.x0) > 3 });
+    };
+    const up = async () => {
+      const d = dragRef.current; setDrag(null);
+      if (!d) return;
+      const item = live.current.byId.get(d.id);
+      if (!d.moved) { setMoving(item); return; }
+      if (d.ds === d.s && d.df === d.f) return;
+      const finish = item.type === 'MILESTONE' ? d.ds : d.df;
+      setBusy(true);
+      try {
+        const pv = await post(`/projects/${project.id}/schedule/preview`, { itemId: d.id, plannedStart: d.ds, plannedFinish: finish });
+        if (pv.moves.length) { setMoving({ ...item, _initial: { start: d.ds, finish, preview: pv } }); return; }
+        await post(`/projects/${project.id}/schedule/apply`, { itemId: d.id, plannedStart: d.ds, plannedFinish: finish, includeDownstream: false, expectedMoves: [] });
+        toast(`${item.title}: ${fmtDate(d.ds)} → ${fmtDate(finish)}`, 'success');
+        items.reload({ silent: true }); reloadProject();
+      } catch (err) { toast(err.message, 'error'); } finally { setBusy(false); }
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once: true });
+    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag?.id]);
+  const laneXY = (e) => { const b = laneRef.current.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+  live.current = { zoom, laneXY, byId: live.current.byId };
+  const onLinkDown = (e, r) => { e.preventDefault(); e.stopPropagation(); setLink({ fromId: r.id, ...laneXY(e) }); };
+  useEffect(() => {
+    if (!link) return undefined;
+    const move = (e) => setLink((l) => (l ? { ...l, ...live.current.laneXY(e) } : l));
+    const up = async (e) => {
+      const fromId = link.fromId; setLink(null);
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-item]');
+      const toId = el?.getAttribute('data-item');
+      if (!toId || toId === fromId) return;
+      try { await post(`/projects/${project.id}/dependencies`, { predecessorId: fromId, successorId: toId, type: 'FS' }); toast(`Linked: ${live.current.byId.get(fromId)?.key} must finish before ${live.current.byId.get(toId)?.key} starts`, 'success'); deps.reload(); items.reload({ silent: true }); }
+      catch (err) { toast(err.message, 'error'); }
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up, { once: true });
+    return () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [link?.fromId]);
+
   const rows = useMemo(() => {
     const all = items.data?.data || [];
     const byParent = new Map();
@@ -79,6 +140,32 @@ export function Timeline() {
   const conflicts = new Set((analysis.data?.conflicts || []).map((c) => c.successorId));
   const base = new Map((cmp.data?.data || []).map((r) => [r.id, r]));
   const canSchedule = can('work.schedule') && !project.readOnly;
+  const rowIndex = new Map(rows.map((r, i) => [r.id, i]));
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  live.current.byId = byId;
+  const shown = (r) => (drag?.id === r.id ? { s: drag.ds, f: drag.df } : { s: r.plannedStart, f: r.plannedFinish || r.plannedStart });
+  const onBarDown = (e, r, mode) => {
+    if (!canSchedule || e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const s0 = r.plannedStart; const f0 = r.plannedFinish || r.plannedStart;
+    setDrag({ id: r.id, mode, x0: e.clientX, s: s0, f: f0, ds: s0, df: f0, moved: false });
+  };
+  const removeDep = async (d) => { try { await del(`/projects/${project.id}/dependencies/${d.id}`); toast('Link removed', 'success'); setSelDep(null); deps.reload(); items.reload({ silent: true }); } catch (e) { toast(e.message, 'error'); } };
+  const ROW = 36;
+  const arrows = (deps.data?.data || []).map((d) => {
+    const a = byId.get(d.predecessorId); const b = byId.get(d.successorId);
+    if (!a || !b || !a.plannedStart || !b.plannedStart) return null;
+    const A = shown(a); const B = shown(b);
+    const fromEnd = d.type === 'FS' || d.type === 'FF'; const toStart = d.type === 'FS' || d.type === 'SS';
+    const x1 = fromEnd ? x(A.f) + zoom : x(A.s); const y1 = rowIndex.get(a.id) * ROW + ROW / 2;
+    const x2 = toStart ? x(B.s) : x(B.f) + zoom; const y2 = rowIndex.get(b.id) * ROW + ROW / 2;
+    const bend = fromEnd ? x1 + 8 : x1 - 8;
+    const path = x2 - 8 >= bend || !fromEnd
+      ? `M${x1},${y1} H${bend} V${y2} H${x2 - (toStart ? 2 : -2)}`
+      : `M${x1},${y1} H${bend} V${y1 + (y2 > y1 ? ROW / 2 : -ROW / 2)} H${x2 - 12} V${y2} H${x2 - 2}`;
+    const late = conflicts.has(b.id);
+    return { d, path, late };
+  }).filter(Boolean);
   const saveBaseline = async () => { try { await post(`/projects/${project.id}/baselines`, { name: blName }); toast('Plan saved', 'success'); setBlName(null); baselines.reload(); } catch (e) { toast(e.message, 'error'); } };
   return (
     <>
@@ -88,7 +175,7 @@ export function Timeline() {
         <Select aria-label="Compare with baseline" value={blId} onChange={(v) => setBlId(v || '')} placeholder="Compare with a saved plan…" options={(baselines.data?.data || []).map((b) => ({ value: b.id, label: `${b.name} · ${fmtDate(b.createdAt)}` }))} />
         {canSchedule && <button className="btn btn-sm btn-light" onClick={() => setBlName(`Plan ${fmtDate(today)}`)}><Save size={14} /> Save current plan</button>}
       </div>
-      <div className="small text-muted mb-2">{canSchedule ? 'Click a bar to change its dates — you\'ll see what else would move before anything is saved.' : 'Click a bar to open it.'}{analysis.data?.criticalPath && showCp ? ` Red bars are the critical path: if any of them slip, the end date slips (${analysis.data.criticalPath.durationDays} working days end to end).` : ''}</div>
+      <div className="small text-muted mb-2">{canSchedule ? 'Drag a bar to move it, drag its edges to change the dates, or drag the dot at its end onto another task to link them. Click an arrow to remove a link.' : 'Click a bar to open it.'}{busy ? ' Saving…' : ''}{analysis.data?.criticalPath && showCp ? ` Red bars are the critical path: if any of them slip, the end date slips (${analysis.data.criticalPath.durationDays} working days end to end).` : ''}</div>
       <ErrorBox error={items.error || analysis.error} />
       <div className="d-flex gap-3 small text-muted my-2 flex-wrap"><span><span className="gantt-legend" style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--steel-500)', borderRadius: 2 }} /> Task</span><span><span style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--risk)', borderRadius: 2 }} /> Critical</span><span><span style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--ok)', borderRadius: 2 }} /> Done</span><span><span style={{ display: 'inline-block', width: 14, height: 8, boxShadow: '0 0 0 2px var(--warn)', borderRadius: 2 }} /> Conflict</span>{blId && <span><span style={{ display: 'inline-block', width: 14, height: 4, background: 'var(--slate-300)' }} /> Baseline</span>}</div>
       <div className="gantt">
@@ -100,31 +187,51 @@ export function Timeline() {
           </div>)}
         </div>
         <div className="gantt-right">
-          <div style={{ width: days * zoom, position: 'relative' }}>
+          <div style={{ width: days * zoom, position: 'relative' }} className={drag ? 'gantt-dragging' : ''}>
             <div className="gantt-head">{dayList.map((d) => { const dt = new Date(`${d}T00:00:00Z`); const wd = dt.getUTCDay(); const first = dt.getUTCDate() === 1;
               return <div key={d} className={`gantt-day ${wd === 0 || wd === 6 ? 'weekend' : ''} ${d === today ? 'today' : ''}`} style={{ width: zoom }}>{zoom >= 20 ? (wd === 1 || zoom >= 34 ? <>{dt.getUTCDate()}<br />{first || wd === 1 ? dt.toLocaleString(undefined, { month: 'short', timeZone: 'UTC' }) : ''}</> : '') : first ? dt.toLocaleString(undefined, { month: 'short', timeZone: 'UTC' }) : ''}</div>; })}</div>
             {today >= start && today <= end && <div className="gantt-today" style={{ left: x(today) + zoom / 2, top: 44 }} />}
+            <div ref={laneRef} style={{ position: 'relative' }}>
+            <svg className="gantt-links" width={days * zoom} height={rows.length * ROW} aria-hidden="true">
+              <defs><marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#64748b" /></marker>
+                <marker id="arr-late" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d97706" /></marker>
+                <marker id="arr-sel" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2563eb" /></marker></defs>
+              {arrows.map(({ d, path, late }) => <g key={d.id} className="gantt-link" onClick={() => canSchedule && setSelDep(d)}>
+                <path d={path} className="hit" /><path d={path} className={`line ${late ? 'late' : ''} ${selDep?.id === d.id ? 'sel' : ''}`} markerEnd={`url(#${selDep?.id === d.id ? 'arr-sel' : late ? 'arr-late' : 'arr'})`} /></g>)}
+              {link && (() => { const a = byId.get(link.fromId); const A = shown(a); return <path d={`M${x(A.f) + zoom},${rowIndex.get(a.id) * ROW + ROW / 2} L${link.x},${link.y}`} className="line drawing" markerEnd="url(#arr-sel)" />; })()}
+            </svg>
             {rows.map((r) => {
-              const s = r.plannedStart; const f = r.plannedFinish || r.plannedStart;
+              const { s, f } = shown(r);
               const bl = base.get(r.id);
               return (
                 <div key={r.id} className="gantt-lane" style={{ background: r.phase ? '#fafbfc' : undefined }}>
                   {bl?.baselineStart && <div className="gantt-baseline" style={{ left: x(bl.baselineStart), width: Math.max(zoom, (dayDiff(bl.baselineStart, bl.baselineFinish || bl.baselineStart) + 1) * zoom) }} />}
                   {s && (r.type === 'MILESTONE'
-                    ? <button className={`gantt-ms ${r.status === 'DONE' ? 'done' : ''}`} style={{ left: x(s) + zoom / 2 - 8 }} title={`${r.title} · ${fmtDate(s)}`} aria-label={`Milestone ${r.title}, ${fmtDate(s)}`} onClick={() => (canSchedule ? setMoving(r) : openItem(r.id))} />
-                    : <button className={`gantt-bar ${r.phase ? 'phase' : r.type === 'MODULE' ? 'module' : ''} ${cp.has(r.id) ? 'critical' : ''} ${conflicts.has(r.id) ? 'conflict' : ''} ${r.status === 'DONE' ? 'done' : ''}`}
+                    ? <><button data-item={r.id} className={`gantt-ms ${r.status === 'DONE' ? 'done' : ''} ${drag?.id === r.id ? 'dragging' : ''}`} style={{ left: x(s) + zoom / 2 - 8 }} title={`${r.title} · ${fmtDate(s)}`} aria-label={`Milestone ${r.title}, ${fmtDate(s)}`}
+                        onPointerDown={(e) => onBarDown(e, r, 'move')} onClick={() => !canSchedule && openItem(r.id)} onKeyDown={(e) => e.key === 'Enter' && canSchedule && setMoving(r)} />
+                      {canSchedule && <span className="gantt-dot" style={{ left: x(s) + zoom / 2 + 9 }} onPointerDown={(e) => onLinkDown(e, r)} title="Drag to another task to link" />}</>
+                    : <><div data-item={r.phase || r.type === 'MODULE' ? undefined : r.id} role="button" tabIndex={r.phase || r.type === 'MODULE' ? -1 : 0} className={`gantt-bar ${r.phase ? 'phase' : r.type === 'MODULE' ? 'module' : ''} ${cp.has(r.id) ? 'critical' : ''} ${conflicts.has(r.id) ? 'conflict' : ''} ${r.status === 'DONE' ? 'done' : ''} ${canSchedule && !r.phase && r.type !== 'MODULE' ? 'draggable' : ''} ${drag?.id === r.id ? 'dragging' : ''}`}
                         style={{ left: x(s), width: Math.max(zoom, (dayDiff(s, f) + 1) * zoom) }} title={`${r.phase ? r.name : r.title} · ${fmtDate(s)} → ${fmtDate(f)}`}
-                        aria-label={`${r.phase ? r.name : r.title}: ${fmtDate(s)} to ${fmtDate(f)}`} disabled={r.phase || r.type === 'MODULE'}
-                        onClick={() => (canSchedule ? setMoving(r) : openItem(r.id))}>
-                        {!r.phase && r.type !== 'MODULE' && <span className="fill" style={{ width: `${r.progress || 0}%` }} />}{zoom >= 20 && !r.phase && r.type !== 'MODULE' ? <span style={{ position: 'relative' }}>{r.title}</span> : null}
-                      </button>)}
+                        aria-label={`${r.phase ? r.name : r.title}: ${fmtDate(s)} to ${fmtDate(f)}`}
+                        onPointerDown={(e) => !r.phase && r.type !== 'MODULE' && onBarDown(e, r, 'move')}
+                        onClick={() => !canSchedule && !r.phase && r.type !== 'MODULE' && openItem(r.id)}
+                        onDoubleClick={() => !r.phase && r.type !== 'MODULE' && openItem(r.id)}
+                        onKeyDown={(e) => e.key === 'Enter' && !r.phase && r.type !== 'MODULE' && (canSchedule ? setMoving(r) : openItem(r.id))}>
+                        {!r.phase && r.type !== 'MODULE' && <span className="fill" style={{ width: `${r.progress || 0}%` }} />}{zoom >= 20 && !r.phase && r.type !== 'MODULE' ? <span style={{ position: 'relative', pointerEvents: 'none' }}>{r.title}</span> : null}
+                        {canSchedule && !r.phase && r.type !== 'MODULE' && <><span className="grip l" onPointerDown={(e) => onBarDown(e, r, 'start')} /><span className="grip r" onPointerDown={(e) => onBarDown(e, r, 'end')} /></>}
+                      </div>
+                      {canSchedule && !r.phase && r.type !== 'MODULE' && <span className="gantt-dot" style={{ left: x(s) + Math.max(zoom, (dayDiff(s, f) + 1) * zoom) + 3 }} onPointerDown={(e) => onLinkDown(e, r)} title="Drag to another task to link" />}</>)}
+                  {drag?.id === r.id && <span className="gantt-tip" style={{ left: x(s) }}>{fmtDate(s)}{r.type !== 'MILESTONE' ? ` → ${fmtDate(f)}` : ''}</span>}
                 </div>);
             })}
+            </div>
           </div>
         </div>
       </div>
       {dated.length === 0 && <div className="form-text mt-2">Add planned dates to work items to see them on the timeline.</div>}
-      {moving && <RescheduleModal item={moving} onClose={() => setMoving(null)} onApplied={() => { items.reload(); reloadProject(); }} />}
+      {moving && <RescheduleModal item={moving} initial={moving._initial} onClose={() => setMoving(null)} onApplied={() => { items.reload(); reloadProject(); }} />}
+      {selDep && <div className="bulkbar rounded mt-2"><span>Link: <strong>{byId.get(selDep.predecessorId)?.key}</strong> {selDep.type === 'FS' ? 'must finish before' : selDep.type === 'SS' ? 'must start before' : selDep.type === 'FF' ? 'must finish before finishing' : 'starts before finishing'} <strong>{byId.get(selDep.successorId)?.key}</strong>{selDep.lagDays ? ` (+${selDep.lagDays}d lag)` : ''}</span>
+        <button className="btn btn-sm btn-outline-danger ms-auto" onClick={() => removeDep(selDep)}>Remove link</button><button className="btn btn-sm btn-ghost" onClick={() => setSelDep(null)}>Close</button></div>}
       <Modal open={blName != null} onClose={() => setBlName(null)} title="Save current plan" footer={<><button className="btn btn-light" onClick={() => setBlName(null)}>Cancel</button><button className="btn btn-primary" disabled={!blName?.trim()} onClick={saveBaseline}>Save</button></>}>
         <p className="small text-muted">Saves today's dates and estimates so you can later compare what you planned with what happened.</p>
         <Field label="Name">{(id) => <input id={id} className="form-control" value={blName || ''} onChange={(e) => setBlName(e.target.value)} />}</Field>
@@ -136,7 +243,8 @@ export function Timeline() {
 export function CalendarView() {
   const { project, openItem } = useProject();
   const [month, setMonth] = useState(() => todayISO().slice(0, 7));
-  const { data, error, loading } = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true' }), [project.id]);
+  const { data, error, loading, reload } = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true' }), [project.id]);
+  useLive((e) => e.type === 'work.changed' && e.projectId === project.id && !e.self, () => reload({ silent: true }), [project.id]);
   const first = `${month}-01`;
   const gridStart = addDaysISO(first, -((new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7));
   const cells = [...Array(42)].map((_, i) => addDaysISO(gridStart, i));
