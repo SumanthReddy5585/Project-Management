@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import { fmtDate, fmtRelative, projectColor, fmtMoney, labelize } from '../../lib/format.js';
 import { Card, ErrorBox, Loading, StatusBadge, DueChip, Avatar, Meter } from '../../components/ui.jsx';
 import { useProject } from './Workspace.jsx';
+import { PlanStatusCard } from './Plan.jsx';
 
 export function Overview() {
   const { project: p, openItem } = useProject();
@@ -44,6 +45,7 @@ export function Overview() {
         </Card>
       </div>
       <div className="col-xl-4 d-flex flex-column gap-4">
+        {!isCustomer && <PlanStatusCard />}
         <Card title="Latest update" actions={<Link to="updates" className="small fw-semibold">All updates</Link>}>
           {ups.loading && !ups.data ? <Loading rows={2} /> : ups.data?.data[0] ? <><div className="d-flex gap-2 align-items-center mb-1"><span className={`dot dot-${ups.data.data[0].health}`} /><strong>{ups.data.data[0].title}</strong></div><p className="small mb-1" style={{ whiteSpace: 'pre-wrap' }}>{ups.data.data[0].body}</p><div className="small text-muted">{ups.data.data[0].author?.name} · {fmtRelative(ups.data.data[0].createdAt)}</div></> : <div className="small text-muted">No updates yet.</div>}
         </Card>

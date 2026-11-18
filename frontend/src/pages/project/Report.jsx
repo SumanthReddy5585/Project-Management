@@ -7,6 +7,7 @@ import { addDaysISO, fmtDate, fmtMoney, labelize, todayISO } from '../../lib/for
 import { ErrorBox, Loading } from '../../components/ui.jsx';
 import { LineChart } from '../../components/BarChart.jsx';
 import { useProject } from './Workspace.jsx';
+import { ScheduleChip, DaysVar, TaskVarChip, scheduleSentence } from '../../lib/schedule.jsx';
 
 /** One-page project status report, designed to print to PDF for steering committees / clients. */
 export function StatusReport() {
@@ -19,6 +20,7 @@ export function StatusReport() {
   const risks = useLoad(() => (can('register.view') ? get(`/projects/${p.id}/registers/risks`) : Promise.resolve({ data: [] })), [p.id]);
   const issues = useLoad(() => (can('register.view') ? get(`/projects/${p.id}/registers/issues`) : Promise.resolve({ data: [] })), [p.id]);
   const ups = useLoad(() => get(`/projects/${p.id}/updates`), [p.id]);
+  const plan = useLoad(() => (p.planApprovedAt ? get(`/projects/${p.id}/plan`) : Promise.resolve(null)), [p.id, p.planApprovedAt]);
   if (items.loading && !items.data) return <Loading rows={8} />;
   const all = (items.data?.data || []).filter((i) => i.type !== 'MODULE');
   const name = (id) => people.find((m) => m.id === id)?.name || '—';
@@ -50,6 +52,17 @@ export function StatusReport() {
           <div><b>{p.milestones.done}/{p.milestones.total}</b><span>Milestones met</span></div>
           <div><b>{h ? `${h.logged}h` : '—'}</b><span>{h ? `of ${h.estimate}h estimated` : 'Hours'}</span></div>
         </div>
+        <h2>Schedule vs original plan</h2>
+        {!p.planApprovedAt ? <div className="small text-muted">The project plan has not been approved yet, so there is no original plan to compare against.</div>
+          : plan.data && <>
+            <div className="d-flex align-items-center gap-2 mb-1"><ScheduleChip status={plan.data.summary.status} /><span className="fw-semibold">{scheduleSentence(plan.data.summary, fmtDate)}</span></div>
+            <div className="small text-muted mb-2">Original plan approved {fmtDate(plan.data.approvedAt)} by {plan.data.approvedBy?.name}. By today it expected {plan.data.summary.plannedPct ?? 0}% of the work done; {plan.data.summary.actualPct ?? 0}% is done.
+              {' '}{plan.data.summary.counts.OVERDUE || 0} overdue · {plan.data.summary.counts.DELAYED || 0} delayed · {plan.data.summary.counts.DONE_LATE || 0} finished late · {plan.data.summary.counts.ADDED || 0} added after approval.</div>
+            <table className="table table-sm"><thead><tr><th>Phase</th><th>Original finish</th><th>Forecast</th><th className="text-end">Variance</th><th>Status</th></tr></thead>
+              <tbody>{plan.data.phases.map((ph) => <tr key={ph.id || 'none'}><td>{ph.name}</td><td>{fmtDate(ph.originalFinish)}</td><td>{fmtDate(ph.forecastFinish)}</td><td className="text-end"><DaysVar days={ph.finishVariance} /></td><td><ScheduleChip status={ph.status} /></td></tr>)}</tbody></table>
+            {(() => { const late = plan.data.items.filter((r) => ['OVERDUE', 'DELAYED'].includes(r.status)).sort((a, b) => (b.finishVariance ?? 0) - (a.finishVariance ?? 0)).slice(0, 8);
+              return late.length > 0 && <><div className="small fw-semibold mt-2">Biggest slips against the original plan</div><table className="table table-sm"><tbody>{late.map((r) => <tr key={r.id}><td className="mono text-muted">{p.code}-{r.number}</td><td>{r.title}</td><td>{fmtDate(r.originalFinish)} → {fmtDate(r.forecastFinish)}</td><td className="text-end"><DaysVar days={r.finishVariance} /></td><td><TaskVarChip status={r.status} /></td></tr>)}</tbody></table></>; })()}
+          </>}
         {latest && <><h2>Summary from the project manager</h2><p className="mb-1 fw-semibold">{latest.title}</p><p className="small mb-0" style={{ whiteSpace: 'pre-wrap' }}>{latest.body}</p><div className="small text-muted">{latest.author?.name} · {fmtDate(latest.createdAt)}</div></>}
         <div className="row g-4">
           <div className="col-md-6"><h2>Phases</h2>{p.phases.map((ph) => <div key={ph.id} className="d-flex align-items-center gap-2 py-1"><span className="small flex-grow-1">{ph.name}<span className="text-muted"> · {fmtDate(ph.plannedFinish)}</span></span><div className="meter" style={{ width: 120 }}><span style={{ width: `${ph.progress || 0}%` }} /></div><span className="small fw-semibold num" style={{ width: 36, textAlign: 'right' }}>{Math.round(ph.progress || 0)}%</span></div>)}</div>

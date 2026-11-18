@@ -25,18 +25,33 @@ test.describe.serial('manager → client → request workflow', () => {
     await page.getByRole('button', { name: /Next: review/ }).click();
     await expect(page.getByText('Ravi Developer · Member')).toBeVisible();
     await page.getByLabel(/Let the client follow this project/).check();
-    await page.getByRole('button', { name: 'Create project' }).click();
+    await page.getByRole('button', { name: 'Create project & build plan' }).click();
     await expect(page.getByRole('heading', { name: new RegExp(`E2E Portal ${code}`) })).toBeVisible();
-    await expect(page.getByText('Initiation & project setup').first()).toBeVisible();
-    projectUrl = page.url().replace(/\/$/, '');
+    await expect(page.locator('.plan-steps .ps.cur')).toContainText('Build the plan');
+    projectUrl = page.url().replace(/\/plan$/, '');
+
+    // build the plan with quick-add, then approve & lock it as the original plan
+    const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+    for (const [title, s, f] of [['Shared onboarding task', 1, 3], ['Internal pricing review', 2, 5]]) {
+      const qa = page.locator('.plan-qa');
+      await qa.getByLabel('Title').fill(title);
+      await qa.getByLabel('Assignee').selectOption({ index: 1 });
+      await qa.getByLabel('Start date').fill(day(s));
+      await qa.getByLabel('Due date').fill(day(f));
+      await qa.getByLabel('Estimate in hours').fill('8');
+      await qa.getByRole('button', { name: 'Add task' }).click();
+      await expect(page.getByRole('button', { name: title, exact: true })).toBeVisible();
+    }
+    await page.getByRole('button', { name: 'Approve & lock original plan' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Approve & lock' }).click();
+    await expect(page.getByText('Original plan locked')).toBeVisible();
+    await expect(page.locator('.sched-hero')).toContainText('On track');
 
     // one task shared with the client and one team-only task, added with quick-add
     await page.locator('nav.tabs').getByRole('link', { name: /^Team/ }).click();
     await expect(page.getByRole('cell', { name: /Ravi Developer/ })).toBeVisible();
     await page.getByRole('link', { name: 'Tasks', exact: true }).click();
     for (const [title, shared] of [['Shared onboarding task', true], ['Internal pricing review', false]]) {
-      await page.getByLabel('New task title').fill(title);
-      await page.getByLabel('New task title').press('Enter');
       await page.getByRole('button', { name: title, exact: true }).click();
       const share = page.locator('.drawer').getByRole('switch');
       if (shared) await share.check(); else await expect(share).not.toBeChecked();

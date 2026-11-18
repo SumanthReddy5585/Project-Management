@@ -128,3 +128,56 @@ describe('planning tools', () => {
   });
 });
 
+describe('original plan: build, approve & lock, compare', () => {
+  let P;
+  it('refuses to approve an empty or undated plan, then approves and locks it', async () => {
+    const me = await pm.get('/api/auth/me');
+    P = await pm.post('/api/projects', { name: 'Orion', code: 'ORN', managerId: me.user.id, plannedStart: today, plannedFinish: plus(40), team: [{ userId: dev.userId, role: 'MEMBER' }] });
+    let plan = await pm.get(`/api/projects/${P.id}/plan`);
+    expect(plan).toMatchObject({ approved: false, canApprove: true });
+    expect(plan.readiness.ready).toBe(false);
+    await expectStatus(pm.post(`/api/projects/${P.id}/plan/approve`, {}), 400);
+    const a = await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'Design', plannedStart: plus(1), plannedFinish: plus(5), assigneeId: dev.userId, estimateHours: 16 });
+    const undated = await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'Build' });
+    await expectStatus(pm.post(`/api/projects/${P.id}/plan/approve`, {}), 400);
+    await pm.patch(`/api/projects/${P.id}/work-items/${undated.id}`, { plannedStart: plus(6), plannedFinish: plus(12), estimateHours: 24, version: undated.version });
+    await expectStatus(dev.post(`/api/projects/${P.id}/plan/approve`, {}), 403);
+    const ok = await pm.post(`/api/projects/${P.id}/plan/approve`, { note: 'Signed off with client' });
+    expect(ok.items).toBeGreaterThanOrEqual(2);
+    await expectStatus(pm.post(`/api/projects/${P.id}/plan/approve`, {}), 409);
+    const d = await pm.get(`/api/projects/${P.id}`);
+    expect(d.status).toBe('ACTIVE');
+    expect(d.planApprovedAt).toBeTruthy();
+    expect(d.schedule).toMatchObject({ status: 'ON_TRACK', finishVariance: 0 });
+    const bls = await pm.get(`/api/projects/${P.id}/baselines`);
+    expect(bls.data[0]).toMatchObject({ kind: 'ORIGINAL', locked: true });
+    // database refuses edits to the original plan
+    await expect(prisma.baselineItem.updateMany({ where: { baselineId: ok.baselineId }, data: { title: 'hack' } })).rejects.toThrow(/locked/);
+    await expect(prisma.baseline.delete({ where: { id: ok.baselineId } })).rejects.toThrow(/locked/);
+    void a;
+  });
+  it('compares the working plan with the original', async () => {
+    const items = (await pm.get(`/api/projects/${P.id}/work-items?all=true`)).data;
+    const build = items.find((i) => i.title === 'Build');
+    await pm.patch(`/api/projects/${P.id}/work-items/${build.id}`, { plannedFinish: plus(19), version: build.version });
+    await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'Extra reports', plannedStart: plus(13), plannedFinish: plus(15) });
+    const v = await pm.get(`/api/projects/${P.id}/plan`);
+    expect(v.approved).toBe(true);
+    expect(v.baseline.kind).toBe('ORIGINAL');
+    const row = v.items.find((i) => i.title === 'Build');
+    expect(row.status).toBe('DELAYED');
+    expect(row.finishVariance).toBeGreaterThan(0);
+    expect(row.originalFinish).toBe(plus(12));
+    expect(v.items.find((i) => i.title === 'Extra reports').status).toBe('ADDED');
+    expect(v.summary.finishVariance).toBe(0); // the go-live milestone still holds
+    expect(v.summary.status).toBe('AT_RISK'); // but a task slipped past its original date
+    const list = await pm.get('/api/projects?q=ORN');
+    expect(list.data[0].schedule.status).toBe(v.summary.status);
+    // deleting a task shows it as removed scope; the original keeps its title
+    const design = items.find((i) => i.title === 'Design');
+    await pm.del(`/api/projects/${P.id}/work-items/${design.id}`);
+    const v2 = await pm.get(`/api/projects/${P.id}/plan`);
+    expect(v2.items.find((i) => i.id === design.id)).toMatchObject({ status: 'REMOVED', title: 'Design' });
+  });
+});
+

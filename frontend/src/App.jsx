@@ -16,6 +16,7 @@ import { TasksTab } from './pages/project/Work.jsx';
 import { Deliverables, UpdatesTab, ProjectFiles } from './pages/project/Engagement.jsx';
 import { Registers, Team, ProjectSettings, Activity } from './pages/project/Manage.jsx';
 import { StatusReport } from './pages/project/Report.jsx';
+import { PlanTab } from './pages/project/Plan.jsx';
 import ResourcePlanner from './pages/Planner.jsx';
 import { TicketsList, TicketDetail } from './pages/Tickets.jsx';
 import { People, NotificationsPage } from './pages/Resources.jsx';
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="projects/:projectId/work/:itemId" element={<Redirect to="/projects/:projectId/tasks?item=:itemId" />} />
               <Route path="projects/:projectId" element={<ProjectWorkspace />}>
                 <Route index element={<Overview />} />
+                <Route path="plan" element={<PlanTab />} />
                 <Route path="tasks" element={<TasksTab />} />
                 <Route path="approvals" element={<Deliverables />} />
                 <Route path="files" element={<ProjectFiles />} />

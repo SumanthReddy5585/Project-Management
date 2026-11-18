@@ -282,6 +282,8 @@ exports.Prisma.ProjectScalarFieldEnum = {
   templateId: 'templateId',
   workItemSeq: 'workItemSeq',
   version: 'version',
+  planApprovedAt: 'planApprovedAt',
+  planApprovedById: 'planApprovedById',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -364,6 +366,8 @@ exports.Prisma.BaselineScalarFieldEnum = {
   projectId: 'projectId',
   name: 'name',
   note: 'note',
+  kind: 'kind',
+  changeRequestId: 'changeRequestId',
   createdById: 'createdById',
   createdAt: 'createdAt'
 };
@@ -374,7 +378,12 @@ exports.Prisma.BaselineItemScalarFieldEnum = {
   workItemId: 'workItemId',
   plannedStart: 'plannedStart',
   plannedFinish: 'plannedFinish',
-  estimateHours: 'estimateHours'
+  estimateHours: 'estimateHours',
+  title: 'title',
+  type: 'type',
+  assigneeId: 'assigneeId',
+  phaseId: 'phaseId',
+  parentId: 'parentId'
 };
 
 exports.Prisma.DiscussionScalarFieldEnum = {

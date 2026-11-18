@@ -7,11 +7,13 @@ import { hashPassword } from '../src/auth/passwords.js';
 import { initializeOrganization } from '../src/services/orgSetup.js';
 import { createApp } from '../src/app.js';
 import { ApiClient } from '../scripts/api-client.js';
+import { addWorkingDays } from '../src/domain/calendar.js';
 
 if (config.isProd && process.env.ALLOW_DEMO_SEED !== 'true') { console.error('Refusing to seed demo data in production (set ALLOW_DEMO_SEED=true to override).'); process.exit(1); }
 const UPGRADE = process.argv.includes('--upgrade');
 const REGISTERS = process.argv.includes('--registers');
-if ((await prisma.organization.count()) && !process.argv.includes('--force') && !UPGRADE && !REGISTERS) { console.error('Database already has organizations. Re-run with --force to add demo orgs anyway.'); process.exit(1); }
+const PLANS = process.argv.includes('--plans');
+if ((await prisma.organization.count()) && !process.argv.includes('--force') && !UPGRADE && !REGISTERS && !PLANS) { console.error('Database already has organizations. Re-run with --force to add demo orgs anyway.'); process.exit(1); }
 
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Demo-pass-2026';
 if (config.isProd && DEMO_PASSWORD === 'Demo-pass-2026') { console.error('Set DEMO_PASSWORD to a private value before seeding a public deployment.'); process.exit(1); }
@@ -107,7 +109,59 @@ export async function seedDemo(base) {
   await seedMoreProjects(base, { mgr, ids, fabrikam });
   await seedSupportDesk(base, { mgr, cust, ids, project });
   await seedRegisters(base);
+  await seedPlans();
   return { project, ids };
+}
+
+// Approved original plans for the demo projects, with a realistic mix of on-time, late, delayed, ahead
+// and added work so "plan vs original" has something to show. Written directly (as if approved at the
+// project start); idempotent: projects that already have an original plan are skipped.
+async function seedPlans() {
+  const today = new Date().toISOString().slice(0, 10);
+  const d = (x) => (x ? x.toISOString().slice(0, 10) : null);
+  const D = (x) => (x ? new Date(`${x}T00:00:00Z`) : null);
+  const rules = {
+    CSM: { goLiveSlip: 5, added: ['Checkout regression suite'] },
+    FPP: { goLiveSlip: 8, added: ['Accessibility audit'] },
+    HRU: { goLiveSlip: 0, noSlips: true, ahead: ['Provision new servers'] },
+  };
+  for (const [code, rule] of Object.entries(rules)) {
+    const project = await prisma.project.findFirst({ where: { code, organization: { OR: [{ slug: 'northwind' }, { slug: { startsWith: 'o2' } }] } } });
+    if (!project || project.planApprovedAt || (await prisma.baseline.findFirst({ where: { projectId: project.id, kind: 'ORIGINAL' } }))) continue;
+    const items = await prisma.workItem.findMany({ where: { projectId: project.id }, orderBy: { number: 'asc' } });
+    // 1. The original plan = the dates as first planned (captured before the "history" below), with
+    //    some open tasks and the go-live having slipped since (so their original dates were earlier).
+    let openSeen = 0;
+    const orig = [];
+    for (const i of items) {
+      if (rule.added?.includes(i.title)) continue; // created after approval
+      let s = d(i.plannedStart); let f = d(i.plannedFinish);
+      if (!rule.noSlips && i.status !== 'DONE' && i.status !== 'CANCELLED' && i.type === 'TASK' && f && f >= today && openSeen++ % 2 === 0) { s = s && addWorkingDays(s, -3); f = addWorkingDays(f, -3); }
+      if (rule.ahead?.includes(i.title) && f) { s = s && addWorkingDays(s, 2); f = addWorkingDays(f, 2); }
+      if (rule.goLiveSlip && i.type === 'MILESTONE' && f && f >= today && ['Go-live', 'Project closed', 'UAT sign-off'].includes(i.title)) { f = addWorkingDays(f, -rule.goLiveSlip); s = f; }
+      orig.push({ workItemId: i.id, title: i.title, type: i.type, assigneeId: i.assigneeId, phaseId: i.phaseId, parentId: i.parentId, plannedStart: D(s), plannedFinish: D(f), estimateHours: i.estimateHours });
+    }
+    // 2. History since approval: past milestones were met on the day; the first finished task was on time,
+    //    later ones finished 2 working days late (the working plan was moved to match).
+    let doneSeen = 0;
+    for (const i of items) {
+      const pf = d(i.plannedFinish);
+      if (i.type === 'MILESTONE' && i.status === 'TODO' && pf && pf < today) {
+        await prisma.workItem.update({ where: { id: i.id }, data: { status: 'DONE', percentComplete: 100, actualStart: i.plannedFinish, actualFinish: i.plannedFinish, version: { increment: 1 } } });
+      } else if (i.status === 'IN_PROGRESS' && !i.percentComplete) {
+        await prisma.workItem.update({ where: { id: i.id }, data: { percentComplete: rule.noSlips ? 70 : 40, version: { increment: 1 } } });
+      } else if (i.status === 'DONE' && i.type === 'TASK' && pf) {
+        const af = doneSeen++ === 0 ? pf : [addWorkingDays(pf, 2), today].sort()[0];
+        await prisma.workItem.update({ where: { id: i.id }, data: { actualFinish: D(af), plannedFinish: D(af), version: { increment: 1 } } });
+      }
+    }
+    const approver = project.managerId;
+    await prisma.$transaction(async (tx) => {
+      const bl = await tx.baseline.create({ data: { projectId: project.id, name: `Original plan (approved ${d(project.plannedStart)})`, note: 'Agreed with the client at kick-off', kind: 'ORIGINAL', createdById: approver } });
+      await tx.baselineItem.createMany({ data: orig.map((o) => ({ baselineId: bl.id, ...o })) });
+      await tx.project.update({ where: { id: project.id }, data: { planApprovedAt: project.plannedStart, planApprovedById: approver, version: { increment: 1 } } });
+    });
+  }
 }
 
 // Risks, issues and decisions so the risk matrix and status report have real content. Idempotent per project.
@@ -250,6 +304,7 @@ async function upgradeDemo(base) {
   await seedMoreProjects(base, { mgr, ids, fabrikam });
   if (project) await seedSupportDesk(base, { mgr, cust, ids, project });
   await seedRegisters(base);
+  await seedPlans();
   console.log('[demo-upgrade] demo data upgraded');
 }
 
@@ -257,8 +312,12 @@ const app = createApp();
 const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
 const base = `http://127.0.0.1:${server.address().port}`;
 try {
-  if (REGISTERS) { await seedRegisters(base); console.log('[demo-upgrade] registers added'); process.exitCode = 0; } else if (UPGRADE) { await upgradeDemo(base); process.exitCode = 0; } else await seedDemo(base);
-  if (!UPGRADE && !REGISTERS) console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
-  if (!UPGRADE && !REGISTERS) for (const u of ['admin', 'manager', 'dev1', 'dev2', 'qa', 'customer', 'fabrikam', 'globex.admin']) console.log('  ' + mail(u));
+  if (REGISTERS || PLANS) {
+    if (REGISTERS) { await seedRegisters(base); console.log('[demo-upgrade] registers added'); }
+    if (PLANS) { await seedPlans(); console.log('[demo-upgrade] original plans added'); }
+    process.exitCode = 0;
+  } else if (UPGRADE) { await upgradeDemo(base); process.exitCode = 0; } else await seedDemo(base);
+  if (!UPGRADE && !REGISTERS && !PLANS) console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
+  if (!UPGRADE && !REGISTERS && !PLANS) for (const u of ['admin', 'manager', 'dev1', 'dev2', 'qa', 'customer', 'fabrikam', 'globex.admin']) console.log('  ' + mail(u));
 } catch (e) { console.error('Seed failed:', e.message, JSON.stringify(e.data ?? {})); process.exitCode = 1; }
 finally { server.close(); await prisma.$disconnect(); }

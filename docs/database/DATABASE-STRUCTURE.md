@@ -2,7 +2,7 @@
 
 PostgreSQL schema `public` · 45 tables · 17 enum types · 62 foreign keys · generated 2026-11-18
 
-All primary keys are UUIDs. Timestamps are `timestamptz` (UTC); plain dates are `date`. Every business table is scoped to an organisation, directly or through its project. Columns ending in `Id` without an arrow (for example `assigneeId`, `createdById`) point to a row in another table — usually `User` — and are checked by the application rather than by a database foreign key. The authoritative model definition is `prisma/schema.prisma`; the SQL history is in `prisma/migrations/`.
+All primary keys are UUIDs. Timestamps are `timestamptz` (UTC); plain dates are `date`. Every business table is scoped to an organisation, directly or through its project. The original (approved) plan is protected by the trigger `o2_protect_original_baseline` on `Baseline` and `BaselineItem`. Columns ending in `Id` without an arrow (for example `assigneeId`, `createdById`) point to a row in another table — usually `User` — and are checked by the application rather than by a database foreign key. The authoritative model definition is `prisma/schema.prisma`; the SQL history is in `prisma/migrations/`.
 
 ## Contents
 
@@ -300,7 +300,7 @@ Indexes: unique ("userId", "dedupeKey"); ("userId", "readAt", "createdAt")
 
 ### Project
 
-A project: code, client, manager, dates, status, health, budget, hourly rate, client visibility, optimistic-lock version.
+A project: code, client, manager, dates, status, health, budget, hourly rate, client visibility, plan approval (planApprovedAt/By), optimistic-lock version.
 
 | Column | Type | Null | Default | Key / reference |
 |---|---|---|---|---|
@@ -329,6 +329,8 @@ A project: code, client, manager, dates, status, health, budget, hourly rate, cl
 | `version` | integer | no | `1` |  |
 | `createdAt` | timestamptz | no | `CURRENT_TIMESTAMP` |  |
 | `updatedAt` | timestamptz | no |  |  |
+| `planApprovedAt` | timestamptz | yes |  |  |
+| `planApprovedById` | uuid | yes |  |  |
 
 Indexes: unique ("organizationId", code); ("organizationId", status)
 
@@ -471,7 +473,7 @@ Indexes: unique ("predecessorId", "successorId"); ("projectId")
 
 ### Baseline
 
-Saved snapshots of the plan.
+Saved copies of the plan. kind = ORIGINAL (the approved plan: one per project, locked by a trigger), REVISION (re-plan after an approved change request) or SNAPSHOT.
 
 | Column | Type | Null | Default | Key / reference |
 |---|---|---|---|---|
@@ -481,10 +483,14 @@ Saved snapshots of the plan.
 | `note` | text | yes |  |  |
 | `createdById` | uuid | no |  |  |
 | `createdAt` | timestamptz | no | `CURRENT_TIMESTAMP` |  |
+| `kind` | text | no | `'SNAPSHOT'::text` |  |
+| `changeRequestId` | uuid | yes |  |  |
+
+Indexes: unique ("projectId") WHERE (kind = 'ORIGINAL'::text)
 
 ### BaselineItem
 
-Dates/estimates of each work item in a baseline.
+Each work item in a baseline: title, type, phase, owner, dates and estimate at the time it was saved.
 
 | Column | Type | Null | Default | Key / reference |
 |---|---|---|---|---|
@@ -494,6 +500,11 @@ Dates/estimates of each work item in a baseline.
 | `plannedStart` | date | yes |  |  |
 | `plannedFinish` | date | yes |  |  |
 | `estimateHours` | numeric(8,2) | yes |  |  |
+| `title` | text | yes |  |  |
+| `type` | text | yes |  |  |
+| `assigneeId` | uuid | yes |  |  |
+| `phaseId` | uuid | yes |  |  |
+| `parentId` | uuid | yes |  |  |
 
 Indexes: unique ("baselineId", "workItemId")
 

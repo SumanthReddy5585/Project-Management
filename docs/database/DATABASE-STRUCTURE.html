@@ -4,7 +4,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <script type="module">try{const m=await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');m.default.initialize({startOnLoad:true});}catch(e){}</script>
 </head><body><h1 id="o2-support-hub-database-structure">O2 Support Hub - Database structure</h1>
 <p>PostgreSQL schema <code>public</code> · 45 tables · 17 enum types · 62 foreign keys · generated 2026-11-18</p>
-<p>All primary keys are UUIDs. Timestamps are <code>timestamptz</code> (UTC); plain dates are <code>date</code>. Every business table is scoped to an organisation, directly or through its project. Columns ending in <code>Id</code> without an arrow (for example <code>assigneeId</code>, <code>createdById</code>) point to a row in another table — usually <code>User</code> — and are checked by the application rather than by a database foreign key. The authoritative model definition is <code>prisma/schema.prisma</code>; the SQL history is in <code>prisma/migrations/</code>.</p>
+<p>All primary keys are UUIDs. Timestamps are <code>timestamptz</code> (UTC); plain dates are <code>date</code>. Every business table is scoped to an organisation, directly or through its project. The original (approved) plan is protected by the trigger <code>o2_protect_original_baseline</code> on <code>Baseline</code> and <code>BaselineItem</code>. Columns ending in <code>Id</code> without an arrow (for example <code>assigneeId</code>, <code>createdById</code>) point to a row in another table — usually <code>User</code> — and are checked by the application rather than by a database foreign key. The authoritative model definition is <code>prisma/schema.prisma</code>; the SQL history is in <code>prisma/migrations/</code>.</p>
 <h2 id="contents">Contents</h2>
 <ul>
 <li><strong>Organisation, users and security</strong>: <a href="#organization">Organization</a>, <a href="#user">User</a>, <a href="#membership">Membership</a>, <a href="#session">Session</a>, <a href="#passwordresettoken">PasswordResetToken</a>, <a href="#invitation">Invitation</a>, <a href="#team">Team</a>, <a href="#teammember">TeamMember</a>, <a href="#customercompany">CustomerCompany</a>, <a href="#auditevent">AuditEvent</a>, <a href="#notification">Notification</a></li>
@@ -993,7 +993,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <p>Indexes: unique ("userId", "dedupeKey"); ("userId", "readAt", "createdAt")</p>
 <h2 id="projects-and-planning">Projects and planning</h2>
 <h3 id="project">Project</h3>
-<p>A project: code, client, manager, dates, status, health, budget, hourly rate, client visibility, optimistic-lock version.</p>
+<p>A project: code, client, manager, dates, status, health, budget, hourly rate, client visibility, plan approval (planApprovedAt/By), optimistic-lock version.</p>
 <table>
 <thead>
 <tr>
@@ -1177,6 +1177,20 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <td><code>updatedAt</code></td>
 <td>timestamptz</td>
 <td>no</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>planApprovedAt</code></td>
+<td>timestamptz</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>planApprovedById</code></td>
+<td>uuid</td>
+<td>yes</td>
 <td></td>
 <td></td>
 </tr>
@@ -1793,7 +1807,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 </table>
 <p>Indexes: unique ("predecessorId", "successorId"); ("projectId")</p>
 <h3 id="baseline">Baseline</h3>
-<p>Saved snapshots of the plan.</p>
+<p>Saved copies of the plan. kind = ORIGINAL (the approved plan: one per project, locked by a trigger), REVISION (re-plan after an approved change request) or SNAPSHOT.</p>
 <table>
 <thead>
 <tr>
@@ -1847,10 +1861,25 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <td><code>CURRENT_TIMESTAMP</code></td>
 <td></td>
 </tr>
+<tr>
+<td><code>kind</code></td>
+<td>text</td>
+<td>no</td>
+<td><code>'SNAPSHOT'::text</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>changeRequestId</code></td>
+<td>uuid</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
 </tbody>
 </table>
+<p>Indexes: unique ("projectId") WHERE (kind = 'ORIGINAL'::text)</p>
 <h3 id="baselineitem">BaselineItem</h3>
-<p>Dates/estimates of each work item in a baseline.</p>
+<p>Each work item in a baseline: title, type, phase, owner, dates and estimate at the time it was saved.</p>
 <table>
 <thead>
 <tr>
@@ -1900,6 +1929,41 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <tr>
 <td><code>estimateHours</code></td>
 <td>numeric(8,2)</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>text</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>text</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>assigneeId</code></td>
+<td>uuid</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>phaseId</code></td>
+<td>uuid</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>parentId</code></td>
+<td>uuid</td>
 <td>yes</td>
 <td></td>
 <td></td>

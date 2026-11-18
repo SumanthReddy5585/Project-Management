@@ -11,6 +11,7 @@ import { loadCalendar, toWorkCalendar } from '../services/calendars.js';
 import { projectProgress, projectCalendar, loadSchedule } from '../services/projectData.js';
 import { workingDaysBetween, nextWorkingDay, addWorkingDays } from '../domain/calendar.js';
 import { PROJECT_TRANSITIONS, READ_ONLY_PROJECT } from '../domain/workflow.js';
+import { planVariance, scheduleSummary, originalBaseline } from '../services/planVariance.js';
 
 const r = Router();
 const enumP = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
@@ -37,7 +38,7 @@ r.get('/', async (req, res) => {
     const vis = (req.auth.isCustomer ? items.filter((i) => i.customerVisible) : items).filter((i) => i.type !== 'MODULE');
     const open = vis.filter((i) => !['DONE', 'CANCELLED'].includes(i.status));
     out.push(S.project(p, access, { progress: roll.project.percent, milestones: roll.milestones, customerName: p.customerCompany?.name ?? null, managerName: mgr.get(p.managerId) ?? null,
-      ...(!req.auth.isCustomer && { teamSize: p._count.members }), counts: { total: vis.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length } }));
+      ...(!req.auth.isCustomer && { teamSize: p._count.members, planApprovedAt: p.planApprovedAt, schedule: await scheduleSummary(p) }), counts: { total: vis.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length } }));
   }
   res.json(paged(out, total, q));
 });
@@ -145,6 +146,7 @@ async function projectDetail(req, access) {
     counts: { items: visible.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length,
       ...(access.internal && { blocked: open.filter((i) => i.status === 'BLOCKED').length }) },
     readOnly: READ_ONLY_PROJECT.has(p.status),
+    ...(access.internal && { planApprovedAt: p.planApprovedAt, schedule: await scheduleSummary(p) }),
   });
 }
 
@@ -389,11 +391,84 @@ r.delete('/:projectId/phases/:phaseId', async (req, res) => {
 });
 
 // ----- Baselines -----
+async function snapshotItems(db, projectId) {
+  const items = await db.workItem.findMany({ where: { projectId }, select: { id: true, title: true, type: true, assigneeId: true, phaseId: true, parentId: true, plannedStart: true, plannedFinish: true, estimateHours: true } });
+  return items.map(({ id, ...i }) => ({ workItemId: id, ...i }));
+}
+
+// ----- Original plan: build, approve & lock, compare -----
+// Before approval the plan is a draft the manager edits freely. Approving takes a snapshot of every task
+// (dates, effort, owner) as the ORIGINAL baseline, which the database refuses to change or delete afterwards.
+// The tasks themselves stay editable: that is the working plan, always compared with the original.
+async function planReadiness(project) {
+  const [items, team] = await Promise.all([
+    prisma.workItem.findMany({ where: { projectId: project.id, status: { not: 'CANCELLED' } }, select: { type: true, assigneeId: true, plannedStart: true, plannedFinish: true, estimateHours: true } }),
+    prisma.projectMember.count({ where: { projectId: project.id, role: { in: ['MANAGER', 'MEMBER'] } } }),
+  ]);
+  const work = items.filter((i) => i.type === 'TASK' || i.type === 'SUBTASK');
+  const leaf = items.filter((i) => i.type !== 'MODULE');
+  const ps = fmtDate(project.plannedStart); const pf = fmtDate(project.plannedFinish);
+  const checks = {
+    tasks: work.length, milestones: items.filter((i) => i.type === 'MILESTONE').length, team,
+    undated: leaf.filter((i) => !i.plannedStart || !i.plannedFinish).length,
+    unassigned: work.filter((i) => !i.assigneeId).length,
+    unestimated: work.filter((i) => i.estimateHours == null).length,
+    outsideProject: leaf.filter((i) => (i.plannedStart && fmtDate(i.plannedStart) < ps) || (i.plannedFinish && fmtDate(i.plannedFinish) > pf)).length,
+  };
+  const blockers = [];
+  if (!checks.tasks) blockers.push('Add at least one task.');
+  if (checks.undated) blockers.push(`${checks.undated} task(s)/milestone(s) have no start or due date.`);
+  const warnings = [];
+  if (checks.unassigned) warnings.push(`${checks.unassigned} task(s) have nobody assigned.`);
+  if (checks.unestimated) warnings.push(`${checks.unestimated} task(s) have no effort estimate — progress will weigh all tasks equally.`);
+  if (checks.outsideProject) warnings.push(`${checks.outsideProject} item(s) fall outside the project dates.`);
+  if (!checks.milestones) warnings.push('No milestones yet — key dates make delays easier to spot.');
+  return { checks, blockers, warnings, ready: blockers.length === 0 };
+}
+
+r.get('/:projectId/plan', async (req, res) => {
+  const access = await projectAccess(req.auth, req.params.projectId);
+  access.require('project.viewInternal');
+  const p = access.project;
+  const approver = p.planApprovedById ? await prisma.user.findUnique({ where: { id: p.planApprovedById }, select: { id: true, name: true } }) : null;
+  const out = { approved: Boolean(p.planApprovedAt), approvedAt: p.planApprovedAt, approvedBy: approver, canApprove: access.can('work.schedule') && !READ_ONLY_PROJECT.has(p.status) };
+  if (!p.planApprovedAt) return res.json({ ...out, readiness: await planReadiness(p) });
+  const v = await planVariance(p, { baselineId: req.query.baselineId || undefined });
+  res.json({ ...out, ...v });
+});
+
+r.post('/:projectId/plan/approve', async (req, res) => {
+  const access = await projectAccess(req.auth, req.params.projectId);
+  access.require('work.schedule');
+  const p = access.project;
+  if (READ_ONLY_PROJECT.has(p.status)) throw conflict(`${p.status.toLowerCase()} projects are read-only`);
+  const b = parse(z.object({ note: z.string().max(2000).optional(), activate: z.boolean().default(true) }), req.body);
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${p.id}))`;
+    const fresh = await tx.project.findUnique({ where: { id: p.id } });
+    if (fresh.planApprovedAt || (await originalBaseline(p.id, tx))) throw conflict('The original plan is already approved and locked.');
+    const readiness = await planReadiness(fresh);
+    if (!readiness.ready) throw badRequest(`The plan is not ready: ${readiness.blockers.join(' ')}`);
+    const items = await snapshotItems(tx, p.id);
+    const day = new Date().toISOString().slice(0, 10);
+    const bl = await tx.baseline.create({ data: { projectId: p.id, name: `Original plan (approved ${day})`, note: b.note, kind: 'ORIGINAL', createdById: req.auth.userId } });
+    await tx.baselineItem.createMany({ data: items.map((i) => ({ baselineId: bl.id, ...i })) });
+    const now = new Date();
+    await tx.project.update({ where: { id: p.id }, data: { planApprovedAt: now, planApprovedById: req.auth.userId, version: { increment: 1 }, ...(b.activate && fresh.status === 'DRAFT' && { status: 'ACTIVE' }) } });
+    await audit(tx, req.auth, { action: 'plan.approved', entityType: 'Project', entityId: p.id, projectId: p.id, metadata: { baselineId: bl.id, items: items.length, note: b.note ?? null } }, req.ip);
+    const team = await tx.projectMember.findMany({ where: { projectId: p.id, role: { in: ['MANAGER', 'MEMBER'] } }, select: { userId: true } });
+    await notify(tx, { orgId: req.auth.orgId, userIds: team.map((t) => t.userId), exclude: req.auth.userId, type: 'plan.approved', title: `${p.code}: plan approved — ${items.length} items locked as the original plan`, link: `/projects/${p.id}/plan` });
+    return { baselineId: bl.id, items: items.length, approvedAt: now };
+  });
+  res.status(201).json(result);
+});
 r.get('/:projectId/baselines', async (req, res) => {
   const access = await projectAccess(req.auth, req.params.projectId);
   access.require('project.viewInternal');
   const rows = await prisma.baseline.findMany({ where: { projectId: access.project.id }, orderBy: { createdAt: 'desc' }, include: { _count: { select: { items: true } } } });
-  res.json({ data: rows.map((b) => ({ id: b.id, name: b.name, note: b.note, createdAt: b.createdAt, items: b._count.items })) });
+  const order = { ORIGINAL: 0, REVISION: 1, SNAPSHOT: 2 };
+  rows.sort((a, b) => order[a.kind] - order[b.kind] || b.createdAt - a.createdAt);
+  res.json({ data: rows.map((b) => ({ id: b.id, name: b.name, note: b.note, kind: b.kind, locked: b.kind === 'ORIGINAL', createdAt: b.createdAt, items: b._count.items })) });
 });
 
 r.post('/:projectId/baselines', async (req, res) => {
@@ -403,10 +478,10 @@ r.post('/:projectId/baselines', async (req, res) => {
   if (b.changeRequestId && !(await prisma.changeRequest.findFirst({ where: { id: b.changeRequestId, projectId: access.project.id, status: { in: ['APPROVED', 'IMPLEMENTED'] } } }))) {
     throw badRequest('Re-baselining against a change request requires an approved change request on this project');
   }
-  const items = await prisma.workItem.findMany({ where: { projectId: access.project.id }, select: { id: true, plannedStart: true, plannedFinish: true, estimateHours: true } });
+  const items = await snapshotItems(prisma, access.project.id);
   const bl = await prisma.$transaction(async (tx) => {
-    const x = await tx.baseline.create({ data: { projectId: access.project.id, name: b.name, note: b.note, createdById: req.auth.userId } });
-    await tx.baselineItem.createMany({ data: items.map((i) => ({ baselineId: x.id, workItemId: i.id, plannedStart: i.plannedStart, plannedFinish: i.plannedFinish, estimateHours: i.estimateHours })) });
+    const x = await tx.baseline.create({ data: { projectId: access.project.id, name: b.name, note: b.note, createdById: req.auth.userId, kind: b.changeRequestId ? 'REVISION' : 'SNAPSHOT', changeRequestId: b.changeRequestId ?? null } });
+    await tx.baselineItem.createMany({ data: items.map((i) => ({ baselineId: x.id, ...i })) });
     if (b.changeRequestId) await tx.changeRequest.update({ where: { id: b.changeRequestId }, data: { status: 'IMPLEMENTED' } });
     await audit(tx, req.auth, { action: 'baseline.created', entityType: 'Baseline', entityId: x.id, projectId: access.project.id, metadata: { items: items.length, changeRequestId: b.changeRequestId ?? null } }, req.ip);
     return x;

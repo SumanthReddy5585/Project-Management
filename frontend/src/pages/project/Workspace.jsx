@@ -7,6 +7,7 @@ import { get } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { useAuth, projectCan } from '../../auth/AuthContext.jsx';
 import { fmtDate, labelize, projectColor } from '../../lib/format.js';
+import { ScheduleChip } from '../../lib/schedule.jsx';
 import { ErrorBox, HealthBadge, Loading, Notice, ProjectChip, Avatar, StatusBadge } from '../../components/ui.jsx';
 import { WorkItemDrawer } from './WorkItemDrawer.jsx';
 
@@ -27,7 +28,7 @@ export default function ProjectWorkspace() {
   const itemId = params.get('item');
   const openItem = (id) => setParams((prev) => { const n = new URLSearchParams(prev); if (id) n.set('item', id); else n.delete('item'); return n; });
   const base = `/projects/${p.id}`;
-  const tabs = [['', 'Overview'], ['tasks', 'Tasks'], ...(!isCustomer ? [['team', `Team (${p.members.filter((m) => m.role !== 'CUSTOMER').length})`]] : []), ['approvals', 'Approvals'], ['files', 'Files'], ['updates', 'Updates'],
+  const tabs = [['', 'Overview'], ...(!isCustomer ? [['plan', p.planApprovedAt ? 'Plan vs original' : 'Plan (draft)']] : []), ['tasks', 'Tasks'], ...(!isCustomer ? [['team', `Team (${p.members.filter((m) => m.role !== 'CUSTOMER').length})`]] : []), ['approvals', 'Approvals'], ['files', 'Files'], ['updates', 'Updates'],
     ...(can('register.view') ? [['risks', 'Risks & issues']] : []), ...(!isCustomer ? [['activity', 'Activity']] : [])];
   const team = p.members.filter((m) => m.role !== 'CUSTOMER');
   return (
@@ -38,6 +39,8 @@ export default function ProjectWorkspace() {
           <h1 className="h-page d-flex align-items-center gap-2 flex-wrap">{p.name}{p.status !== 'ACTIVE' && <StatusBadge status={p.status} />}</h1>
           <div className="d-flex gap-3 mt-1 small text-muted flex-wrap align-items-center">
             <span>{p.customerName || 'Internal project'}</span><span>Due {fmtDate(p.plannedFinish)}</span><HealthBadge health={p.health} />
+            {!isCustomer && (p.schedule ? <NavLink to={`${base}/plan`} className="d-inline-flex align-items-center gap-1 text-decoration-none" title="Working plan compared with the locked original plan"><span className="text-muted">vs original plan:</span><ScheduleChip status={p.schedule.status} /></NavLink>
+              : p.planApprovedAt === null && <NavLink to={`${base}/plan`} className="small fw-semibold">Plan not approved yet →</NavLink>)}
             {!isCustomer && p.customerName && (p.customerVisible ? <span className="d-inline-flex gap-1 align-items-center"><Globe size={13} /> Client can follow</span> : <span className="d-inline-flex gap-1 align-items-center"><Lock size={13} /> Hidden from client</span>)}
           </div>
         </div>

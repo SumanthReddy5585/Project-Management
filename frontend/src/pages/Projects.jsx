@@ -6,7 +6,8 @@ import { useLoad, useDebounced } from '../lib/hooks.js';
 import { useLive } from '../lib/live.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { addDaysISO, todayISO, fmtDate, projectColor, labelize } from '../lib/format.js';
-import { Avatar, Card, Empty, ErrorBox, Field, HealthBadge, Loading, Modal, Pagination, Segmented, Select, StatusBadge, useToast, fieldErrors, ProjectDot } from '../components/ui.jsx';
+import { ScheduleChip, DaysVar } from '../lib/schedule.jsx';
+import { Avatar, Card, Empty, ErrorBox, Field, HealthBadge, Notice, Loading, Modal, Pagination, Segmented, Select, StatusBadge, useToast, fieldErrors, ProjectDot } from '../components/ui.jsx';
 import { ProjectCard } from './Home.jsx';
 
 /** Short project code from the name: initials of up to 4 words, or the first 3 letters. */
@@ -18,6 +19,7 @@ export const codeFrom = (name) => {
 };
 
 const STEPS = [['details', 'Project details', Layers], ['team', 'Team', Users], ['review', 'Review & create', Check]];
+// After creating, the wizard continues on the project's Plan tab: build tasks, then approve & lock the original plan.
 
 function Steps({ step }) {
   const i = STEPS.findIndex((s) => s[0] === step);
@@ -91,7 +93,7 @@ export function NewProjectDialog({ onClose }) {
   const submit = async () => {
     setErr(null); setBusy(true);
     const base = f.code || codeFrom(f.name);
-    const body = { name: f.name.trim(), managerId: f.managerId, plannedStart: f.plannedStart, plannedFinish: f.plannedFinish, status: 'ACTIVE', priority: f.priority,
+    const body = { name: f.name.trim(), managerId: f.managerId, plannedStart: f.plannedStart, plannedFinish: f.plannedFinish, status: 'DRAFT', priority: f.priority,
       description: f.description || null, objectives: f.objectives || null,
       customerCompanyId: f.customerCompanyId || null, customerVisible: Boolean(f.customerCompanyId && f.share), customerContactIds: f.customerCompanyId ? chosenContacts : [],
       team: Object.entries(team).filter(([id]) => id !== f.managerId).map(([userId, t]) => ({ userId, ...t })), templateId: f.templateId || null,
@@ -99,7 +101,7 @@ export function NewProjectDialog({ onClose }) {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' };
     try {
       for (let i = 0; i < 6; i++) {
-        try { const p = await post('/projects', { ...body, code: i ? `${base.slice(0, 8)}${i + 1}` : base }); toast(`${p.name} created with ${body.team.length + 1} people`, 'success'); nav(`/projects/${p.id}`); return; }
+        try { const p = await post('/projects', { ...body, code: i ? `${base.slice(0, 8)}${i + 1}` : base }); toast(`${p.name} created with ${body.team.length + 1} people — now build the plan`, 'success'); nav(`/projects/${p.id}/plan`); return; }
         catch (x) { if (!(x.status === 409 && !f.code)) throw x; }
       }
     } catch (x) { setErr(x); if (fieldErrors(x).name || fieldErrors(x).code) setStep('details'); } finally { setBusy(false); }
@@ -111,7 +113,7 @@ export function NewProjectDialog({ onClose }) {
       <button className="btn btn-light" onClick={onClose}>Cancel</button>
       {step === 'details' && <button className="btn btn-primary" disabled={!detailsOk} onClick={() => setStep('team')}>Next: choose team <ChevronRight size={15} /></button>}
       {step === 'team' && <button className="btn btn-primary" onClick={() => setStep('review')}>Next: review <ChevronRight size={15} /></button>}
-      {step === 'review' && <button className="btn btn-primary" disabled={busy} onClick={submit}>{busy ? 'Creating…' : 'Create project'}</button>}
+      {step === 'review' && <button className="btn btn-primary" disabled={busy} onClick={submit}>{busy ? 'Creating…' : 'Create project & build plan'}</button>}
     </>
   );
   const mgrName = internal.find((m) => m.userId === f.managerId)?.name;
@@ -144,6 +146,7 @@ export function NewProjectDialog({ onClose }) {
         </>
       ) : (
         <>
+          <Notice>Next: you'll add the tasks and milestones with dates, people and effort, then <b>approve and lock it as the original plan</b>. From then on the project is tracked against that original.</Notice>
           <dl className="props">
             <dt>Project</dt><dd className="fw-semibold">{f.name} <span className="mono">{f.code || codeFrom(f.name)}</span></dd>
             <dt>Client</dt><dd>{customers.find((c) => c.id === f.customerCompanyId)?.name || 'Internal project'}</dd>
@@ -226,13 +229,14 @@ export default function Projects() {
         : layout === 'timeline' ? <PortfolioTimeline rows={rows} />
         : (
           <div className="card" style={{ overflow: 'hidden' }}><div className="table-wrap"><table className="table table-hover mb-0">
-            <thead><tr><th>Project</th>{!isCustomer && <th>Manager</th>}<th>Status</th><th>Health</th><th style={{ width: 170 }}>Progress</th><th>Tasks</th><th>Milestones</th><th>Finish</th>{!isCustomer && <th>Team</th>}</tr></thead>
+            <thead><tr><th>Project</th>{!isCustomer && <th>Manager</th>}<th>Status</th><th>Health</th>{!isCustomer && <th title="Working plan compared with the original (approved) plan">Vs original plan</th>}<th style={{ width: 170 }}>Progress</th><th>Tasks</th><th>Milestones</th><th>Finish</th>{!isCustomer && <th>Team</th>}</tr></thead>
             <tbody>{rows.map((p) => (
               <tr key={p.id} className="row-link" onClick={() => nav(`/projects/${p.id}`)}>
                 <td><Link to={`/projects/${p.id}`} className="fw-semibold text-body d-inline-flex align-items-center gap-2" onClick={(e) => e.stopPropagation()}><ProjectDot code={p.code} />{p.name}</Link><div className="tk-meta"><span className="mono">{p.code}</span> · {p.customerName || 'Internal'}</div></td>
                 {!isCustomer && <td className="small text-nowrap">{p.managerName ? <span className="d-inline-flex align-items-center gap-2"><Avatar sm name={p.managerName} />{p.managerName}</span> : '—'}</td>}
                 <td><StatusBadge status={p.status} /></td>
                 <td><HealthBadge health={p.health} /></td>
+                {!isCustomer && <td className="small text-nowrap">{p.schedule ? <span className="d-inline-flex align-items-center gap-1"><ScheduleChip status={p.schedule.status} /><DaysVar days={p.schedule.finishVariance} /></span> : <span className="text-muted" title="The plan has not been approved yet">Plan in draft</span>}</td>}
                 <td><div className="d-flex align-items-center gap-2"><div className="meter flex-grow-1" style={{ '--pc': projectColor(p.code) }}><span style={{ width: `${p.progress || 0}%` }} /></div><span className="small num">{Math.round(p.progress || 0)}%</span></div></td>
                 <td className="small text-nowrap num">{p.counts?.open ?? '—'} open{p.counts?.overdue ? <span className="text-danger fw-semibold"> · {p.counts.overdue} late</span> : ''}</td>
                 <td className="small num">{p.milestones ? `${p.milestones.done}/${p.milestones.total}` : '—'}</td>

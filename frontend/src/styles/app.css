@@ -554,3 +554,23 @@ details.more > summary::-webkit-details-marker { display: none; }
 .grid-table td.mono, .grid-table th { white-space: nowrap; }
 .grid-card .table-wrap { overflow-x: auto; }
 .dialog.xl { max-width: 1100px; width: calc(100vw - 2rem); }
+
+/* Plan: build → approve → track against the original */
+.plan-steps { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.plan-steps .ps { display: flex; align-items: center; gap: 0.45rem; padding: 0.45rem 0.8rem; border: 1px solid var(--line); border-radius: 999px; font-size: 0.82rem; color: var(--muted); background: var(--surface); }
+.plan-steps .ps .n { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-soft); font-weight: 700; font-size: 0.72rem; }
+.plan-steps .ps.done { color: var(--green-ink); border-color: #bbf7d0; background: #f0fdf4; } .plan-steps .ps.done .n { background: transparent; }
+.plan-steps .ps.cur { color: var(--brand-ink); border-color: var(--brand); font-weight: 600; box-shadow: 0 0 0 3px var(--brand-ring); } .plan-steps .ps.cur .n { background: var(--brand); color: #fff; }
+.plan-qa .qa-grid { display: grid; grid-template-columns: 120px 1fr 1fr 1fr; gap: 0.45rem; align-items: center; }
+.plan-qa .qa-grid .qa-title { grid-column: span 3; }
+.plan-qa .qa-grid .qa-btn { justify-self: start; }
+@media (max-width: 900px) { .plan-qa .qa-grid { grid-template-columns: 1fr 1fr; } .plan-qa .qa-grid .qa-title { grid-column: span 1; } }
+.readiness li { display: flex; justify-content: space-between; padding: 0.3rem 0; font-size: 0.86rem; border-bottom: 1px dashed var(--line); }
+.readiness li.bad b { color: var(--red-ink); } .readiness li.warn b { color: var(--amber-ink); }
+.locked-bar { display: flex; gap: 0.5rem; align-items: center; background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 0.55rem 0.8rem; font-size: 0.84rem; margin-bottom: 0.8rem; }
+.sched-hero { border-radius: 10px; padding: 0.9rem 1.1rem; margin-bottom: 1rem; border: 1px solid var(--line); border-left-width: 5px; background: var(--surface); }
+.sched-hero.ON_TRACK, .sched-hero.COMPLETED { border-left-color: var(--green); } .sched-hero.AHEAD { border-left-color: var(--brand); }
+.sched-hero.AT_RISK { border-left-color: var(--amber); } .sched-hero.DELAYED { border-left-color: var(--red); }
+.tile .value.sm { font-size: 1.05rem; }
+.meter { position: relative; } .meter > i { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: 0.55; border-radius: 1px; }
+.var-table td { font-size: 0.84rem; }

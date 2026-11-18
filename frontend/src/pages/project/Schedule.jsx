@@ -54,6 +54,8 @@ export function Timeline() {
   const analysis = useLoad(() => get(`/projects/${project.id}/schedule/analysis`), [project.id, items.data]);
   const baselines = useLoad(() => get(`/projects/${project.id}/baselines`), [project.id]);
   const [blId, setBlId] = useState('');
+  const [blTouched, setBlTouched] = useState(false);
+  useEffect(() => { const o = baselines.data?.data?.find((b) => b.kind === 'ORIGINAL'); if (o && !blTouched && !blId) setBlId(o.id); }, [baselines.data, blTouched, blId]);
   const cmp = useLoad(() => (blId ? get(`/projects/${project.id}/baselines/${blId}/compare`) : Promise.resolve(null)), [blId, items.data]);
   const [showCp, setShowCp] = useState(true);
   const [zoom, setZoom] = useState(20);
@@ -172,12 +174,12 @@ export function Timeline() {
       <div className="filters">
         <div className="btn-group btn-group-sm" role="group" aria-label="Zoom">{[[34, 'Days'], [20, 'Weeks'], [7, 'Months']].map(([z, l]) => <button key={z} className={`btn btn-light ${zoom === z ? 'active' : ''}`} aria-pressed={zoom === z} onClick={() => setZoom(z)}>{l}</button>)}</div>
         <div className="form-check form-switch m-0"><input className="form-check-input" type="checkbox" id="cp" checked={showCp} onChange={(e) => setShowCp(e.target.checked)} /><label className="form-check-label small" htmlFor="cp">Show critical path</label></div>
-        <Select aria-label="Compare with baseline" value={blId} onChange={(v) => setBlId(v || '')} placeholder="Compare with a saved plan…" options={(baselines.data?.data || []).map((b) => ({ value: b.id, label: `${b.name} · ${fmtDate(b.createdAt)}` }))} />
-        {canSchedule && <button className="btn btn-sm btn-light" onClick={() => setBlName(`Plan ${fmtDate(today)}`)}><Save size={14} /> Save current plan</button>}
+        <Select aria-label="Compare with baseline" value={blId} onChange={(v) => { setBlTouched(true); setBlId(v || ''); }} placeholder="Compare with a saved plan…" options={(baselines.data?.data || []).map((b) => ({ value: b.id, label: b.kind === 'ORIGINAL' ? `🔒 ${b.name}` : `${b.kind === 'REVISION' ? 'Revision' : 'Snapshot'}: ${b.name} · ${fmtDate(b.createdAt)}` }))} />
+        {canSchedule && <button className="btn btn-sm btn-light" onClick={() => setBlName(`Snapshot ${fmtDate(today)}`)} title="Saves an extra copy for reference. The original plan is never replaced."><Save size={14} /> Save snapshot</button>}
       </div>
       <div className="small text-muted mb-2">{canSchedule ? 'Drag a bar to move it, drag its edges to change the dates, or drag the dot at its end onto another task to link them. Click an arrow to remove a link.' : 'Click a bar to open it.'}{busy ? ' Saving…' : ''}{analysis.data?.criticalPath && showCp ? ` Red bars are the critical path: if any of them slip, the end date slips (${analysis.data.criticalPath.durationDays} working days end to end).` : ''}</div>
       <ErrorBox error={items.error || analysis.error} />
-      <div className="d-flex gap-3 small text-muted my-2 flex-wrap"><span><span className="gantt-legend" style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--steel-500)', borderRadius: 2 }} /> Task</span><span><span style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--risk)', borderRadius: 2 }} /> Critical</span><span><span style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--ok)', borderRadius: 2 }} /> Done</span><span><span style={{ display: 'inline-block', width: 14, height: 8, boxShadow: '0 0 0 2px var(--warn)', borderRadius: 2 }} /> Conflict</span>{blId && <span><span style={{ display: 'inline-block', width: 14, height: 4, background: 'var(--slate-300)' }} /> Baseline</span>}</div>
+      <div className="d-flex gap-3 small text-muted my-2 flex-wrap"><span><span className="gantt-legend" style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--steel-500)', borderRadius: 2 }} /> Task</span><span><span style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--risk)', borderRadius: 2 }} /> Critical</span><span><span style={{ display: 'inline-block', width: 14, height: 8, background: 'var(--ok)', borderRadius: 2 }} /> Done</span><span><span style={{ display: 'inline-block', width: 14, height: 8, boxShadow: '0 0 0 2px var(--warn)', borderRadius: 2 }} /> Conflict</span>{blId && <span><span style={{ display: 'inline-block', width: 14, height: 4, background: '#94a3b8' }} /> {baselines.data?.data?.find((b) => b.id === blId)?.kind === 'ORIGINAL' ? 'Original plan' : 'Saved plan'} (Var. = finish slip in working days)</span>}</div>
       <div className="gantt">
         <div className="gantt-left">
           <div className="gantt-head small-caps d-flex align-items-center px-2">Task{blId && <span className="ms-auto">Var.</span>}</div>
@@ -232,8 +234,8 @@ export function Timeline() {
       {moving && <RescheduleModal item={moving} initial={moving._initial} onClose={() => setMoving(null)} onApplied={() => { items.reload(); reloadProject(); }} />}
       {selDep && <div className="bulkbar rounded mt-2"><span>Link: <strong>{byId.get(selDep.predecessorId)?.key}</strong> {selDep.type === 'FS' ? 'must finish before' : selDep.type === 'SS' ? 'must start before' : selDep.type === 'FF' ? 'must finish before finishing' : 'starts before finishing'} <strong>{byId.get(selDep.successorId)?.key}</strong>{selDep.lagDays ? ` (+${selDep.lagDays}d lag)` : ''}</span>
         <button className="btn btn-sm btn-outline-danger ms-auto" onClick={() => removeDep(selDep)}>Remove link</button><button className="btn btn-sm btn-ghost" onClick={() => setSelDep(null)}>Close</button></div>}
-      <Modal open={blName != null} onClose={() => setBlName(null)} title="Save current plan" footer={<><button className="btn btn-light" onClick={() => setBlName(null)}>Cancel</button><button className="btn btn-primary" disabled={!blName?.trim()} onClick={saveBaseline}>Save</button></>}>
-        <p className="small text-muted">Saves today's dates and estimates so you can later compare what you planned with what happened.</p>
+      <Modal open={blName != null} onClose={() => setBlName(null)} title="Save a snapshot of the plan" footer={<><button className="btn btn-light" onClick={() => setBlName(null)}>Cancel</button><button className="btn btn-primary" disabled={!blName?.trim()} onClick={saveBaseline}>Save</button></>}>
+        <p className="small text-muted">Saves today's dates and estimates as an extra reference point. It does not replace the locked original plan, which stays the main comparison.</p>
         <Field label="Name">{(id) => <input id={id} className="form-control" value={blName || ''} onChange={(e) => setBlName(e.target.value)} />}</Field>
       </Modal>
     </>

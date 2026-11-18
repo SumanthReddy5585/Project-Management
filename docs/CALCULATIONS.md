@@ -70,3 +70,27 @@ Entries roll into an ISO-week timesheet (DRAFT → SUBMITTED → APPROVED/REJECT
 - The background job sends one notification per ticket, clock and state (deduplicated).
 
 The SLA performance chart covers tickets created in the last 30 days plus all open tickets.
+
+## Original plan vs working plan (`src/domain/variance.js`)
+
+A project's plan is a **draft** until the project manager approves it (Plan tab → *Approve & lock original plan*). Approval
+requires at least one task and dates on every task/milestone. It copies every work item's dates, estimate, owner, phase and
+title into a baseline of kind `ORIGINAL`. A unique index allows one per project, and the trigger `o2_protect_original_baseline`
+rejects any UPDATE, and any DELETE while the project still exists. Tasks remain editable: that is the working plan.
+
+Per task/subtask/milestone (working days on the project calendar; + = later than the original):
+
+| Status | Rule |
+|---|---|
+| DONE_ON_TIME / DONE_LATE | finished; actual finish vs original finish |
+| OVERDUE | not finished and the original finish date has passed |
+| DELAYED / AHEAD / ON_TRACK | not finished; forecast finish later / earlier / equal to the original finish |
+| NOT_SCHEDULED | no dates |
+| ADDED / REMOVED | not in the original / in the original but deleted or cancelled |
+
+Forecast finish of unfinished work = its planned finish, but not earlier than today if already overdue.
+Project and phase: original finish = latest original finish; forecast finish = latest forecast finish; planned % (PV) =
+original effort (estimate hours, or equal weights) scheduled to be done by today, pro rata by working days; done % (EV) =
+the same items by % complete. SPI = done % ÷ planned %. Added work counts in neither, so new scope cannot hide delays.
+Status: DELAYED if the end slips > 5 working days or SPI < 0.8; AT_RISK if the end slips, any task is overdue/delayed or
+SPI < 0.95; AHEAD if the end moves earlier (SPI ≥ 1) or SPI > 1.1; COMPLETED when all work is done; otherwise ON_TRACK.

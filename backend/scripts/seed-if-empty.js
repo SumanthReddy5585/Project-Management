@@ -13,9 +13,13 @@ const needsUpgrade = n > 0 && Number((await c.query(`SELECT count(*) FROM "Organ
 // Demo databases without any risk register entries get the risks/issues used by the risk matrix and status report.
 const needsRegisters = n > 0 && !needsUpgrade && Number((await c.query(`SELECT count(*) FROM "Organization" o JOIN "Project" p ON p."organizationId" = o.id
   WHERE o.slug IN ('northwind', 'o2') AND p.code = 'CSM' AND NOT EXISTS (SELECT 1 FROM "Risk" r WHERE r."projectId" = p.id)`)).rows[0].count) > 0;
+// Demo databases from before "original plan" tracking get approved original plans for the demo projects.
+const needsPlans = n > 0 && !needsUpgrade && Number((await c.query(`SELECT count(*) FROM "Organization" o JOIN "Project" p ON p."organizationId" = o.id
+  WHERE o.slug IN ('northwind', 'o2') AND p.code = 'CSM' AND p."planApprovedAt" IS NULL`)).rows[0].count) > 0;
 await c.end();
-if (needsRegisters) {
-  await new Promise((r) => spawn(process.execPath, ['prisma/seed-demo.js', '--registers'], { stdio: 'inherit', env: process.env }).on('exit', r));
+if (needsRegisters || needsPlans) {
+  const flags = [...(needsRegisters ? ['--registers'] : []), ...(needsPlans ? ['--plans'] : [])];
+  await new Promise((r) => spawn(process.execPath, ['prisma/seed-demo.js', ...flags], { stdio: 'inherit', env: process.env }).on('exit', r));
   process.exit(0);
 }
 if (n > 0 && !needsUpgrade) { console.log('[seed] organizations exist; skipping demo data'); process.exit(0); }
