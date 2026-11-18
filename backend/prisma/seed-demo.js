@@ -9,7 +9,8 @@ import { createApp } from '../src/app.js';
 import { ApiClient } from '../scripts/api-client.js';
 
 if (config.isProd && process.env.ALLOW_DEMO_SEED !== 'true') { console.error('Refusing to seed demo data in production (set ALLOW_DEMO_SEED=true to override).'); process.exit(1); }
-if ((await prisma.organization.count()) && !process.argv.includes('--force')) { console.error('Database already has organizations. Re-run with --force to add demo orgs anyway.'); process.exit(1); }
+const UPGRADE = process.argv.includes('--upgrade');
+if ((await prisma.organization.count()) && !process.argv.includes('--force') && !UPGRADE) { console.error('Database already has organizations. Re-run with --force to add demo orgs anyway.'); process.exit(1); }
 
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Demo-pass-2026';
 if (config.isProd && DEMO_PASSWORD === 'Demo-pass-2026') { console.error('Set DEMO_PASSWORD to a private value before seeding a public deployment.'); process.exit(1); }
@@ -25,35 +26,52 @@ async function bootstrapOrg(name, slug, adminEmail, adminName, tz) {
   return org;
 }
 
+async function ensurePeople(base, admin, contoso, fabrikam) {
+  const people = [
+    ['manager', 'Meera Manager', 'MANAGER', null, 'Senior Project Manager', 'Project Management', ['planning', 'stakeholders']],
+    ['pm2', 'Daniel Brooks', 'MANAGER', null, 'Delivery Manager', 'Project Management', ['agile', 'budgeting']],
+    ['dev1', 'Ravi Developer', 'EMPLOYEE', null, 'Full-stack Engineer', 'Engineering', ['react', 'node']],
+    ['dev2', 'Sara Analyst', 'EMPLOYEE', null, 'Business Analyst', 'Business Analysis', ['requirements', 'uat']],
+    ['qa', 'Omar Tester', 'EMPLOYEE', null, 'QA Engineer', 'Quality Assurance', ['testing', 'automation']],
+    ['design', 'Priya Designer', 'EMPLOYEE', null, 'UI/UX Designer', 'Design', ['figma', 'research']],
+    ['ops', 'Karan Ops', 'EMPLOYEE', null, 'DevOps Engineer', 'Engineering', ['aws', 'ci/cd']],
+    ['customer', 'Carla Customer', 'CUSTOMER', contoso.id, null, null, []],
+    ['fabrikam', 'Frank Fabrikam', 'CUSTOMER', fabrikam.id, null, null, []],
+  ];
+  const ids = {};
+  const existing = new Map((await admin.get('/api/org/members?pageSize=200')).data.map((m) => [m.email, m.userId]));
+  for (const [u, name, role, customerCompanyId, title, department, skills] of people) {
+    if (existing.has(mail(u))) {
+      ids[u] = existing.get(mail(u));
+      if (title) await admin.patch(`/api/org/members/${ids[u]}`, { title, department, skills });
+      continue;
+    }
+    const inv = await admin.post('/api/org/invitations', { email: mail(u), name, role, ...(customerCompanyId && { customerCompanyId }), ...(title && { title, department }) });
+    const c = new ApiClient(base);
+    const me = await c.post('/api/auth/invitations/accept', { token: new URL(inv.url).searchParams.get('token'), name, password: DEMO_PASSWORD });
+    ids[u] = me.user.id;
+    if (title) await admin.patch(`/api/org/members/${me.user.id}`, { title, department, skills, employeeId: `O2-${100 + Object.keys(ids).length}` });
+  }
+  return ids;
+}
+
 export async function seedDemo(base) {
   await bootstrapOrg('O2 Digital Services', 'o2', mail('admin'), 'Asha Admin', 'Asia/Kolkata');
   await bootstrapOrg('Globex Consulting', 'globex', mail('globex.admin'), 'Gary Globex', 'UTC');
   const admin = new ApiClient(base); await admin.login(mail('admin'), DEMO_PASSWORD);
   const contoso = await admin.post('/api/org/customers', { name: 'Contoso Retail', domain: 'contoso.example' });
   const fabrikam = await admin.post('/api/org/customers', { name: 'Fabrikam Health', domain: 'fabrikam.example' });
-  const people = [
-    ['manager', 'Meera Manager', 'MANAGER', null, 'Senior Project Manager', ['planning', 'stakeholders']],
-    ['dev1', 'Ravi Developer', 'EMPLOYEE', null, 'Full-stack Engineer', ['react', 'node']],
-    ['dev2', 'Sara Analyst', 'EMPLOYEE', null, 'Business Analyst', ['requirements', 'uat']],
-    ['qa', 'Omar Tester', 'EMPLOYEE', null, 'QA Engineer', ['testing']],
-    ['customer', 'Carla Customer', 'CUSTOMER', contoso.id, null, []],
-    ['fabrikam', 'Frank Fabrikam', 'CUSTOMER', fabrikam.id, null, []],
-  ];
-  const ids = {};
-  for (const [u, name, role, customerCompanyId, title, skills] of people) {
-    const inv = await admin.post('/api/org/invitations', { email: mail(u), name, role, ...(customerCompanyId && { customerCompanyId }) });
-    const c = new ApiClient(base);
-    const me = await c.post('/api/auth/invitations/accept', { token: new URL(inv.url).searchParams.get('token'), name, password: DEMO_PASSWORD });
-    ids[u] = me.user.id;
-    if (title) await admin.patch(`/api/org/members/${me.user.id}`, { title, skills });
-  }
+  const ids = await ensurePeople(base, admin, contoso, fabrikam);
+  const adminMe = await admin.get('/api/auth/me');
+  await admin.patch(`/api/org/members/${adminMe.user.id}`, { title: 'Operations Director', department: 'Operations', employeeId: 'O2-100' });
   await admin.post('/api/org/teams', { name: 'Delivery Team A', memberIds: [ids.manager, ids.dev1, ids.dev2, ids.qa] });
   const mgr = new ApiClient(base); await mgr.login(mail('manager'), DEMO_PASSWORD);
   const start = new Date(); start.setUTCDate(start.getUTCDate() - 21);
   const finish = new Date(start); finish.setUTCDate(finish.getUTCDate() + 120);
   const project = await mgr.post('/api/projects', {
     name: 'Contoso Store Modernization', code: 'CSM', description: 'Replace the legacy order portal with a modern web storefront.', objectives: 'Launch new storefront; reduce checkout drop-off by 20%.',
-    customerCompanyId: contoso.id, customerContactIds: [ids.customer], managerId: ids.manager, teamMemberIds: [ids.dev1, ids.dev2, ids.qa],
+    customerCompanyId: contoso.id, customerContactIds: [ids.customer], managerId: ids.manager,
+    team: [{ userId: ids.dev1, role: 'MEMBER', allocationPct: 100 }, { userId: ids.dev2, role: 'MEMBER', allocationPct: 50 }, { userId: ids.qa, role: 'MEMBER', allocationPct: 50 }, { userId: ids.design, role: 'MEMBER', allocationPct: 50 }],
     plannedStart: start.toISOString().slice(0, 10), plannedFinish: finish.toISOString().slice(0, 10), priority: 'HIGH', status: 'ACTIVE',
     budgetAmount: 120000, budgetCurrency: 'USD', billingEnabled: true, hourlyRate: 85, customerVisible: true,
   });
@@ -85,8 +103,38 @@ export async function seedDemo(base) {
   await mgr.patch(`/api/tickets/${t.id}`, { assigneeId: ids.dev1, version: tk.version });
   await mgr.post(`/api/tickets/${t.id}/messages`, { body: 'Thanks Carla — we are looking into it today.', visibility: 'PUBLIC' });
   await mgr.post(`/api/tickets/${t.id}/messages`, { body: 'Likely the report query; legacy DB has no index on order_date.', visibility: 'INTERNAL' });
+  await seedMoreProjects(base, { mgr, ids, fabrikam });
   await seedSupportDesk(base, { mgr, cust, ids, project });
   return { project, ids };
+}
+
+// Two more projects so the portfolio, capacity and timeline views have something to show.
+async function seedMoreProjects(base, { mgr, ids, fabrikam }) {
+  const pm2 = new ApiClient(base); await pm2.login(mail('pm2'), DEMO_PASSWORD);
+  const day = (off) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + off); while ([0, 6].includes(x.getUTCDay())) x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+  const make = async (client, body, tasks, health) => {
+    const p = await client.post('/api/projects', body);
+    const det = await client.get(`/api/projects/${p.id}`);
+    for (const [title, phaseIdx, who, s, f, est, status] of tasks) {
+      const t = await client.post(`/api/projects/${p.id}/work-items`, { type: 'TASK', title, phaseId: det.phases[Math.min(phaseIdx, det.phases.length - 1)].id, assigneeId: ids[who], plannedStart: day(s), plannedFinish: day(f), estimateHours: est });
+      if (status) { const cur = await client.get(`/api/projects/${p.id}/work-items/${t.id}`); await client.patch(`/api/projects/${p.id}/work-items/${t.id}`, { status, version: cur.version }); }
+    }
+    if (health) { const cur = await client.get(`/api/projects/${p.id}`); await client.patch(`/api/projects/${p.id}`, { health, version: cur.version }); }
+    return p;
+  };
+  await make(pm2, { name: 'Fabrikam Patient Portal', code: 'FPP', description: 'Self-service portal for Fabrikam patients: appointments, results and billing.', objectives: 'Go live before the end of Q1 with 3 core journeys.',
+    customerCompanyId: fabrikam.id, customerContactIds: [ids.fabrikam], managerId: ids.pm2, plannedStart: day(-30), plannedFinish: day(75), status: 'ACTIVE', priority: 'HIGH', customerVisible: true,
+    budgetAmount: 80000, budgetCurrency: 'USD', billingEnabled: true, hourlyRate: 90,
+    team: [{ userId: ids.dev1, role: 'MEMBER', allocationPct: 50 }, { userId: ids.design, role: 'MEMBER', allocationPct: 50 }, { userId: ids.ops, role: 'MEMBER', allocationPct: 50 }, { userId: ids.qa, role: 'MEMBER', allocationPct: 50 }] }, [
+    ['Patient journey workshops', 1, 'design', -28, -20, 16, 'DONE'], ['Wireframes for appointments', 2, 'design', -19, -8, 24, 'DONE'],
+    ['Auth with hospital SSO', 3, 'dev1', -10, 6, 40, 'IN_PROGRESS'], ['Appointments API', 3, 'dev1', 2, 14, 48], ['CI/CD pipeline and staging', 3, 'ops', -12, -2, 20, 'IN_PROGRESS'],
+    ['Accessibility audit', 4, 'qa', 20, 26, 16], ['Results viewer UI', 3, 'design', -5, 4, 24],
+  ], 'AMBER');
+  await make(mgr, { name: 'HR System Upgrade', code: 'HRU', description: 'Upgrade the internal HR system and migrate leave records.', objectives: 'Zero data loss; staff self-service for leave.',
+    managerId: ids.manager, plannedStart: day(-10), plannedFinish: day(50), status: 'ACTIVE', priority: 'MEDIUM',
+    team: [{ userId: ids.dev2, role: 'MEMBER', allocationPct: 50 }, { userId: ids.ops, role: 'MEMBER', allocationPct: 50 }] }, [
+    ['Current-state process mapping', 1, 'dev2', -9, -4, 12, 'DONE'], ['Data migration plan', 2, 'dev2', -3, 3, 16, 'IN_PROGRESS'], ['Provision new servers', 3, 'ops', 4, 9, 12], ['UAT with HR team', 4, 'dev2', 30, 36, 20],
+  ]);
 }
 
 // A realistic support queue: a mix of ages, priorities, owners and outcomes, plus canned replies and help articles.
@@ -151,12 +199,33 @@ async function seedSupportDesk(base, { mgr, cust, ids, project }) {
   ]) await mgr.post('/api/kb/articles', { title, category, body, published: true, visibility: category.startsWith('Internal') ? 'INTERNAL' : 'PUBLIC' });
 }
 
+// Adds the newer demo content (designations, more people, projects, support desk) to an older demo
+// database without touching anything that already exists. Runs once (skipped when project FPP exists).
+async function upgradeDemo(base) {
+  const org = await prisma.organization.findFirst({ where: { slug: 'northwind' } });
+  if (!org) { console.log('[demo-upgrade] no original demo organization; nothing to do'); return; }
+  await prisma.organization.update({ where: { id: org.id }, data: { name: 'O2 Digital Services' } });
+  const admin = new ApiClient(base); await admin.login(mail('admin'), DEMO_PASSWORD);
+  const customers = (await admin.get('/api/org/customers')).data;
+  const contoso = customers.find((c) => c.name === 'Contoso Retail'); const fabrikam = customers.find((c) => c.name === 'Fabrikam Health');
+  const ids = await ensurePeople(base, admin, contoso, fabrikam);
+  const adminMe = await admin.get('/api/auth/me');
+  await admin.patch(`/api/org/members/${adminMe.user.id}`, { title: 'Operations Director', department: 'Operations', employeeId: 'O2-100' });
+  const mgr = new ApiClient(base); await mgr.login(mail('manager'), DEMO_PASSWORD);
+  const cust = new ApiClient(base); await cust.login(mail('customer'), DEMO_PASSWORD);
+  const project = (await mgr.get('/api/projects?q=CSM')).data[0];
+  if (project) for (const u of ['design']) await mgr.put(`/api/projects/${project.id}/members/${ids[u]}`, { role: 'MEMBER', allocationPct: 50 }).catch(() => {});
+  await seedMoreProjects(base, { mgr, ids, fabrikam });
+  if (project) await seedSupportDesk(base, { mgr, cust, ids, project });
+  console.log('[demo-upgrade] demo data upgraded');
+}
+
 const app = createApp();
 const server = app.listen(0);
 const base = `http://127.0.0.1:${server.address().port}`;
 try {
-  await seedDemo(base);
-  console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
+  if (UPGRADE) { await upgradeDemo(base); process.exitCode = 0; } else await seedDemo(base);
+  if (!UPGRADE) console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
   for (const u of ['admin', 'manager', 'dev1', 'dev2', 'qa', 'customer', 'fabrikam', 'globex.admin']) console.log('  ' + mail(u));
 } catch (e) { console.error('Seed failed:', e.message, JSON.stringify(e.data ?? {})); process.exitCode = 1; }
 finally { server.close(); await prisma.$disconnect(); }

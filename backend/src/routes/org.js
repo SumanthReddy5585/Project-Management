@@ -8,6 +8,7 @@ import { randomToken, sha256 } from '../lib/crypto.js';
 import { badRequest, notFound, conflict } from '../lib/errors.js';
 import { requireOrg } from '../policies/access.js';
 import { audit } from '../services/audit.js';
+import { hashPassword } from '../auth/passwords.js';
 
 const r = Router();
 const admin = (req) => requireOrg(req.auth, 'org.manage');
@@ -39,14 +40,16 @@ r.get('/members', async (req, res) => {
     ...(q.q && { user: { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { email: { contains: q.q, mode: 'insensitive' } }] } }) };
   const isAdmin = req.auth.orgRole === 'ADMIN';
   const [rows, total] = await Promise.all([
-    prisma.membership.findMany({ where, include: { user: { include: { teamMembers: { include: { team: true } } } }, customerCompany: true }, orderBy: { user: { name: 'asc' } }, ...pageArgs(q) }),
+    prisma.membership.findMany({ where, include: { user: { include: { teamMembers: { include: { team: true } },
+      _count: { select: { projectMembers: { where: { role: { not: 'CUSTOMER' }, project: { organizationId: req.auth.orgId, status: { in: ['ACTIVE', 'DRAFT', 'ON_HOLD'] } } } } } } } }, customerCompany: true }, orderBy: { user: { name: 'asc' } }, ...pageArgs(q) }),
     prisma.membership.count({ where }),
   ]);
   res.json(paged(rows.map((m) => ({
-    userId: m.userId, name: m.user.name, email: m.user.email, title: m.user.title, role: m.role, status: m.status,
+    userId: m.userId, name: m.user.name, email: m.user.email, title: m.user.title, department: m.user.department, phone: m.user.phone, employeeId: m.user.employeeId, role: m.role, status: m.status,
     skills: m.user.skills, weeklyCapacityHours: Number(m.user.weeklyCapacityHours), teams: m.user.teamMembers.map((t) => ({ id: t.team.id, name: t.team.name })),
     customerCompany: m.customerCompany ? { id: m.customerCompany.id, name: m.customerCompany.name } : null,
-    ...(isAdmin && { lastLoginAt: m.user.lastLoginAt }),
+    activeProjects: m.role === 'CUSTOMER' ? undefined : m.user._count.projectMembers,
+    ...(isAdmin && { lastLoginAt: m.user.lastLoginAt, mustChangePassword: m.user.mustChangePassword }),
   })), total, q));
 });
 
@@ -55,6 +58,8 @@ r.patch('/members/:userId', async (req, res) => {
   const body = parse(z.object({
     role: z.enum(['ADMIN', 'MANAGER', 'EMPLOYEE', 'CUSTOMER']).optional(), status: z.enum(['ACTIVE', 'DISABLED']).optional(),
     title: z.string().max(120).nullable().optional(), skills: z.array(z.string().max(40)).max(30).optional(),
+    name: z.string().trim().min(1).max(120).optional(), department: z.string().trim().max(80).nullable().optional(),
+    phone: z.string().trim().max(40).nullable().optional(), employeeId: z.string().trim().max(40).nullable().optional(),
     weeklyCapacityHours: z.number().min(0).max(80).optional(), customerCompanyId: uuid.nullable().optional(),
   }), req.body);
   const m = await prisma.membership.findUnique({ where: { organizationId_userId: { organizationId: req.auth.orgId, userId: req.params.userId } } });
@@ -66,8 +71,9 @@ r.patch('/members/:userId', async (req, res) => {
   if (nextCompany) await inOrg('customerCompany', nextCompany, req.auth.orgId, 'Customer company');
   await prisma.$transaction(async (tx) => {
     await tx.membership.update({ where: { id: m.id }, data: { role: body.role, status: body.status, customerCompanyId: nextRole === 'CUSTOMER' ? nextCompany : null } });
-    const { title, skills, weeklyCapacityHours } = body;
-    if (title !== undefined || skills || weeklyCapacityHours != null) await tx.user.update({ where: { id: m.userId }, data: { title, skills, weeklyCapacityHours } });
+    const { title, skills, weeklyCapacityHours, name, department, phone, employeeId } = body;
+    const profile = Object.fromEntries(Object.entries({ title, skills, weeklyCapacityHours, name, department, phone, employeeId }).filter(([, v]) => v !== undefined));
+    if (Object.keys(profile).length) await tx.user.update({ where: { id: m.userId }, data: profile });
     if (body.status === 'DISABLED' || (body.role && body.role !== m.role)) await tx.session.deleteMany({ where: { userId: m.userId, organizationId: req.auth.orgId } });
     // Role change to/from CUSTOMER invalidates incompatible project memberships.
     if (body.role && (body.role === 'CUSTOMER') !== (m.role === 'CUSTOMER')) {
@@ -76,6 +82,55 @@ r.patch('/members/:userId', async (req, res) => {
     await audit(tx, req.auth, { action: 'member.updated', entityType: 'User', entityId: m.userId, metadata: body }, req.ip);
   });
   res.json({ ok: true });
+});
+
+// Admin adds a person directly (no email round-trip): the account gets a one-time temporary password
+// that is shown once to the admin and must be changed at first sign-in. Existing users of another
+// organization are simply added as members (their password is unchanged).
+const memberBody = z.object({
+  name: z.string().trim().min(1).max(120), email: z.string().email().max(200).transform((s) => s.toLowerCase()),
+  title: z.string().trim().max(120).optional().nullable(), department: z.string().trim().max(80).optional().nullable(),
+  phone: z.string().trim().max(40).optional().nullable(), employeeId: z.string().trim().max(40).optional().nullable(),
+  role: z.enum(['ADMIN', 'MANAGER', 'EMPLOYEE', 'CUSTOMER']), customerCompanyId: uuid.optional().nullable(),
+  weeklyCapacityHours: z.number().min(0).max(80).optional(), skills: z.array(z.string().max(40)).max(30).optional(),
+});
+const tempPassword = () => `O2-${randomToken(9).replace(/[-_]/g, 'x')}${Math.floor(Math.random() * 90 + 10)}`;
+r.post('/members', async (req, res) => {
+  admin(req);
+  const b = parse(memberBody, req.body);
+  if (b.role === 'CUSTOMER' && !b.customerCompanyId) throw badRequest('Choose the client company for this user');
+  if (b.role !== 'CUSTOMER') b.customerCompanyId = null;
+  if (b.customerCompanyId) await inOrg('customerCompany', b.customerCompanyId, req.auth.orgId, 'Customer company');
+  const existing = await prisma.user.findUnique({ where: { email: b.email }, include: { memberships: { where: { organizationId: req.auth.orgId } } } });
+  if (existing?.memberships.length) throw conflict('This person is already a member');
+  const password = existing ? null : tempPassword();
+  const profile = { title: b.title || null, department: b.department || null, phone: b.phone || null, employeeId: b.employeeId || null,
+    ...(b.weeklyCapacityHours != null && { weeklyCapacityHours: b.weeklyCapacityHours }), ...(b.skills && { skills: b.skills }) };
+  const user = await prisma.$transaction(async (tx) => {
+    const u = existing ?? await tx.user.create({ data: { email: b.email, name: b.name, passwordHash: await hashPassword(password), mustChangePassword: true, ...profile } });
+    await tx.membership.create({ data: { organizationId: req.auth.orgId, userId: u.id, role: b.role, customerCompanyId: b.customerCompanyId } });
+    await audit(tx, req.auth, { action: 'member.created', entityType: 'User', entityId: u.id, metadata: { email: b.email, role: b.role, title: b.title } }, req.ip);
+    return u;
+  });
+  const signIn = `${config.APP_ORIGIN}/login`;
+  const mail = password ? await sendMail({ to: b.email, subject: `Your ${config.APP_NAME} account`, heading: `Welcome to ${config.APP_NAME}, ${b.name.split(' ')[0]}`,
+    body: `${req.auth.user.name} created an account for you.\n\nEmail: ${b.email}\nTemporary password: ${password}\n\nYou'll be asked to choose your own password the first time you sign in.`, cta: 'Sign in', url: signIn }) : { sent: false };
+  res.status(201).json({ userId: user.id, email: b.email, name: user.name, existingAccount: Boolean(existing), temporaryPassword: password, signInUrl: signIn, emailed: mail.sent });
+});
+
+// Admin issues a new one-time temporary password (shown once); the user must change it at next sign-in.
+r.post('/members/:userId/temp-password', async (req, res) => {
+  admin(req);
+  const m = await prisma.membership.findUnique({ where: { organizationId_userId: { organizationId: req.auth.orgId, userId: req.params.userId } }, include: { user: true } });
+  if (!m) throw notFound('Member');
+  if (m.userId === req.auth.userId) throw badRequest('Use "Change password" for your own account');
+  const password = tempPassword();
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: m.userId }, data: { passwordHash: await hashPassword(password), mustChangePassword: true } }),
+    prisma.session.deleteMany({ where: { userId: m.userId } }),
+  ]);
+  await audit(prisma, req.auth, { action: 'member.temp_password_issued', entityType: 'User', entityId: m.userId }, req.ip);
+  res.status(201).json({ email: m.user.email, temporaryPassword: password, signInUrl: `${config.APP_ORIGIN}/login` });
 });
 
 r.post('/members/:userId/reset-link', async (req, res) => {
@@ -99,7 +154,8 @@ r.get('/invitations', async (req, res) => {
 r.post('/invitations', async (req, res) => {
   admin(req);
   const body = parse(z.object({ email: z.string().email().max(200).transform((s) => s.toLowerCase()), name: z.string().trim().max(120).optional(),
-    role: z.enum(['ADMIN', 'MANAGER', 'EMPLOYEE', 'CUSTOMER']), customerCompanyId: uuid.optional() }), req.body);
+    role: z.enum(['ADMIN', 'MANAGER', 'EMPLOYEE', 'CUSTOMER']), customerCompanyId: uuid.optional(),
+    title: z.string().trim().max(120).optional(), department: z.string().trim().max(80).optional() }), req.body);
   if (body.role === 'CUSTOMER' && !body.customerCompanyId) throw badRequest('Choose the customer company for this user');
   if (body.role !== 'CUSTOMER') delete body.customerCompanyId;
   if (body.customerCompanyId) await inOrg('customerCompany', body.customerCompanyId, req.auth.orgId, 'Customer company');

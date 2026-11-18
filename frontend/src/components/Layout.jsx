@@ -102,8 +102,8 @@ function NewMenu() {
     <div className="position-relative" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
       <button className="btn btn-primary btn-sm" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu"><Plus size={15} /> New</button>
       {open && <div className="new-menu" role="menu">
+        {!isCustomer && manager && <button role="menuitem" onClick={() => go('/projects?new=1')}><FolderKanban size={16} className="text-primary" /><span>New project<small>Plan phases, team and tasks</small></span></button>}
         <button role="menuitem" onClick={() => go('/tickets?new=1')}><LifeBuoy size={16} className="text-primary" /><span>{isCustomer ? 'Raise a ticket' : 'New ticket'}<small>Report an issue or request</small></span></button>
-        {!isCustomer && manager && <button role="menuitem" onClick={() => go('/projects?new=1')}><FolderKanban size={16} className="text-primary" /><span>New project<small>Plan delivery work</small></span></button>}
         {!isCustomer && <button role="menuitem" onClick={() => go('/kb?new=1')}><FilePlus2 size={16} className="text-primary" /><span>New help article<small>Add to the knowledge base</small></span></button>}
         {!isCustomer && <button role="menuitem" onClick={() => go('/time')}><Timer size={16} className="text-primary" /><span>Log time<small>Fill in this week's timesheet</small></span></button>}
       </div>}
@@ -135,27 +135,28 @@ export default function Layout() {
         <nav>
           {isCustomer ? <>
             <NavItem to="/" icon={Home} end>Home</NavItem>
+            <NavItem to="/projects" icon={FolderKanban}>My projects</NavItem>
             <NavItem to="/tickets" icon={Inbox} count={views?.open}>My tickets</NavItem>
             <NavItem to="/kb" icon={BookOpen}>Help center</NavItem>
-            <NavItem to="/projects" icon={FolderKanban}>Projects</NavItem>
           </> : <>
-            <div className="nav-label">Support</div>
+            <div className="nav-label">Projects</div>
             <NavItem to="/" icon={LayoutDashboard} end>Dashboard</NavItem>
-            <NavItem to="/tickets" icon={Inbox} count={views?.overdue || views?.unassigned} hot={views?.overdue > 0}>Tickets</NavItem>
-            <NavItem to="/kb" icon={BookOpen}>Knowledge base</NavItem>
-            <div className="nav-label">Delivery</div>
             <NavItem to="/projects" icon={FolderKanban}>Projects</NavItem>
             <NavItem to="/my-tasks" icon={CheckSquare}>My tasks</NavItem>
             <NavItem to="/time" icon={Clock}>Timesheets</NavItem>
+            <div className="nav-label">Support</div>
+            <NavItem to="/tickets" icon={Inbox} count={views?.overdue || views?.unassigned} hot={views?.overdue > 0}>Tickets</NavItem>
+            <NavItem to="/kb" icon={BookOpen}>Knowledge base</NavItem>
             <div className="nav-label">Organisation</div>
             {manager && <NavItem to="/reports" icon={BarChart3}>Reports</NavItem>}
-            <NavItem to="/people" icon={Users}>Team</NavItem>
+            <NavItem to="/people" icon={Users}>Team directory</NavItem>
             {role === 'ADMIN' && <NavItem to="/settings" icon={Settings}>Settings</NavItem>}
           </>}
         </nav>
         <div className="me">
-          <Avatar name={user?.name} />
-          <div className="min-w-0 flex-grow-1"><div className="fw-semibold small truncate">{user?.name}</div><div className="small text-muted truncate">{isCustomer ? me?.customerCompany?.name : labelize(role)}</div></div>
+          <Link to="/profile" className="d-flex align-items-center gap-2 min-w-0 flex-grow-1 text-decoration-none" style={{ color: 'inherit' }} title="My profile">
+            <Avatar name={user?.name} />
+            <div className="min-w-0"><div className="fw-semibold small truncate">{user?.name}</div><div className="small text-muted truncate">{isCustomer ? me?.customerCompany?.name : user?.title || labelize(role)}</div></div></Link>
           <button className="btn btn-ghost btn-icon" onClick={logout} aria-label="Sign out" title="Sign out"><LogOut size={16} /></button>
         </div>
       </aside>

@@ -30,10 +30,11 @@ async function mePayload(auth) {
     prisma.membership.findUnique({ where: { organizationId_userId: { organizationId: auth.orgId, userId: auth.userId } }, include: { customerCompany: true } }),
   ]);
   return {
-    user: { id: user.id, name: user.name, email: user.email, title: user.title },
+    user: { id: user.id, name: user.name, email: user.email, title: user.title, department: user.department, phone: user.phone },
+    mustChangePassword: user.mustChangePassword,
     organization: { id: org.id, name: org.name, timezone: org.timezone },
     role: m.role, customerCompany: m.customerCompany ? { id: m.customerCompany.id, name: m.customerCompany.name } : null,
-    csrfToken: auth.csrfToken, emailDelivery: 'NOT_CONFIGURED', permissions: matrix,
+    csrfToken: auth.csrfToken, emailDelivery: config.emailConfigured ? 'CONFIGURED' : 'NOT_CONFIGURED', permissions: matrix,
   };
 }
 
@@ -84,7 +85,8 @@ r.post('/invitations/accept', tokenLimiter, async (req, res) => {
   const user = await prisma.$transaction(async (tx) => {
     const claimed = await tx.invitation.updateMany({ where: { id: inv.id, acceptedAt: null }, data: { acceptedAt: new Date() } });
     if (!claimed.count) throw badRequest('This invitation has already been used');
-    const u = existing ?? await tx.user.create({ data: { email: inv.email, name: body.name, passwordHash: await hashPassword(body.password) } });
+    const u = existing ?? await tx.user.create({ data: { email: inv.email, name: body.name, passwordHash: await hashPassword(body.password), title: inv.title, department: inv.department } });
+    if (existing && (inv.title || inv.department) && !existing.title) await tx.user.update({ where: { id: existing.id }, data: { title: inv.title, department: inv.department } });
     await tx.membership.upsert({
       where: { organizationId_userId: { organizationId: inv.organizationId, userId: u.id } },
       create: { organizationId: inv.organizationId, userId: u.id, role: inv.role, customerCompanyId: inv.customerCompanyId },
@@ -130,11 +132,33 @@ r.post('/password/reset', tokenLimiter, async (req, res) => {
   await prisma.$transaction(async (tx) => {
     const used = await tx.passwordResetToken.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: new Date() } });
     if (!used.count) throw badRequest('This reset link has already been used');
-    await tx.user.update({ where: { id: t.userId }, data: { passwordHash: await hashPassword(password) } });
+    await tx.user.update({ where: { id: t.userId }, data: { passwordHash: await hashPassword(password), mustChangePassword: false } });
     await tx.session.deleteMany({ where: { userId: t.userId } }); // revoke all sessions
     await tx.passwordResetToken.updateMany({ where: { userId: t.userId, usedAt: null }, data: { usedAt: new Date() } });
   });
   res.json({ ok: true });
+});
+
+// Signed-in user changes their own password (also clears the "must change" flag on admin-created accounts).
+// Other sessions are signed out; this one stays.
+r.post('/password/change', tokenLimiter, async (req, res) => {
+  if (!req.auth) throw unauthorized();
+  const b = parse(z.object({ currentPassword: z.string().min(1).max(200), newPassword: passwordSchema }), req.body);
+  const user = await prisma.user.findUnique({ where: { id: req.auth.userId } });
+  if (!(await verifyPassword(user.passwordHash, b.currentPassword))) throw badRequest('Your current password is not correct');
+  if (b.currentPassword === b.newPassword) throw badRequest('Choose a password different from the current one');
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(b.newPassword), mustChangePassword: false } });
+  await prisma.session.deleteMany({ where: { userId: user.id, id: { not: req.auth.sessionId } } });
+  await audit(prisma, req.auth, { action: 'auth.password_changed', entityType: 'User', entityId: user.id }, req.ip);
+  res.json({ ok: true });
+});
+
+// Self-service profile: name and phone. Designation and department are set by an administrator.
+r.patch('/profile', async (req, res) => {
+  if (!req.auth) throw unauthorized();
+  const b = parse(z.object({ name: z.string().trim().min(1).max(120).optional(), phone: z.string().trim().max(40).nullable().optional() }), req.body);
+  await prisma.user.update({ where: { id: req.auth.userId }, data: b });
+  res.json(await mePayload({ userId: req.auth.userId, orgId: req.auth.orgId, csrfToken: req.auth.csrfToken }));
 });
 
 export default r;

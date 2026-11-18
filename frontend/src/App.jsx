@@ -2,7 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes, useParams, useLocation } from '
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 import { ToastProvider, Loading, Empty } from './components/ui.jsx';
 import Layout from './components/Layout.jsx';
-import { Login, AcceptInvite, ForgotPassword, ResetPassword } from './pages/Auth.jsx';
+import { Login, AcceptInvite, ForgotPassword, ResetPassword, FirstPasswordGate } from './pages/Auth.jsx';
+import Profile from './pages/Profile.jsx';
 import Home from './pages/Home.jsx';
 import MyTasks from './pages/MyTasks.jsx';
 import Projects from './pages/Projects.jsx';
@@ -13,7 +14,7 @@ import ProjectWorkspace from './pages/project/Workspace.jsx';
 import { Overview } from './pages/project/Overview.jsx';
 import { TasksTab } from './pages/project/Work.jsx';
 import { Deliverables, UpdatesTab, ProjectFiles } from './pages/project/Engagement.jsx';
-import { Registers, Team, ProjectSettings } from './pages/project/Manage.jsx';
+import { Registers, Team, ProjectSettings, Activity } from './pages/project/Manage.jsx';
 import { TicketsList, TicketDetail } from './pages/Tickets.jsx';
 import { People, NotificationsPage } from './pages/Resources.jsx';
 import { KnowledgeBase, KnowledgeArticle } from './pages/Knowledge.jsx';
@@ -23,6 +24,7 @@ function Protected({ children }) {
   const loc = useLocation();
   if (me === undefined) return <div className="p-5"><Loading /></div>;
   if (!me) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
+  if (me.mustChangePassword) return <FirstPasswordGate />;
   return children;
 }
 function AdminOnly({ children }) { const { role } = useAuth(); return role === 'ADMIN' ? children : <Navigate to="/" replace />; }
@@ -61,6 +63,7 @@ export default function App() {
                 <Route path="risks" element={<Registers />} />
                 <Route path="team" element={<Team />} />
                 <Route path="settings" element={<ProjectSettings />} />
+                <Route path="activity" element={<Activity />} />
                 {['work', 'board', 'timeline', 'calendar', 'milestones'].map((p) => <Route key={p} path={p} element={<Redirect to="/projects/:projectId/tasks" />} />)}
                 <Route path="deliverables" element={<Redirect to="/projects/:projectId/approvals" />} />
                 <Route path="discussions/:discussionId?" element={<Redirect to="/projects/:projectId/updates" />} />
@@ -76,6 +79,7 @@ export default function App() {
               <Route path="workload" element={<Navigate to="/reports" replace />} />
               <Route path="people" element={<InternalOnly><People /></InternalOnly>} />
               <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<AdminOnly><SettingsPage /></AdminOnly>} />
               <Route path="settings/:tab" element={<AdminOnly><SettingsPage /></AdminOnly>} />
               <Route path="admin/:tab" element={<Redirect to="/settings/:tab" />} />

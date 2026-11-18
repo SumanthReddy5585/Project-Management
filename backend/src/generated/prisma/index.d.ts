@@ -7588,6 +7588,10 @@ export namespace Prisma {
     name: string | null
     passwordHash: string | null
     title: string | null
+    department: string | null
+    phone: string | null
+    employeeId: string | null
+    mustChangePassword: boolean | null
     weeklyCapacityHours: Decimal | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -7600,6 +7604,10 @@ export namespace Prisma {
     name: string | null
     passwordHash: string | null
     title: string | null
+    department: string | null
+    phone: string | null
+    employeeId: string | null
+    mustChangePassword: boolean | null
     weeklyCapacityHours: Decimal | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -7612,6 +7620,10 @@ export namespace Prisma {
     name: number
     passwordHash: number
     title: number
+    department: number
+    phone: number
+    employeeId: number
+    mustChangePassword: number
     skills: number
     weeklyCapacityHours: number
     createdAt: number
@@ -7635,6 +7647,10 @@ export namespace Prisma {
     name?: true
     passwordHash?: true
     title?: true
+    department?: true
+    phone?: true
+    employeeId?: true
+    mustChangePassword?: true
     weeklyCapacityHours?: true
     createdAt?: true
     updatedAt?: true
@@ -7647,6 +7663,10 @@ export namespace Prisma {
     name?: true
     passwordHash?: true
     title?: true
+    department?: true
+    phone?: true
+    employeeId?: true
+    mustChangePassword?: true
     weeklyCapacityHours?: true
     createdAt?: true
     updatedAt?: true
@@ -7659,6 +7679,10 @@ export namespace Prisma {
     name?: true
     passwordHash?: true
     title?: true
+    department?: true
+    phone?: true
+    employeeId?: true
+    mustChangePassword?: true
     skills?: true
     weeklyCapacityHours?: true
     createdAt?: true
@@ -7759,6 +7783,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title: string | null
+    department: string | null
+    phone: string | null
+    employeeId: string | null
+    mustChangePassword: boolean
     skills: string[]
     weeklyCapacityHours: Decimal
     createdAt: Date
@@ -7791,6 +7819,10 @@ export namespace Prisma {
     name?: boolean
     passwordHash?: boolean
     title?: boolean
+    department?: boolean
+    phone?: boolean
+    employeeId?: boolean
+    mustChangePassword?: boolean
     skills?: boolean
     weeklyCapacityHours?: boolean
     createdAt?: boolean
@@ -7811,6 +7843,10 @@ export namespace Prisma {
     name?: boolean
     passwordHash?: boolean
     title?: boolean
+    department?: boolean
+    phone?: boolean
+    employeeId?: boolean
+    mustChangePassword?: boolean
     skills?: boolean
     weeklyCapacityHours?: boolean
     createdAt?: boolean
@@ -7824,6 +7860,10 @@ export namespace Prisma {
     name?: boolean
     passwordHash?: boolean
     title?: boolean
+    department?: boolean
+    phone?: boolean
+    employeeId?: boolean
+    mustChangePassword?: boolean
     skills?: boolean
     weeklyCapacityHours?: boolean
     createdAt?: boolean
@@ -7837,6 +7877,10 @@ export namespace Prisma {
     name?: boolean
     passwordHash?: boolean
     title?: boolean
+    department?: boolean
+    phone?: boolean
+    employeeId?: boolean
+    mustChangePassword?: boolean
     skills?: boolean
     weeklyCapacityHours?: boolean
     createdAt?: boolean
@@ -7844,7 +7888,7 @@ export namespace Prisma {
     lastLoginAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "name" | "passwordHash" | "title" | "skills" | "weeklyCapacityHours" | "createdAt" | "updatedAt" | "lastLoginAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "name" | "passwordHash" | "title" | "department" | "phone" | "employeeId" | "mustChangePassword" | "skills" | "weeklyCapacityHours" | "createdAt" | "updatedAt" | "lastLoginAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     memberships?: boolean | User$membershipsArgs<ExtArgs>
     sessions?: boolean | User$sessionsArgs<ExtArgs>
@@ -7873,6 +7917,10 @@ export namespace Prisma {
       name: string
       passwordHash: string
       title: string | null
+      department: string | null
+      phone: string | null
+      employeeId: string | null
+      mustChangePassword: boolean
       skills: string[]
       weeklyCapacityHours: Prisma.Decimal
       createdAt: Date
@@ -8312,6 +8360,10 @@ export namespace Prisma {
     readonly name: FieldRef<"User", 'String'>
     readonly passwordHash: FieldRef<"User", 'String'>
     readonly title: FieldRef<"User", 'String'>
+    readonly department: FieldRef<"User", 'String'>
+    readonly phone: FieldRef<"User", 'String'>
+    readonly employeeId: FieldRef<"User", 'String'>
+    readonly mustChangePassword: FieldRef<"User", 'Boolean'>
     readonly skills: FieldRef<"User", 'String[]'>
     readonly weeklyCapacityHours: FieldRef<"User", 'Decimal'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
@@ -11147,6 +11199,8 @@ export namespace Prisma {
     organizationId: string | null
     email: string | null
     name: string | null
+    title: string | null
+    department: string | null
     role: $Enums.OrgRole | null
     customerCompanyId: string | null
     tokenHash: string | null
@@ -11162,6 +11216,8 @@ export namespace Prisma {
     organizationId: string | null
     email: string | null
     name: string | null
+    title: string | null
+    department: string | null
     role: $Enums.OrgRole | null
     customerCompanyId: string | null
     tokenHash: string | null
@@ -11177,6 +11233,8 @@ export namespace Prisma {
     organizationId: number
     email: number
     name: number
+    title: number
+    department: number
     role: number
     customerCompanyId: number
     tokenHash: number
@@ -11194,6 +11252,8 @@ export namespace Prisma {
     organizationId?: true
     email?: true
     name?: true
+    title?: true
+    department?: true
     role?: true
     customerCompanyId?: true
     tokenHash?: true
@@ -11209,6 +11269,8 @@ export namespace Prisma {
     organizationId?: true
     email?: true
     name?: true
+    title?: true
+    department?: true
     role?: true
     customerCompanyId?: true
     tokenHash?: true
@@ -11224,6 +11286,8 @@ export namespace Prisma {
     organizationId?: true
     email?: true
     name?: true
+    title?: true
+    department?: true
     role?: true
     customerCompanyId?: true
     tokenHash?: true
@@ -11312,6 +11376,8 @@ export namespace Prisma {
     organizationId: string
     email: string
     name: string | null
+    title: string | null
+    department: string | null
     role: $Enums.OrgRole
     customerCompanyId: string | null
     tokenHash: string
@@ -11344,6 +11410,8 @@ export namespace Prisma {
     organizationId?: boolean
     email?: boolean
     name?: boolean
+    title?: boolean
+    department?: boolean
     role?: boolean
     customerCompanyId?: boolean
     tokenHash?: boolean
@@ -11360,6 +11428,8 @@ export namespace Prisma {
     organizationId?: boolean
     email?: boolean
     name?: boolean
+    title?: boolean
+    department?: boolean
     role?: boolean
     customerCompanyId?: boolean
     tokenHash?: boolean
@@ -11376,6 +11446,8 @@ export namespace Prisma {
     organizationId?: boolean
     email?: boolean
     name?: boolean
+    title?: boolean
+    department?: boolean
     role?: boolean
     customerCompanyId?: boolean
     tokenHash?: boolean
@@ -11392,6 +11464,8 @@ export namespace Prisma {
     organizationId?: boolean
     email?: boolean
     name?: boolean
+    title?: boolean
+    department?: boolean
     role?: boolean
     customerCompanyId?: boolean
     tokenHash?: boolean
@@ -11402,7 +11476,7 @@ export namespace Prisma {
     createdAt?: boolean
   }
 
-  export type InvitationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "organizationId" | "email" | "name" | "role" | "customerCompanyId" | "tokenHash" | "invitedById" | "expiresAt" | "acceptedAt" | "revokedAt" | "createdAt", ExtArgs["result"]["invitation"]>
+  export type InvitationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "organizationId" | "email" | "name" | "title" | "department" | "role" | "customerCompanyId" | "tokenHash" | "invitedById" | "expiresAt" | "acceptedAt" | "revokedAt" | "createdAt", ExtArgs["result"]["invitation"]>
   export type InvitationInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
   }
@@ -11423,6 +11497,8 @@ export namespace Prisma {
       organizationId: string
       email: string
       name: string | null
+      title: string | null
+      department: string | null
       role: $Enums.OrgRole
       customerCompanyId: string | null
       tokenHash: string
@@ -11859,6 +11935,8 @@ export namespace Prisma {
     readonly organizationId: FieldRef<"Invitation", 'String'>
     readonly email: FieldRef<"Invitation", 'String'>
     readonly name: FieldRef<"Invitation", 'String'>
+    readonly title: FieldRef<"Invitation", 'String'>
+    readonly department: FieldRef<"Invitation", 'String'>
     readonly role: FieldRef<"Invitation", 'OrgRole'>
     readonly customerCompanyId: FieldRef<"Invitation", 'String'>
     readonly tokenHash: FieldRef<"Invitation", 'String'>
@@ -57939,6 +58017,10 @@ export namespace Prisma {
     name: 'name',
     passwordHash: 'passwordHash',
     title: 'title',
+    department: 'department',
+    phone: 'phone',
+    employeeId: 'employeeId',
+    mustChangePassword: 'mustChangePassword',
     skills: 'skills',
     weeklyCapacityHours: 'weeklyCapacityHours',
     createdAt: 'createdAt',
@@ -57983,6 +58065,8 @@ export namespace Prisma {
     organizationId: 'organizationId',
     email: 'email',
     name: 'name',
+    title: 'title',
+    department: 'department',
     role: 'role',
     customerCompanyId: 'customerCompanyId',
     tokenHash: 'tokenHash',
@@ -58685,6 +58769,13 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+  /**
    * Reference to a field of type 'Decimal'
    */
   export type DecimalFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Decimal'>
@@ -58723,13 +58814,6 @@ export namespace Prisma {
    * Reference to a field of type 'MembershipStatus[]'
    */
   export type ListEnumMembershipStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MembershipStatus[]'>
-    
-
-
-  /**
-   * Reference to a field of type 'Boolean'
-   */
-  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -59109,6 +59193,10 @@ export namespace Prisma {
     name?: StringFilter<"User"> | string
     passwordHash?: StringFilter<"User"> | string
     title?: StringNullableFilter<"User"> | string | null
+    department?: StringNullableFilter<"User"> | string | null
+    phone?: StringNullableFilter<"User"> | string | null
+    employeeId?: StringNullableFilter<"User"> | string | null
+    mustChangePassword?: BoolFilter<"User"> | boolean
     skills?: StringNullableListFilter<"User">
     weeklyCapacityHours?: DecimalFilter<"User"> | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFilter<"User"> | Date | string
@@ -59128,6 +59216,10 @@ export namespace Prisma {
     name?: SortOrder
     passwordHash?: SortOrder
     title?: SortOrderInput | SortOrder
+    department?: SortOrderInput | SortOrder
+    phone?: SortOrderInput | SortOrder
+    employeeId?: SortOrderInput | SortOrder
+    mustChangePassword?: SortOrder
     skills?: SortOrder
     weeklyCapacityHours?: SortOrder
     createdAt?: SortOrder
@@ -59150,6 +59242,10 @@ export namespace Prisma {
     name?: StringFilter<"User"> | string
     passwordHash?: StringFilter<"User"> | string
     title?: StringNullableFilter<"User"> | string | null
+    department?: StringNullableFilter<"User"> | string | null
+    phone?: StringNullableFilter<"User"> | string | null
+    employeeId?: StringNullableFilter<"User"> | string | null
+    mustChangePassword?: BoolFilter<"User"> | boolean
     skills?: StringNullableListFilter<"User">
     weeklyCapacityHours?: DecimalFilter<"User"> | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFilter<"User"> | Date | string
@@ -59169,6 +59265,10 @@ export namespace Prisma {
     name?: SortOrder
     passwordHash?: SortOrder
     title?: SortOrderInput | SortOrder
+    department?: SortOrderInput | SortOrder
+    phone?: SortOrderInput | SortOrder
+    employeeId?: SortOrderInput | SortOrder
+    mustChangePassword?: SortOrder
     skills?: SortOrder
     weeklyCapacityHours?: SortOrder
     createdAt?: SortOrder
@@ -59190,6 +59290,10 @@ export namespace Prisma {
     name?: StringWithAggregatesFilter<"User"> | string
     passwordHash?: StringWithAggregatesFilter<"User"> | string
     title?: StringNullableWithAggregatesFilter<"User"> | string | null
+    department?: StringNullableWithAggregatesFilter<"User"> | string | null
+    phone?: StringNullableWithAggregatesFilter<"User"> | string | null
+    employeeId?: StringNullableWithAggregatesFilter<"User"> | string | null
+    mustChangePassword?: BoolWithAggregatesFilter<"User"> | boolean
     skills?: StringNullableListFilter<"User">
     weeklyCapacityHours?: DecimalWithAggregatesFilter<"User"> | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -59360,6 +59464,8 @@ export namespace Prisma {
     organizationId?: UuidFilter<"Invitation"> | string
     email?: StringFilter<"Invitation"> | string
     name?: StringNullableFilter<"Invitation"> | string | null
+    title?: StringNullableFilter<"Invitation"> | string | null
+    department?: StringNullableFilter<"Invitation"> | string | null
     role?: EnumOrgRoleFilter<"Invitation"> | $Enums.OrgRole
     customerCompanyId?: UuidNullableFilter<"Invitation"> | string | null
     tokenHash?: StringFilter<"Invitation"> | string
@@ -59376,6 +59482,8 @@ export namespace Prisma {
     organizationId?: SortOrder
     email?: SortOrder
     name?: SortOrderInput | SortOrder
+    title?: SortOrderInput | SortOrder
+    department?: SortOrderInput | SortOrder
     role?: SortOrder
     customerCompanyId?: SortOrderInput | SortOrder
     tokenHash?: SortOrder
@@ -59396,6 +59504,8 @@ export namespace Prisma {
     organizationId?: UuidFilter<"Invitation"> | string
     email?: StringFilter<"Invitation"> | string
     name?: StringNullableFilter<"Invitation"> | string | null
+    title?: StringNullableFilter<"Invitation"> | string | null
+    department?: StringNullableFilter<"Invitation"> | string | null
     role?: EnumOrgRoleFilter<"Invitation"> | $Enums.OrgRole
     customerCompanyId?: UuidNullableFilter<"Invitation"> | string | null
     invitedById?: UuidFilter<"Invitation"> | string
@@ -59411,6 +59521,8 @@ export namespace Prisma {
     organizationId?: SortOrder
     email?: SortOrder
     name?: SortOrderInput | SortOrder
+    title?: SortOrderInput | SortOrder
+    department?: SortOrderInput | SortOrder
     role?: SortOrder
     customerCompanyId?: SortOrderInput | SortOrder
     tokenHash?: SortOrder
@@ -59432,6 +59544,8 @@ export namespace Prisma {
     organizationId?: UuidWithAggregatesFilter<"Invitation"> | string
     email?: StringWithAggregatesFilter<"Invitation"> | string
     name?: StringNullableWithAggregatesFilter<"Invitation"> | string | null
+    title?: StringNullableWithAggregatesFilter<"Invitation"> | string | null
+    department?: StringNullableWithAggregatesFilter<"Invitation"> | string | null
     role?: EnumOrgRoleWithAggregatesFilter<"Invitation"> | $Enums.OrgRole
     customerCompanyId?: UuidNullableWithAggregatesFilter<"Invitation"> | string | null
     tokenHash?: StringWithAggregatesFilter<"Invitation"> | string
@@ -62760,6 +62874,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -62779,6 +62897,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -62798,6 +62920,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -62817,6 +62943,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -62836,6 +62966,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -62849,6 +62983,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -62862,6 +63000,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -63029,6 +63171,8 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
+    title?: string | null
+    department?: string | null
     role: $Enums.OrgRole
     customerCompanyId?: string | null
     tokenHash: string
@@ -63045,6 +63189,8 @@ export namespace Prisma {
     organizationId: string
     email: string
     name?: string | null
+    title?: string | null
+    department?: string | null
     role: $Enums.OrgRole
     customerCompanyId?: string | null
     tokenHash: string
@@ -63059,6 +63205,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumOrgRoleFieldUpdateOperationsInput | $Enums.OrgRole
     customerCompanyId?: NullableStringFieldUpdateOperationsInput | string | null
     tokenHash?: StringFieldUpdateOperationsInput | string
@@ -63075,6 +63223,8 @@ export namespace Prisma {
     organizationId?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumOrgRoleFieldUpdateOperationsInput | $Enums.OrgRole
     customerCompanyId?: NullableStringFieldUpdateOperationsInput | string | null
     tokenHash?: StringFieldUpdateOperationsInput | string
@@ -63090,6 +63240,8 @@ export namespace Prisma {
     organizationId: string
     email: string
     name?: string | null
+    title?: string | null
+    department?: string | null
     role: $Enums.OrgRole
     customerCompanyId?: string | null
     tokenHash: string
@@ -63104,6 +63256,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumOrgRoleFieldUpdateOperationsInput | $Enums.OrgRole
     customerCompanyId?: NullableStringFieldUpdateOperationsInput | string | null
     tokenHash?: StringFieldUpdateOperationsInput | string
@@ -63119,6 +63273,8 @@ export namespace Prisma {
     organizationId?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumOrgRoleFieldUpdateOperationsInput | $Enums.OrgRole
     customerCompanyId?: NullableStringFieldUpdateOperationsInput | string | null
     tokenHash?: StringFieldUpdateOperationsInput | string
@@ -66917,6 +67073,11 @@ export namespace Prisma {
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type StringNullableListFilter<$PrismaModel = never> = {
     equals?: string[] | ListStringFieldRefInput<$PrismaModel> | null
     has?: string | StringFieldRefInput<$PrismaModel> | null
@@ -66988,6 +67149,10 @@ export namespace Prisma {
     name?: SortOrder
     passwordHash?: SortOrder
     title?: SortOrder
+    department?: SortOrder
+    phone?: SortOrder
+    employeeId?: SortOrder
+    mustChangePassword?: SortOrder
     skills?: SortOrder
     weeklyCapacityHours?: SortOrder
     createdAt?: SortOrder
@@ -67005,6 +67170,10 @@ export namespace Prisma {
     name?: SortOrder
     passwordHash?: SortOrder
     title?: SortOrder
+    department?: SortOrder
+    phone?: SortOrder
+    employeeId?: SortOrder
+    mustChangePassword?: SortOrder
     weeklyCapacityHours?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -67017,6 +67186,10 @@ export namespace Prisma {
     name?: SortOrder
     passwordHash?: SortOrder
     title?: SortOrder
+    department?: SortOrder
+    phone?: SortOrder
+    employeeId?: SortOrder
+    mustChangePassword?: SortOrder
     weeklyCapacityHours?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -67043,6 +67216,14 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type DecimalWithAggregatesFilter<$PrismaModel = never> = {
@@ -67230,6 +67411,8 @@ export namespace Prisma {
     organizationId?: SortOrder
     email?: SortOrder
     name?: SortOrder
+    title?: SortOrder
+    department?: SortOrder
     role?: SortOrder
     customerCompanyId?: SortOrder
     tokenHash?: SortOrder
@@ -67245,6 +67428,8 @@ export namespace Prisma {
     organizationId?: SortOrder
     email?: SortOrder
     name?: SortOrder
+    title?: SortOrder
+    department?: SortOrder
     role?: SortOrder
     customerCompanyId?: SortOrder
     tokenHash?: SortOrder
@@ -67260,6 +67445,8 @@ export namespace Prisma {
     organizationId?: SortOrder
     email?: SortOrder
     name?: SortOrder
+    title?: SortOrder
+    department?: SortOrder
     role?: SortOrder
     customerCompanyId?: SortOrder
     tokenHash?: SortOrder
@@ -67391,11 +67578,6 @@ export namespace Prisma {
     isEmpty?: boolean
   }
 
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
   export type HolidayListRelationFilter = {
     every?: HolidayWhereInput
     some?: HolidayWhereInput
@@ -67451,14 +67633,6 @@ export namespace Prisma {
 
   export type WorkingCalendarSumOrderByAggregateInput = {
     workDays?: SortOrder
-  }
-
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type WorkingCalendarScalarRelationFilter = {
@@ -70495,6 +70669,10 @@ export namespace Prisma {
     set?: string | null
   }
 
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
+  }
+
   export type UserUpdateskillsInput = {
     set?: string[]
     push?: string | string[]
@@ -71053,10 +71231,6 @@ export namespace Prisma {
   export type WorkingCalendarUpdateworkDaysInput = {
     set?: number[]
     push?: number | number[]
-  }
-
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
   }
 
   export type OrganizationUpdateOneRequiredWithoutCalendarsNestedInput = {
@@ -73417,6 +73591,11 @@ export namespace Prisma {
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
 
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
   export type NestedDecimalFilter<$PrismaModel = never> = {
     equals?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     in?: Decimal[] | DecimalJsLike[] | number[] | string[] | ListDecimalFieldRefInput<$PrismaModel>
@@ -73465,6 +73644,14 @@ export namespace Prisma {
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type NestedDecimalWithAggregatesFilter<$PrismaModel = never> = {
@@ -73554,19 +73741,6 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type NestedBoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type NestedEnumProjectStatusFilter<$PrismaModel = never> = {
@@ -73927,6 +74101,8 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
+    title?: string | null
+    department?: string | null
     role: $Enums.OrgRole
     customerCompanyId?: string | null
     tokenHash: string
@@ -73941,6 +74117,8 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
+    title?: string | null
+    department?: string | null
     role: $Enums.OrgRole
     customerCompanyId?: string | null
     tokenHash: string
@@ -74678,6 +74856,8 @@ export namespace Prisma {
     organizationId?: UuidFilter<"Invitation"> | string
     email?: StringFilter<"Invitation"> | string
     name?: StringNullableFilter<"Invitation"> | string | null
+    title?: StringNullableFilter<"Invitation"> | string | null
+    department?: StringNullableFilter<"Invitation"> | string | null
     role?: EnumOrgRoleFilter<"Invitation"> | $Enums.OrgRole
     customerCompanyId?: UuidNullableFilter<"Invitation"> | string | null
     tokenHash?: StringFilter<"Invitation"> | string
@@ -75613,6 +75793,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -75631,6 +75815,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -75761,6 +75949,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -75779,6 +75971,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -75830,6 +76026,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -75848,6 +76048,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -75945,6 +76149,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -75963,6 +76171,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -76182,6 +76394,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -76200,6 +76416,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -76234,6 +76454,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -76252,6 +76476,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -76457,6 +76685,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -76475,6 +76707,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -76536,6 +76772,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -76554,6 +76794,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -79007,6 +79251,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -79025,6 +79273,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -79152,6 +79404,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -79170,6 +79426,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -82668,6 +82928,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -82686,6 +82950,10 @@ export namespace Prisma {
     name: string
     passwordHash: string
     title?: string | null
+    department?: string | null
+    phone?: string | null
+    employeeId?: string | null
+    mustChangePassword?: boolean
     skills?: UserCreateskillsInput | string[]
     weeklyCapacityHours?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
@@ -82789,6 +83057,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -82807,6 +83079,10 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     passwordHash?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
+    phone?: NullableStringFieldUpdateOperationsInput | string | null
+    employeeId?: NullableStringFieldUpdateOperationsInput | string | null
+    mustChangePassword?: BoolFieldUpdateOperationsInput | boolean
     skills?: UserUpdateskillsInput | string[]
     weeklyCapacityHours?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -85632,6 +85908,8 @@ export namespace Prisma {
     id?: string
     email: string
     name?: string | null
+    title?: string | null
+    department?: string | null
     role: $Enums.OrgRole
     customerCompanyId?: string | null
     tokenHash: string
@@ -85896,6 +86174,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumOrgRoleFieldUpdateOperationsInput | $Enums.OrgRole
     customerCompanyId?: NullableStringFieldUpdateOperationsInput | string | null
     tokenHash?: StringFieldUpdateOperationsInput | string
@@ -85910,6 +86190,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumOrgRoleFieldUpdateOperationsInput | $Enums.OrgRole
     customerCompanyId?: NullableStringFieldUpdateOperationsInput | string | null
     tokenHash?: StringFieldUpdateOperationsInput | string
@@ -85924,6 +86206,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    department?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumOrgRoleFieldUpdateOperationsInput | $Enums.OrgRole
     customerCompanyId?: NullableStringFieldUpdateOperationsInput | string | null
     tokenHash?: StringFieldUpdateOperationsInput | string

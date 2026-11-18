@@ -20,6 +20,10 @@ test.describe.serial('manager → client → request workflow', () => {
     await page.goto('/projects?new=1');
     await page.getByLabel('Project name').fill(`E2E Portal ${code}`);
     await page.getByLabel('Client', { exact: true }).selectOption({ label: 'Contoso Retail' });
+    await page.getByRole('button', { name: /Next: choose team/ }).click();
+    await page.getByRole('checkbox', { name: 'Add Ravi Developer' }).check();
+    await page.getByRole('button', { name: /Next: review/ }).click();
+    await expect(page.getByText('Ravi Developer · Member')).toBeVisible();
     await page.getByLabel(/Let the client follow this project/).check();
     await page.getByRole('button', { name: 'Create project' }).click();
     await expect(page.getByRole('heading', { name: new RegExp(`E2E Portal ${code}`) })).toBeVisible();
@@ -27,6 +31,8 @@ test.describe.serial('manager → client → request workflow', () => {
     projectUrl = page.url().replace(/\/$/, '');
 
     // one task shared with the client and one team-only task, added with quick-add
+    await page.locator('nav.tabs').getByRole('link', { name: /^Team/ }).click();
+    await expect(page.getByRole('cell', { name: /Ravi Developer/ })).toBeVisible();
     await page.getByRole('link', { name: 'Tasks', exact: true }).click();
     for (const [title, shared] of [['Shared onboarding task', true], ['Internal pricing review', false]]) {
       await page.getByLabel('New task title').fill(title);

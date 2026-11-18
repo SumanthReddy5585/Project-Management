@@ -1,6 +1,8 @@
 import { createContext, useContext, useState } from 'react';
-import { NavLink, Outlet, useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { MoreHorizontal, ShieldAlert, Users, Settings, Globe, Lock } from 'lucide-react';
+import { useLive } from '../../lib/live.js';
+import { ProjectActions } from './Actions.jsx';
+import { NavLink, Outlet, useParams, useSearchParams } from 'react-router-dom';
+import { Settings, Globe, Lock } from 'lucide-react';
 import { get } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { useAuth, projectCan } from '../../auth/AuthContext.jsx';
@@ -11,25 +13,12 @@ import { WorkItemDrawer } from './WorkItemDrawer.jsx';
 const Ctx = createContext(null);
 export const useProject = () => useContext(Ctx);
 
-function MoreMenu({ items }) {
-  const [open, setOpen] = useState(false);
-  const nav = useNavigate();
-  if (!items.length) return null;
-  return (
-    <div className="position-relative" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
-      <button className="btn btn-light btn-sm" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu"><MoreHorizontal size={16} /> More</button>
-      {open && <div className="notif-panel p-1" style={{ width: 220 }} role="menu">
-        {items.map(([to, label, Icon]) => <button key={to} role="menuitem" className="btn btn-ghost w-100 justify-content-start" onClick={() => { setOpen(false); nav(to); }}><Icon size={16} /> {label}</button>)}
-      </div>}
-    </div>
-  );
-}
-
 export default function ProjectWorkspace() {
   const { projectId } = useParams();
   const { me, isCustomer } = useAuth();
   const [params, setParams] = useSearchParams();
   const { data: p, error, loading, reload } = useLoad(() => get(`/projects/${projectId}`), [projectId]);
+  useLive((e) => e.type === 'work.changed' && e.projectId === projectId && !e.self, () => reload({ silent: true }), [projectId]);
   if (loading && !p) return <Loading rows={6} />;
   if (error) return <ErrorBox error={error} onRetry={reload} />;
   const can = (cap) => projectCan(me, p.role, cap) && (!p.readOnly || ['project.view', 'project.viewInternal', 'register.view', 'export.csv'].includes(cap));
@@ -38,12 +27,8 @@ export default function ProjectWorkspace() {
   const itemId = params.get('item');
   const openItem = (id) => setParams((prev) => { const n = new URLSearchParams(prev); if (id) n.set('item', id); else n.delete('item'); return n; });
   const base = `/projects/${p.id}`;
-  const more = [
-    ...(can('register.view') ? [[`${base}/risks`, 'Risks and changes', ShieldAlert]] : []),
-    ...(!isCustomer ? [[`${base}/team`, 'Team', Users]] : []),
-    ...(can('project.edit') ? [[`${base}/settings`, 'Project settings', Settings]] : []),
-  ];
-  const tabs = [['', 'Overview'], ['tasks', 'Tasks'], ['approvals', 'Approvals'], ['files', 'Files'], ['updates', 'Updates']];
+  const tabs = [['', 'Overview'], ['tasks', 'Tasks'], ...(!isCustomer ? [['team', `Team (${p.members.filter((m) => m.role !== 'CUSTOMER').length})`]] : []), ['approvals', 'Approvals'], ['files', 'Files'], ['updates', 'Updates'],
+    ...(can('register.view') ? [['risks', 'Risks & issues']] : []), ...(!isCustomer ? [['activity', 'Activity']] : [])];
   const team = p.members.filter((m) => m.role !== 'CUSTOMER');
   return (
     <Ctx.Provider value={{ project: p, reload, can, people, assignable, openItem }}>
@@ -59,7 +44,8 @@ export default function ProjectWorkspace() {
         <div className="d-flex align-items-center gap-3">
           <div className="d-none d-md-flex" aria-label={`${team.length} team members`}>{team.slice(0, 5).map((m, i) => <span key={m.id} style={{ marginLeft: i ? -8 : 0, border: '2px solid var(--canvas)', borderRadius: '50%' }}><Avatar name={m.name} title={`${m.name} (${labelize(m.role)})`} /></span>)}</div>
           <div style={{ width: 150 }}><div className="d-flex justify-content-between small"><span className="text-muted fw-semibold">Progress</span><strong>{p.progress == null ? '—' : `${Math.round(p.progress)}%`}</strong></div><div className="meter mt-1"><span style={{ width: `${p.progress || 0}%` }} /></div></div>
-          <MoreMenu items={more} />
+          {can('project.edit') && <NavLink to={`${base}/settings`} className="btn btn-light btn-sm"><Settings size={15} /> Settings</NavLink>}
+          {!isCustomer && <ProjectActions project={p} can={can} reload={reload} />}
         </div>
       </div>
       {p.readOnly && <Notice tone="warn">This project is {labelize(p.status).toLowerCase()}. You can look around but not make changes.</Notice>}

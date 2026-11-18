@@ -3,7 +3,8 @@ import { Plus, Trash2, ShieldAlert } from 'lucide-react';
 import { get, post, patch, put, del } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { fmtDate, labelize } from '../../lib/format.js';
-import { Card, ConfirmButton, Empty, ErrorBox, Field, Loading, Modal, Notice, Select, StatusBadge, useToast, fieldErrors, Avatar } from '../../components/ui.jsx';
+import { Card, ConfirmButton, Empty, ErrorBox, Field, Loading, Modal, Notice, Select, StatusBadge, useToast, fieldErrors, Avatar, Pagination } from '../../components/ui.jsx';
+import { TeamPicker } from '../Projects.jsx';
 import { useProject } from './Workspace.jsx';
 
 const KINDS = {
@@ -62,25 +63,75 @@ export function Registers() {
 export function Team() {
   const { project, can, reload } = useProject();
   const toast = useToast();
-  const dir = useLoad(() => (can('project.members') ? get('/org/members', { pageSize: 200 }) : Promise.resolve(null)), []);
-  const [add, setAdd] = useState({ userId: '', role: 'MEMBER' });
+  const manage = can('project.members') && !project.readOnly;
+  const dir = useLoad(() => (manage ? get('/org/members', { pageSize: 200 }) : Promise.resolve(null)), []);
+  const work = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true' }), [project.id]);
+  const wl = useLoad(() => get('/workload').catch(() => null), []);
+  const [adding, setAdding] = useState(null);
   const memberIds = new Set(project.members.map((m) => m.id));
-  const candidates = (dir.data?.data || []).filter((m) => m.status === 'ACTIVE' && !memberIds.has(m.userId) && (m.role !== 'CUSTOMER' || m.customerCompany?.id === project.customerCompanyId));
-  const chosen = candidates.find((c) => c.userId === add.userId);
-  const doAdd = async () => { try { await put(`/projects/${project.id}/members/${add.userId}`, { role: chosen.role === 'CUSTOMER' ? 'CUSTOMER' : add.role }); setAdd({ userId: '', role: 'MEMBER' }); reload(); toast('Member added', 'success'); } catch (e) { toast(e.message, 'error'); } };
+  const candidates = (dir.data?.data || []).filter((m) => m.status === 'ACTIVE' && !memberIds.has(m.userId) && m.role !== 'CUSTOMER');
+  const contacts = (dir.data?.data || []).filter((m) => m.status === 'ACTIVE' && !memberIds.has(m.userId) && m.role === 'CUSTOMER' && m.customerCompany?.id === project.customerCompanyId);
+  const items = work.data?.data || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const stats = (id) => { const mine = items.filter((i) => i.assigneeId === id && i.type !== 'MODULE'); const open = mine.filter((i) => !['DONE', 'CANCELLED'].includes(i.status));
+    return { open: open.length, done: mine.filter((i) => i.status === 'DONE').length, late: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length, hours: open.reduce((s, i) => s + (Number(i.estimateHours) || 0), 0) }; };
+  const load = new Map((wl.data?.data || []).map((w) => [w.userId, w]));
+  const setRole = async (m, role, allocationPct = m.allocationPct ?? 100) => { try { await put(`/projects/${project.id}/members/${m.id}`, { role, allocationPct }); reload(); toast('Updated', 'success'); } catch (e) { toast(e.message, 'error'); } };
+  const addAll = async () => {
+    try { for (const [userId, t] of Object.entries(adding)) await put(`/projects/${project.id}/members/${userId}`, { role: t.role, allocationPct: t.allocationPct }); toast(`${Object.keys(adding).length} added to the project`, 'success'); setAdding(null); reload(); }
+    catch (e) { toast(e.message, 'error'); reload(); }
+  };
+  const internal = project.members.filter((m) => m.role !== 'CUSTOMER');
+  const clients = project.members.filter((m) => m.role === 'CUSTOMER');
   return (
-    <div className="row g-3">
-      <div className="col-lg-8"><Card title="Project members" bodyClass="p-0"><table className="table"><thead><tr><th>Name</th><th>Project role</th><th /></tr></thead>
-        <tbody>{project.members.map((m) => <tr key={m.id}><td><div className="d-flex align-items-center gap-2"><Avatar name={m.name} /><div><div className="fw-medium">{m.name}</div><div className="small text-muted">{m.email}</div></div></div></td><td><span className="pill pill-neutral">{labelize(m.role)}</span></td>
-          <td className="text-end">{can('project.members') && m.role !== 'MANAGER' && <ConfirmButton className="btn btn-sm btn-ghost text-danger" title={`Remove ${m.name}?`} message="They lose access to this project immediately." confirmLabel="Remove" onConfirm={async () => { await del(`/projects/${project.id}/members/${m.id}`); reload(); }}><Trash2 size={14} /> Remove</ConfirmButton>}</td></tr>)}</tbody></table></Card></div>
-      {can('project.members') && !project.readOnly && <div className="col-lg-4"><Card title="Add member">
-        <Field label="Person">{(id) => <Select id={id} value={add.userId} onChange={(v) => setAdd({ ...add, userId: v || '' })} placeholder="Choose…" options={candidates.map((c) => ({ value: c.userId, label: `${c.name}${c.role === 'CUSTOMER' ? ' (customer)' : ''}` }))} />}</Field>
-        {chosen && chosen.role !== 'CUSTOMER' && <Field label="Role">{(id) => <Select id={id} value={add.role} onChange={(v) => setAdd({ ...add, role: v })} options={[...(['ADMIN', 'MANAGER'].includes(chosen.role) ? [{ value: 'MANAGER', label: 'Manager' }] : []), { value: 'MEMBER', label: 'Member' }, { value: 'VIEWER', label: 'Viewer (read-only)' }]} />}</Field>}
-        {chosen?.role === 'CUSTOMER' && <div className="form-text mb-3">Customer contacts get the customer view, limited to shared content.</div>}
-        <button className="btn btn-primary btn-sm" disabled={!chosen} onClick={doAdd}>Add to project</button>
-        <div className="form-text mt-2">Only customers of {project.customerName || 'the project customer'} can be added as contacts.</div>
-      </Card></div>}
-    </div>
+    <>
+      <Card bodyClass="p-0" title={<>Project team <span className="text-muted fw-normal">· {internal.length}</span></>} actions={manage && <button className="btn btn-sm btn-primary" onClick={() => setAdding({})}><Plus size={14} /> Add people</button>}>
+        <div className="table-wrap"><table className="table mb-0">
+          <thead><tr><th>Person</th><th>Designation</th><th>Project role</th><th>Allocation</th><th className="text-end">Open tasks</th><th className="text-end">Done</th><th className="text-end">Remaining est.</th><th>Overall load (2 wks)</th><th /></tr></thead>
+          <tbody>{internal.map((m) => { const st = stats(m.id); const w = load.get(m.id); const isPm = m.id === project.managerId; return (
+            <tr key={m.id}>
+              <td><span className="d-flex align-items-center gap-2"><Avatar name={m.name} /><span><span className="fw-semibold d-block">{m.name}{isPm && <span className="pill pill-dark ms-2">PM</span>}</span><span className="small text-muted">{m.email}</span></span></span></td>
+              <td className="small">{m.title || '—'}{m.department && <div className="text-muted">{m.department}</div>}</td>
+              <td>{manage && !isPm ? <select className="form-select form-select-sm" style={{ width: 130 }} value={m.role} onChange={(e) => setRole(m, e.target.value)} aria-label={`Role of ${m.name}`}><option value="MANAGER">Co-manager</option><option value="MEMBER">Member</option><option value="VIEWER">Viewer</option></select> : <span className="pill pill-neutral">{isPm ? 'Project manager' : labelize(m.role)}</span>}</td>
+              <td>{manage ? <select className="form-select form-select-sm" style={{ width: 82 }} value={m.allocationPct ?? 100} onChange={(e) => setRole(m, m.role, Number(e.target.value))} aria-label={`Allocation of ${m.name}`}>{[100, 75, 50, 25, 0].map((n) => <option key={n} value={n}>{n}%</option>)}</select> : `${m.allocationPct ?? 100}%`}</td>
+              <td className="text-end num">{st.open}{st.late > 0 && <span className="text-danger small fw-semibold"> ({st.late} late)</span>}</td>
+              <td className="text-end num">{st.done}</td>
+              <td className="text-end num small">{st.hours ? `${st.hours}h` : '—'}</td>
+              <td style={{ minWidth: 140 }}>{w ? <div className="d-flex align-items-center gap-2"><div className="meter flex-grow-1"><span style={{ width: `${Math.min(100, w.pct)}%`, background: w.pct > 100 ? 'var(--red)' : w.pct > 80 ? 'var(--amber)' : 'var(--green)' }} /></div><span className="small num">{Math.round(w.pct)}%</span></div> : <span className="small text-muted">—</span>}</td>
+              <td className="text-end">{manage && !isPm && <ConfirmButton className="btn btn-sm btn-ghost btn-icon text-danger" title={`Remove ${m.name}?`} message="They lose access to this project. Their tasks stay assigned so you can reassign them." confirmLabel="Remove" onConfirm={async () => { await del(`/projects/${project.id}/members/${m.id}`); reload(); }}><Trash2 size={14} aria-label="Remove" /></ConfirmButton>}</td>
+            </tr>); })}</tbody>
+        </table></div>
+      </Card>
+      {project.customerCompanyId && <Card className="mt-3" title={<>Client contacts <span className="text-muted fw-normal">· {project.customerName}</span></>}>
+        {clients.length ? <ul className="list-plain">{clients.map((m) => <li key={m.id}><Avatar sm name={m.name} /><span className="flex-grow-1"><span className="fw-semibold">{m.name}</span> <span className="small text-muted">{m.email}</span></span>
+          {manage && <ConfirmButton className="btn btn-sm btn-ghost text-danger" title={`Remove ${m.name}?`} confirmLabel="Remove" onConfirm={async () => { await del(`/projects/${project.id}/members/${m.id}`); reload(); }}>Remove</ConfirmButton>}</li>)}</ul> : <div className="small text-muted">No client contacts on this project.</div>}
+        {manage && contacts.length > 0 && <div className="d-flex gap-2 flex-wrap mt-2">{contacts.map((c) => <button key={c.userId} className="btn btn-sm btn-light" onClick={async () => { try { await put(`/projects/${project.id}/members/${c.userId}`, { role: 'CUSTOMER' }); reload(); } catch (e) { toast(e.message, 'error'); } }}><Plus size={13} /> {c.name}</button>)}</div>}
+        {!project.customerVisible && <div className="form-text mt-2">Client access is off — turn it on in Settings so contacts can follow the project.</div>}
+      </Card>}
+      {adding && <Modal open size="lg" onClose={() => setAdding(null)} title="Add people to the project" footer={<><button className="btn btn-light" onClick={() => setAdding(null)}>Cancel</button><button className="btn btn-primary" disabled={!Object.keys(adding).length} onClick={addAll}>Add {Object.keys(adding).length || ''} {Object.keys(adding).length === 1 ? 'person' : 'people'}</button></>}>
+        {dir.loading ? <Loading /> : candidates.length ? <TeamPicker people={candidates} team={adding} setTeam={setAdding} managerId={null} workload={wl.data?.data} /> : <Empty title="Everyone is already on this project">Add more people in Settings → Users & roles.</Empty>}
+      </Modal>}
+    </>
+  );
+}
+
+export function Activity() {
+  const { project } = useProject();
+  const [page, setPage] = useState(1);
+  const { data, error, loading, reload } = useLoad(() => get(`/projects/${project.id}/activity`, { page, pageSize: 40 }), [project.id, page]);
+  const say = (e) => {
+    const m = e.metadata || {}; const what = e.action.split('.').slice(1).join(' ').replace(/_/g, ' ');
+    const target = m.number ? ` #${m.number}` : m.title ? ` "${m.title}"` : '';
+    const detail = m.from && m.to ? ` (${labelize(m.from)} → ${labelize(m.to)})` : m.changes ? ` (${Object.keys(m.changes).filter((k) => k !== 'version').join(', ')})` : '';
+    return `${what} ${e.entityType === 'WorkItem' ? 'task' : e.entityType === 'Ticket' ? 'ticket' : e.entityType.replace(/([A-Z])/g, ' $1').trim().toLowerCase()}${target}${detail}`;
+  };
+  return (
+    <Card title="Activity" bodyClass="p-0">
+      <ErrorBox error={error} onRetry={reload} />
+      {loading && !data ? <div className="p-3"><Loading /></div> : data.data.length === 0 ? <Empty title="No activity yet" /> : (
+        <ul className="list-plain px-3">{data.data.map((e) => <li key={e.id} className="small"><Avatar sm name={e.actorName} /><span className="flex-grow-1"><strong>{e.actorName}</strong> {say(e)}</span><span className="text-muted text-nowrap" title={new Date(e.createdAt).toLocaleString()}>{fmtDate(e.createdAt)}</span></li>)}</ul>)}
+      <div className="px-3 pb-2"><Pagination meta={data?.meta} onPage={setPage} /></div>
+    </Card>
   );
 }
 

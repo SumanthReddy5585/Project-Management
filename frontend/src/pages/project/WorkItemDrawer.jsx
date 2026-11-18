@@ -119,6 +119,8 @@ export function WorkItemDrawer({ itemId, onClose }) {
 
         {!isCustomer && it.checklist && <Checklist it={it} canEdit={canEdit} reload={reload} projectId={project.id} />}
 
+        {!isCustomer && leaf && it.type !== 'MILESTONE' && !project.readOnly && <LogTime it={it} projectId={project.id} onLogged={() => { reload(); reloadProject(); }} />}
+
         <h3 className="h-section mt-3">Files</h3>
         <FileList targetType="workItem" targetId={it.id} compact />
 
@@ -165,6 +167,29 @@ function Checklist({ it, canEdit, reload, projectId }) {
         {canEdit && <button className="btn btn-sm btn-ghost btn-icon" aria-label="Remove checklist item" onClick={async () => { await del(`${base}/${c.id}`); reload(); }}><Trash2 size={13} /></button>}</li>)}</ul>
       {canEdit && <form className="d-flex gap-2 mt-1" onSubmit={async (e) => { e.preventDefault(); if (!text.trim()) return; await post(base, { text }); setText(''); reload(); }}>
         <input className="form-control form-control-sm" placeholder="Add a checklist item" value={text} onChange={(e) => setText(e.target.value)} aria-label="New checklist item" /><button className="btn btn-sm btn-light" disabled={!text.trim()}><Plus size={14} /> Add</button></form>}
+    </div>
+  );
+}
+
+function LogTime({ it, projectId, onLogged }) {
+  const toast = useToast();
+  const [f, setF] = useState({ date: new Date().toISOString().slice(0, 10), hours: '', note: '', billable: true });
+  const [busy, setBusy] = useState(false);
+  const log = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try { await post('/time/entries', { projectId, workItemId: it.id, date: f.date, hours: Number(f.hours), note: f.note || undefined, billable: f.billable }); toast(`${f.hours}h logged`, 'success'); setF({ ...f, hours: '', note: '' }); onLogged(); }
+    catch (x) { toast(x.message, 'error'); } finally { setBusy(false); }
+  };
+  return (
+    <div className="mb-3">
+      <h3 className="h-section">Log time <span className="text-muted fw-normal text-lowercase">· {fmtHours(it.actualHours)} logged{it.estimateHours ? ` of ${fmtHours(it.estimateHours)}` : ''}</span></h3>
+      <form className="d-flex gap-2 flex-wrap align-items-center" onSubmit={log}>
+        <input type="date" className="form-control form-control-sm" style={{ width: 150 }} value={f.date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setF({ ...f, date: e.target.value })} aria-label="Date" />
+        <input type="number" min="0.25" max="24" step="0.25" className="form-control form-control-sm" style={{ width: 90 }} placeholder="Hours" value={f.hours} onChange={(e) => setF({ ...f, hours: e.target.value })} aria-label="Hours" />
+        <input className="form-control form-control-sm flex-grow-1" style={{ minWidth: 140 }} placeholder="What did you do? (optional)" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} aria-label="Note" />
+        <label className="small d-inline-flex align-items-center gap-1"><input type="checkbox" className="form-check-input m-0" checked={f.billable} onChange={(e) => setF({ ...f, billable: e.target.checked })} /> Billable</label>
+        <button className="btn btn-sm btn-light" disabled={busy || !(Number(f.hours) > 0)}>Log</button>
+      </form>
     </div>
   );
 }

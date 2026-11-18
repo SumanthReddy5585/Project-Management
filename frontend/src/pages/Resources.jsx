@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { get, post } from '../api/client.js';
 import { useLoad, useDebounced } from '../lib/hooks.js';
+import { useAuth } from '../auth/AuthContext.jsx';
 import { addDaysISO, fmtHours, fmtRelative, mondayOf, todayISO, labelize } from '../lib/format.js';
 import { Card, Empty, ErrorBox, Loading, Notice, PageHeader, Pagination, Pill, Avatar } from '../components/ui.jsx';
 import { BarChart, PALETTE } from '../components/BarChart.jsx';
@@ -28,6 +29,7 @@ export function Workload() {
 }
 
 export function People() {
+  const { role } = useAuth();
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const dq = useDebounced(q);
@@ -35,14 +37,15 @@ export function People() {
   const teams = useLoad(() => get('/org/teams'), []);
   return (
     <>
-      <PageHeader title="People" sub="Directory of your organization's members, teams and skills." />
+      <PageHeader title="Team directory" sub="Everyone in your organisation with their designation, department, skills and current projects." actions={role === 'ADMIN' && <Link to="/settings/users" className="btn btn-primary">Add or edit users</Link>} />
       <div className="row g-3">
         <div className="col-lg-8"><div className="filters"><input className="form-control form-control-sm" style={{ maxWidth: 280 }} placeholder="Search by name or email" aria-label="Search people" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} /></div>
           <ErrorBox error={error} />
-          <div className="card">{loading && !data ? <div className="p-3"><Loading /></div> : <table className="table"><thead><tr><th>Name</th><th>Role</th><th>Teams</th><th>Skills</th><th className="text-end">Hours / week</th></tr></thead>
-            <tbody>{data?.data.map((m) => <tr key={m.userId}><td><div className="d-flex gap-2 align-items-center"><Avatar name={m.name} /><div><div className="fw-medium">{m.name}</div><div className="small text-muted">{m.title || m.email}</div></div></div></td>
-              <td><Pill>{labelize(m.role)}</Pill>{m.customerCompany && <div className="small text-muted">{m.customerCompany.name}</div>}</td><td className="small">{m.teams.map((t) => t.name).join(', ')}</td>
-              <td className="small">{m.skills.map((s) => <span key={s} className="pill pill-outline me-1">{s}</span>)}</td><td className="text-end">{m.role === 'CUSTOMER' ? '—' : m.weeklyCapacityHours}</td></tr>)}</tbody></table>}
+          <div className="card">{loading && !data ? <div className="p-3"><Loading /></div> : <table className="table"><thead><tr><th>Name</th><th>Designation</th><th>Department</th><th>Skills</th><th className="text-end">Projects</th><th className="text-end">Hours / week</th></tr></thead>
+            <tbody>{data?.data.map((m) => <tr key={m.userId}><td><div className="d-flex gap-2 align-items-center"><Avatar name={m.name} /><div><div className="fw-medium">{m.name}</div><div className="small text-muted">{m.email}{m.phone ? ` · ${m.phone}` : ''}</div></div></div></td>
+              <td>{m.title || <span className="text-muted">—</span>}<div><Pill tone={m.role === 'CUSTOMER' ? 'sky' : 'neutral'}>{labelize(m.role)}</Pill></div></td>
+              <td className="small">{m.role === 'CUSTOMER' ? m.customerCompany?.name : m.department || '—'}{m.teams.length > 0 && <div className="text-muted">{m.teams.map((t) => t.name).join(', ')}</div>}</td>
+              <td className="small">{m.skills.map((s) => <span key={s} className="pill pill-outline me-1">{s}</span>)}</td><td className="text-end num">{m.activeProjects ?? '—'}</td><td className="text-end num">{m.role === 'CUSTOMER' ? '—' : m.weeklyCapacityHours}</td></tr>)}</tbody></table>}
             <Pagination meta={data?.meta} onPage={setPage} /></div></div>
         <div className="col-lg-4"><Card title="Teams">{teams.data?.data.length === 0 ? <div className="small text-muted">No teams yet.</div> : <ul className="list-plain">{teams.data?.data.map((t) => <li key={t.id} className="d-block"><div className="fw-semibold">{t.name}</div><div className="small text-muted">{t.members.map((m) => m.name).join(', ') || 'No members'}</div></li>)}</ul>}</Card></div>
       </div>

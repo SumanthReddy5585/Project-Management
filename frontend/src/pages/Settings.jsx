@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { Tabs } from '../components/ui.jsx';
-import { AdminUsers, AdminCustomers, AdminCalendars, AdminTemplates, AdminTicketSettings, AdminAudit } from './admin/Admin.jsx';
+import { AdminCustomers, AdminCalendars, AdminTemplates, AdminTicketSettings, AdminAudit } from './admin/Admin.jsx';
+import { AdminUsers } from './admin/Users.jsx';
 import { AdminCanned } from './admin/Canned.jsx';
 
 const TABS = [['users', 'Users & roles', AdminUsers], ['customers', 'Clients', AdminCustomers], ['ticket-settings', 'SLA & categories', AdminTicketSettings], ['canned', 'Canned replies', AdminCanned],

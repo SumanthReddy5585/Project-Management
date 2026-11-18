@@ -75,11 +75,11 @@ function DeliveryReport() {
 }
 
 export default function Reports() {
-  const [tab, setTab] = useState('support');
+  const [tab, setTab] = useState('delivery');
   return (
     <>
-      <div className="page-header"><div><h1 className="h-page">Reports</h1><div className="sub">Support performance and delivery health. Figures update live.</div></div>
-        <Segmented label="Report" value={tab} onChange={setTab} options={[['support', 'Support desk'], ['delivery', 'Projects & capacity']]} /></div>
+      <div className="page-header"><div><h1 className="h-page">Reports</h1><div className="sub">Delivery health, team capacity and support performance. Figures update live.</div></div>
+        <Segmented label="Report" value={tab} onChange={setTab} options={[['delivery', 'Projects & capacity'], ['support', 'Support desk']]} /></div>
       {tab === 'support' ? <SupportReport /> : <DeliveryReport />}
     </>
   );

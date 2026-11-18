@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
-import { Flag, Target } from 'lucide-react';
+import { Flag, Target, TrendingUp, Users, Wallet } from 'lucide-react';
+import { LineChart } from '../../components/BarChart.jsx';
 import { get } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
-import { fmtDate, fmtRelative, projectColor } from '../../lib/format.js';
-import { Card, ErrorBox, Loading, StatusBadge, DueChip } from '../../components/ui.jsx';
+import { fmtDate, fmtRelative, projectColor, fmtMoney, labelize } from '../../lib/format.js';
+import { Card, ErrorBox, Loading, StatusBadge, DueChip, Avatar, Meter } from '../../components/ui.jsx';
 import { useProject } from './Workspace.jsx';
 
 export function Overview() {
@@ -12,6 +13,7 @@ export function Overview() {
   const { isCustomer } = useAuth();
   const ms = useLoad(() => get(`/projects/${p.id}/work-items`, { type: 'MILESTONE', all: 'true', sort: 'plannedFinish', dir: 'asc' }), [p.id]);
   const ups = useLoad(() => get(`/projects/${p.id}/updates`), [p.id]);
+  const burn = useLoad(() => get(`/projects/${p.id}/burnup`), [p.id, p.version, p.progress]);
   const color = projectColor(p.code);
   const today = new Date().toISOString().slice(0, 10);
   const current = p.phases.find((ph) => ph.plannedStart && ph.plannedStart <= today && (!ph.plannedFinish || ph.plannedFinish >= today));
@@ -34,6 +36,12 @@ export function Overview() {
               <span className="small fw-bold" style={{ width: 40, textAlign: 'right' }}>{ph.progress == null ? '—' : `${Math.round(ph.progress)}%`}</span>
             </div>))}
         </Card>
+        <Card title={<span className="d-inline-flex align-items-center gap-2"><TrendingUp size={17} /> Burn-up</span>} actions={burn.data && <span className="small text-muted">{burn.data.done} of {burn.data.total} tasks done</span>}>
+          {burn.data?.series.length > 1 ? <LineChart height={220} label="Tasks in scope, completed and planned to be complete, by week" labels={burn.data.series.map((x) => new Date(`${x.date}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }))}
+            series={[{ name: 'Completed', data: burn.data.series.map((x) => x.done), color: '#16a34a' }, { name: 'Planned to be done', data: burn.data.series.map((x) => x.planned), color: '#94a3b8' }, { name: 'Total scope', data: burn.data.series.map((x) => x.scope), color: '#2563eb' }]} />
+            : <div className="small text-muted">The chart fills in as the project runs and tasks are completed.</div>}
+          <div className="form-text">Green rising toward blue = finishing scope. Green below grey = behind plan.</div>
+        </Card>
       </div>
       <div className="col-xl-4 d-flex flex-column gap-4">
         <Card title="Latest update" actions={<Link to="updates" className="small fw-semibold">All updates</Link>}>
@@ -48,6 +56,17 @@ export function Overview() {
               {m.status === 'DONE' ? <StatusBadge status="DONE" /> : <DueChip date={m.plannedFinish} />}
             </button>))}
         </Card>
+        {!isCustomer && <Card title={<span className="d-inline-flex align-items-center gap-2"><Users size={16} /> Team</span>} actions={<Link to="team" className="small fw-semibold">Manage</Link>}>
+          {p.members.filter((m) => m.role !== 'CUSTOMER').map((m) => <div key={m.id} className="d-flex align-items-center gap-2 py-1"><Avatar sm name={m.name} /><span className="flex-grow-1 min-w-0"><span className="small fw-semibold d-block truncate">{m.name}</span><span className="small text-muted truncate d-block">{m.title || labelize(m.role)}</span></span>{m.id === p.managerId ? <span className="pill pill-dark">PM</span> : m.role === 'VIEWER' && <span className="pill pill-outline">Viewer</span>}</div>)}
+        </Card>}
+        {!isCustomer && burn.data?.hours && <Card title={<span className="d-inline-flex align-items-center gap-2"><Wallet size={16} /> Effort & budget</span>}>
+          <div className="d-flex justify-content-between small mb-1"><span className="text-muted">Hours logged vs estimated</span><strong className="num">{burn.data.hours.logged}h / {burn.data.hours.estimate}h</strong></div>
+          <Meter value={burn.data.hours.estimate ? (burn.data.hours.logged / burn.data.hours.estimate) * 100 : null} label="Hours used" />
+          {burn.data.budget && <>
+            <div className="d-flex justify-content-between small mb-1 mt-3"><span className="text-muted">Budget used</span><strong className="num">{burn.data.budget.consumed == null ? '—' : fmtMoney(burn.data.budget.consumed, burn.data.budget.currency)} / {fmtMoney(burn.data.budget.amount, burn.data.budget.currency)}</strong></div>
+            {burn.data.budget.consumed != null ? <Meter value={(burn.data.budget.consumed / burn.data.budget.amount) * 100} label="Budget used" /> : <div className="small text-muted">Set an hourly rate in Settings to track spend.</div>}</>}
+          <div className="form-text mt-2">{burn.data.hours.billable}h billable. Spend = billable hours × hourly rate.</div>
+        </Card>}
         {!isCustomer && p.description && <Card title="About"><p className="small mb-0" style={{ whiteSpace: 'pre-wrap' }}>{p.description}</p></Card>}
       </div>
     </div>

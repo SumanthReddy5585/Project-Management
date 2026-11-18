@@ -10,19 +10,19 @@ function Shell({ children }) {
   return (
     <div className="auth-wrap">
       <div className="auth-art">
-        <div className="brand"><BrandMark /><div>{APP_NAME}<small>Customer support & delivery</small></div></div>
+        <div className="brand"><BrandMark /><div>{APP_NAME}<small>Projects & customer support</small></div></div>
         <div>
-          <h1>One hub for every client ticket, SLA and project.</h1>
-          <p className="mt-3" style={{ maxWidth: 480 }}>Your support desk, knowledge base and delivery plans in one place — with live updates and clients who only see what you share.</p>
+          <h1>Plan projects, run your team and support clients — in one hub.</h1>
+          <p className="mt-3" style={{ maxWidth: 480 }}>Phases, Gantt timelines, tasks, timesheets and budgets — plus a ticket desk with SLAs. Live updates, and clients only see what you share.</p>
           <div className="auth-points">
-            <div><ShieldCheck size={17} /><span>SLA timers on every ticket, counted in working hours</span></div>
-            <div><Zap size={17} /><span>Live queue — new tickets and replies appear instantly</span></div>
-            <div><BookOpen size={17} /><span>Self-service help center for your clients</span></div>
-            <div><FolderKanban size={17} /><span>Escalate tickets into tracked project tasks</span></div>
+            <div><FolderKanban size={17} /><span>Projects with phases, milestones, Gantt and critical path</span></div>
+            <div><Zap size={17} /><span>Live updates — changes appear instantly for everyone</span></div>
+            <div><ShieldCheck size={17} /><span>Ticket desk with SLA timers in working hours</span></div>
+            <div><BookOpen size={17} /><span>Client portal and self-service help center</span></div>
           </div>
           <div className="demo-floats mt-4" aria-hidden="true">
+            <div className="f"><span className="pill pill-ok">On track</span>Store Modernization · Build phase<span className="ms-auto small" style={{ color: '#93c5fd' }}>64%</span></div>
             <div className="f"><span className="pill pill-solid-risk">Urgent</span>Checkout fails on Safari<span className="ms-auto small" style={{ color: '#fca5a5' }}>42m to reply</span></div>
-            <div className="f"><span className="pill pill-ok">Resolved</span>Password reset email delayed<span className="ms-auto small" style={{ color: '#fcd34d' }}>★★★★★</span></div>
           </div>
         </div>
         <div className="small" style={{ color: '#6f819b' }}>© {new Date().getFullYear()} {APP_NAME} · Invitation-only workspace</div>
@@ -133,6 +133,41 @@ export function ResetPassword() {
           <Field label="Confirm password">{(id) => <input id={id} type="password" autoComplete="new-password" className="form-control" required value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} />}</Field>
           <button className="btn btn-primary w-100 justify-content-center">Update password</button>
         </form></>}
+    </Shell>
+  );
+}
+
+/** Shared change-password form (first sign-in with a temporary password, or from My profile). */
+export function ChangePasswordForm({ onDone, submitLabel = 'Update password' }) {
+  const [f, setF] = useState({ currentPassword: '', newPassword: '', confirm: '' });
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault(); setErr(null);
+    if (f.newPassword !== f.confirm) return setErr({ message: 'The new passwords do not match' });
+    setBusy(true);
+    try { await post('/auth/password/change', { currentPassword: f.currentPassword, newPassword: f.newPassword }); setF({ currentPassword: '', newPassword: '', confirm: '' }); await onDone?.(); } catch (x) { setErr(x); } finally { setBusy(false); }
+  };
+  return (
+    <form onSubmit={submit}>
+      <ErrorBox error={err} />
+      <Field label="Current (or temporary) password">{(id) => <input id={id} type="password" autoComplete="current-password" className="form-control" required value={f.currentPassword} onChange={(e) => setF({ ...f, currentPassword: e.target.value })} />}</Field>
+      <Field label="New password" hint="At least 10 characters, including a letter and a number." error={fieldErrors(err).newPassword}>{(id) => <input id={id} type="password" autoComplete="new-password" className="form-control" required value={f.newPassword} onChange={(e) => setF({ ...f, newPassword: e.target.value })} />}</Field>
+      <Field label="Confirm new password">{(id) => <input id={id} type="password" autoComplete="new-password" className="form-control" required value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} />}</Field>
+      <button className="btn btn-primary w-100 justify-content-center" disabled={busy}>{busy ? 'Saving…' : submitLabel}</button>
+    </form>
+  );
+}
+
+/** Shown instead of the app until a user with a temporary password picks their own. */
+export function FirstPasswordGate() {
+  const { me, refresh, logout } = useAuth();
+  return (
+    <Shell>
+      <h2 className="h4 fw-bold mb-1">Welcome, {me.user.name.split(' ')[0]}</h2>
+      <p className="text-muted mb-4">Your administrator created your account with a temporary password. Choose your own to continue.</p>
+      <ChangePasswordForm onDone={refresh} submitLabel="Set my password and continue" />
+      <div className="mt-3 small"><button className="btn btn-link p-0" onClick={logout}>Sign out</button></div>
     </Shell>
   );
 }

@@ -24,16 +24,20 @@ r.get('/', async (req, res) => {
     ...(q.q && { OR: [{ name: { contains: q.q, mode: 'insensitive' } }, { code: { contains: q.q, mode: 'insensitive' } }] }) };
   if (!statuses?.length && !q.q) where.status = { not: 'ARCHIVED' };
   const [rows, total] = await Promise.all([
-    prisma.project.findMany({ where, include: { customerCompany: true }, orderBy: orderBy(q.sort, q.dir, ['name', 'code', 'plannedFinish', 'updatedAt', 'status'], 'updatedAt'), ...pageArgs(q) }),
+    prisma.project.findMany({ where, include: { customerCompany: true, _count: { select: { members: { where: { role: { not: 'CUSTOMER' } } } } } }, orderBy: orderBy(q.sort, q.dir, ['name', 'code', 'plannedFinish', 'updatedAt', 'status'], 'updatedAt'), ...pageArgs(q) }),
     prisma.project.count({ where }),
   ]);
   const managers = await prisma.user.findMany({ where: { id: { in: rows.map((p) => p.managerId).filter(Boolean) } }, select: { id: true, name: true } });
   const mgr = new Map(managers.map((m) => [m.id, m.name]));
   const out = [];
+  const today = new Date().toISOString().slice(0, 10);
   for (const p of rows) {
-    const { r: roll } = await projectProgress(p.id);
+    const { r: roll, items } = await projectProgress(p.id);
     const access = { isCustomer: req.auth.isCustomer, role: req.auth.orgRole === 'ADMIN' ? 'ADMIN' : undefined, can: () => false };
-    out.push(S.project(p, access, { progress: roll.project.percent, milestones: roll.milestones, customerName: p.customerCompany?.name ?? null, managerName: mgr.get(p.managerId) ?? null }));
+    const vis = (req.auth.isCustomer ? items.filter((i) => i.customerVisible) : items).filter((i) => i.type !== 'MODULE');
+    const open = vis.filter((i) => !['DONE', 'CANCELLED'].includes(i.status));
+    out.push(S.project(p, access, { progress: roll.project.percent, milestones: roll.milestones, customerName: p.customerCompany?.name ?? null, managerName: mgr.get(p.managerId) ?? null,
+      ...(!req.auth.isCustomer && { teamSize: p._count.members }), counts: { total: vis.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length } }));
   }
   res.json(paged(out, total, q));
 });
@@ -43,6 +47,8 @@ const createBody = z.object({
   description: z.string().max(5000).optional().nullable(), objectives: z.string().max(5000).optional().nullable(),
   customerCompanyId: uuid.optional().nullable(), customerContactIds: z.array(uuid).max(50).default([]),
   managerId: uuid, teamMemberIds: z.array(uuid).max(200).default([]),
+  // Richer team selection from the project wizard: role and allocation per person (overrides teamMemberIds).
+  team: z.array(z.object({ userId: uuid, role: z.enum(['MANAGER', 'MEMBER', 'VIEWER']).default('MEMBER'), allocationPct: z.number().int().min(0).max(100).default(100) })).max(200).optional(),
   plannedStart: dateOnly, plannedFinish: dateOnly, priority: enumP.default('MEDIUM'), health: enumH.default('GREEN'),
   status: z.enum(['DRAFT', 'ACTIVE']).default('DRAFT'), calendarId: uuid.optional().nullable(), timezone: z.string().max(60).default('UTC'),
   budgetAmount: z.number().min(0).max(1e12).optional().nullable(), budgetCurrency: z.string().length(3).toUpperCase().optional().nullable(),
@@ -64,7 +70,8 @@ r.post('/', async (req, res) => {
     const n = await prisma.membership.count({ where: { organizationId: orgId, userId: { in: b.customerContactIds }, role: 'CUSTOMER', customerCompanyId: b.customerCompanyId, status: 'ACTIVE' } });
     if (n !== new Set(b.customerContactIds).size) throw badRequest('Customer contacts must be active users of the selected customer company');
   }
-  const team = [...new Set(b.teamMemberIds)].filter((id) => id !== b.managerId);
+  const roster = new Map((b.team ?? b.teamMemberIds.map((userId) => ({ userId, role: 'MEMBER', allocationPct: 100 }))).filter((t) => t.userId !== b.managerId).map((t) => [t.userId, t]));
+  const team = [...roster.keys()];
   if (team.length && (await prisma.membership.count({ where: { organizationId: orgId, userId: { in: team }, role: { in: ['ADMIN', 'MANAGER', 'EMPLOYEE'] }, status: 'ACTIVE' } })) !== team.length) {
     throw badRequest('Team members must be active internal users');
   }
@@ -99,7 +106,7 @@ r.post('/', async (req, res) => {
       calendarId: calRow?.id ?? null, timezone: b.timezone, budgetAmount: b.budgetAmount, budgetCurrency: b.budgetCurrency, billingEnabled: b.billingEnabled,
       hourlyRate: b.hourlyRate, templateId: template?.id ?? null, customerVisible: b.customerVisible,
     } });
-    const members = [{ userId: b.managerId, role: 'MANAGER' }, ...team.map((userId) => ({ userId, role: 'MEMBER' })), ...b.customerContactIds.map((userId) => ({ userId, role: 'CUSTOMER' }))];
+    const members = [{ userId: b.managerId, role: 'MANAGER' }, ...[...roster.values()].map((t) => ({ userId: t.userId, role: t.role, allocationPct: t.allocationPct })), ...b.customerContactIds.map((userId) => ({ userId, role: 'CUSTOMER' }))];
     if (req.auth.userId !== b.managerId && req.auth.orgRole === 'MANAGER' && !team.includes(req.auth.userId)) members.push({ userId: req.auth.userId, role: 'MANAGER' });
     await tx.projectMember.createMany({ data: members.map((m) => ({ ...m, projectId: p.id })), skipDuplicates: true });
     let seq = 0;
@@ -134,7 +141,7 @@ async function projectDetail(req, access) {
     progress: roll.project.percent, progressMethod: roll.project.method, milestones: roll.milestones,
     customerName: customer?.name ?? null, calendarName: calendar?.name ?? null,
     phases: phases.map((ph) => S.phase(ph, access, roll.phase(ph.id).percent)),
-    members: members.map((m) => ({ ...S.publicUser(m.user), role: m.role, ...(access.internal && { email: m.user.email, allocationPct: m.allocationPct }) })),
+    members: members.map((m) => ({ ...S.publicUser(m.user), role: m.role, title: m.user.title, ...(access.internal && { email: m.user.email, department: m.user.department, allocationPct: m.allocationPct }) })),
     counts: { items: visible.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length,
       ...(access.internal && { blocked: open.filter((i) => i.status === 'BLOCKED').length }) },
     readOnly: READ_ONLY_PROJECT.has(p.status),
@@ -215,6 +222,116 @@ r.delete('/:projectId/members/:userId', async (req, res) => {
   await prisma.projectMember.deleteMany({ where: { projectId: access.project.id, userId: req.params.userId } });
   await audit(prisma, req.auth, { action: 'project.member_removed', entityType: 'Project', entityId: access.project.id, projectId: access.project.id, metadata: { userId: req.params.userId } }, req.ip);
   res.status(204).end();
+});
+
+// ----- Copy, templates and progress history -----
+const DAY = 86400000;
+const shiftDate = (d, days) => (d ? new Date(d.getTime() + days * DAY) : d);
+
+// Duplicate a project's plan: phases, groups, tasks, subtasks, milestones, checklists and dependencies,
+// shifted to a new start date. Comments, time, files and tickets are not copied. Team is optional.
+r.post('/:projectId/clone', async (req, res) => {
+  requireOrg(req.auth, 'project.create');
+  const access = await projectAccess(req.auth, req.params.projectId);
+  if (!access.internal) throw forbidden();
+  const b = parse(z.object({ name: z.string().trim().min(2).max(160), code: createBody.shape.code, plannedStart: dateOnly, includeTeam: z.boolean().default(true), includeAssignees: z.boolean().default(false) }), req.body);
+  const src = access.project;
+  if (await prisma.project.findFirst({ where: { organizationId: req.auth.orgId, code: b.code } })) throw conflict(`Project code ${b.code} is already used`);
+  const offset = Math.round((toDate(b.plannedStart) - src.plannedStart) / DAY);
+  const [phases, items, deps, members, checklist] = await Promise.all([
+    prisma.phase.findMany({ where: { projectId: src.id }, orderBy: { sortOrder: 'asc' } }),
+    prisma.workItem.findMany({ where: { projectId: src.id, status: { not: 'CANCELLED' } }, orderBy: { number: 'asc' } }),
+    prisma.dependency.findMany({ where: { projectId: src.id } }),
+    prisma.projectMember.findMany({ where: { projectId: src.id } }),
+    prisma.checklistItem.findMany({ where: { workItem: { projectId: src.id } } }),
+  ]);
+  const p = await prisma.$transaction(async (tx) => {
+    const np = await tx.project.create({ data: {
+      organizationId: src.organizationId, name: b.name, code: b.code, description: src.description, objectives: src.objectives, customerCompanyId: src.customerCompanyId,
+      managerId: req.auth.orgRole === 'MANAGER' ? req.auth.userId : src.managerId, status: 'DRAFT', priority: src.priority, health: 'GREEN',
+      plannedStart: shiftDate(src.plannedStart, offset), plannedFinish: shiftDate(src.plannedFinish, offset), calendarId: src.calendarId, timezone: src.timezone,
+      budgetAmount: src.budgetAmount, budgetCurrency: src.budgetCurrency, billingEnabled: src.billingEnabled, hourlyRate: src.hourlyRate, templateId: src.templateId,
+      customerVisible: src.customerVisible, workItemSeq: src.workItemSeq,
+    } });
+    const team = b.includeTeam ? members : members.filter((m) => m.userId === src.managerId);
+    const mgr = req.auth.orgRole === 'MANAGER' ? [{ userId: req.auth.userId, role: 'MANAGER', allocationPct: 100 }] : [];
+    await tx.projectMember.createMany({ data: [...mgr, ...team].map((m) => ({ projectId: np.id, userId: m.userId, role: m.role, allocationPct: m.allocationPct })), skipDuplicates: true });
+    const phaseMap = new Map();
+    for (const ph of phases) {
+      const n = await tx.phase.create({ data: { projectId: np.id, name: ph.name, sortOrder: ph.sortOrder, ownerId: ph.ownerId, plannedStart: shiftDate(ph.plannedStart, offset), plannedFinish: shiftDate(ph.plannedFinish, offset), completionCriteria: ph.completionCriteria, customerVisible: ph.customerVisible } });
+      phaseMap.set(ph.id, n.id);
+    }
+    const itemMap = new Map();
+    // parents first: items are ordered by number and a parent always has a lower number than its children
+    for (const it of items) {
+      const n = await tx.workItem.create({ data: {
+        projectId: np.id, phaseId: phaseMap.get(it.phaseId) ?? null, parentId: itemMap.get(it.parentId) ?? null, type: it.type, number: it.number, title: it.title,
+        description: it.description, acceptanceCriteria: it.acceptanceCriteria, assigneeId: b.includeAssignees ? it.assigneeId : null, priority: it.priority,
+        plannedStart: shiftDate(it.plannedStart, offset), plannedFinish: shiftDate(it.plannedFinish, offset), estimateHours: it.estimateHours,
+        customerVisible: it.customerVisible, labels: it.labels, sortOrder: it.sortOrder, createdById: req.auth.userId,
+      } });
+      itemMap.set(it.id, n.id);
+    }
+    const deps2 = deps.filter((d) => itemMap.has(d.predecessorId) && itemMap.has(d.successorId));
+    if (deps2.length) await tx.dependency.createMany({ data: deps2.map((d) => ({ projectId: np.id, predecessorId: itemMap.get(d.predecessorId), successorId: itemMap.get(d.successorId), type: d.type, lagDays: d.lagDays })) });
+    const cl = checklist.filter((c) => itemMap.has(c.workItemId));
+    if (cl.length) await tx.checklistItem.createMany({ data: cl.map((c) => ({ workItemId: itemMap.get(c.workItemId), text: c.text, sortOrder: c.sortOrder ?? 0 })) });
+    await audit(tx, req.auth, { action: 'project.cloned', entityType: 'Project', entityId: np.id, projectId: np.id, metadata: { from: src.code, items: items.length } }, req.ip);
+    return np;
+  });
+  res.status(201).json({ id: p.id, code: p.code, name: p.name });
+});
+
+// Save this project's phase structure (relative durations, milestones, deliverables) as a reusable template.
+r.post('/:projectId/save-as-template', async (req, res) => {
+  requireOrg(req.auth, 'project.create');
+  const access = await projectAccess(req.auth, req.params.projectId);
+  access.require('project.edit');
+  const { name, description } = parse(z.object({ name: z.string().trim().min(2).max(120), description: z.string().max(1000).optional() }), req.body);
+  if (await prisma.projectTemplate.findFirst({ where: { organizationId: req.auth.orgId, name } })) throw conflict('A template with this name already exists');
+  const cal = await projectCalendar(access.project);
+  const phases = await prisma.phase.findMany({ where: { projectId: access.project.id }, orderBy: { sortOrder: 'asc' } });
+  const ms = await prisma.workItem.findMany({ where: { projectId: access.project.id, type: 'MILESTONE' }, select: { title: true, phaseId: true } });
+  const dl = await prisma.deliverable.findMany({ where: { projectId: access.project.id }, select: { name: true, phaseId: true } });
+  const t = await prisma.projectTemplate.create({ data: { organizationId: req.auth.orgId, name, description: description ?? `Based on ${access.project.code} · ${access.project.name}`,
+    phases: { create: phases.map((ph, i) => ({ name: ph.name, sortOrder: i, completionCriteria: ph.completionCriteria,
+      durationDays: ph.plannedStart && ph.plannedFinish ? Math.max(1, workingDaysBetween(fmtDate(ph.plannedStart), fmtDate(ph.plannedFinish), cal)) : 5,
+      milestones: ms.filter((m) => m.phaseId === ph.id).map((m) => m.title), deliverables: dl.filter((d) => d.phaseId === ph.id).map((d) => d.name) })) } } });
+  await audit(prisma, req.auth, { action: 'template.created', entityType: 'ProjectTemplate', entityId: t.id, metadata: { from: access.project.code } }, req.ip);
+  res.status(201).json({ id: t.id, name: t.name });
+});
+
+// Burn-up: scope (tasks that existed) vs completed, weekly from project start until today or finish.
+r.get('/:projectId/burnup', async (req, res) => {
+  const access = await projectAccess(req.auth, req.params.projectId);
+  const items = await prisma.workItem.findMany({ where: { projectId: access.project.id, type: { in: ['TASK', 'SUBTASK'] }, status: { not: 'CANCELLED' }, ...(access.isCustomer && { customerVisible: true }) },
+    select: { createdAt: true, status: true, actualFinish: true, updatedAt: true, plannedFinish: true } });
+  const start = access.project.plannedStart; const finish = access.project.plannedFinish;
+  const end = new Date(Math.min(Date.now(), finish.getTime() + 7 * DAY));
+  const weeks = [];
+  for (let d = new Date(start); d <= end; d = new Date(d.getTime() + 7 * DAY)) weeks.push(d);
+  if (!weeks.length || weeks.at(-1) < end) weeks.push(end);
+  const doneAt = (i) => (i.status === 'DONE' ? (i.actualFinish ?? i.updatedAt) : null);
+  const series = weeks.map((w) => {
+    const eod = new Date(w.getTime() + DAY - 1);
+    return { date: fmtDate(w), scope: items.filter((i) => i.createdAt <= eod).length, done: items.filter((i) => doneAt(i) && doneAt(i) <= eod).length,
+      planned: items.filter((i) => i.plannedFinish && i.plannedFinish <= eod).length };
+  });
+  const out = { series, total: items.length, done: items.filter((i) => i.status === 'DONE').length };
+  if (access.internal) {
+    const p = access.project;
+    const [est, logged, billable] = await Promise.all([
+      prisma.workItem.aggregate({ where: { projectId: p.id, type: { in: ['TASK', 'SUBTASK'] }, status: { not: 'CANCELLED' } }, _sum: { estimateHours: true } }),
+      prisma.timeEntry.aggregate({ where: { projectId: p.id }, _sum: { hours: true } }),
+      prisma.timeEntry.aggregate({ where: { projectId: p.id, billable: true }, _sum: { hours: true } }),
+    ]);
+    out.hours = { estimate: Number(est._sum.estimateHours ?? 0), logged: Number(logged._sum.hours ?? 0), billable: Number(billable._sum.hours ?? 0) };
+    if (access.can('project.financials') && p.budgetAmount != null) {
+      out.budget = { amount: Number(p.budgetAmount), currency: p.budgetCurrency, rate: p.hourlyRate == null ? null : Number(p.hourlyRate),
+        consumed: p.hourlyRate == null ? null : Math.round(out.hours.billable * Number(p.hourlyRate) * 100) / 100 };
+    }
+  }
+  res.json(out);
 });
 
 // ----- Phases -----

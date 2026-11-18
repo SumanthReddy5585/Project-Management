@@ -169,6 +169,10 @@ model User {
   name                String
   passwordHash        String
   title               String?
+  department          String?
+  phone               String?
+  employeeId          String?
+  mustChangePassword  Boolean   @default(false)
   skills              String[]  @default([])
   weeklyCapacityHours Decimal   @default(40) @db.Decimal(5, 2)
   createdAt           DateTime  @default(now()) @db.Timestamptz(3)
@@ -225,6 +229,8 @@ model Invitation {
   organizationId    String    @db.Uuid
   email             String
   name              String?
+  title             String?
+  department        String?
   role              OrgRole
   customerCompanyId String?   @db.Uuid
   tokenHash         String    @unique
