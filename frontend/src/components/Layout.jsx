@@ -9,7 +9,8 @@ import { connectLive, disconnectLive, useLive, useLiveStatus } from '../lib/live
 import { Avatar, StatusBadge, ProjectDot, ProjectChip, useToast } from './ui.jsx';
 
 export const APP_NAME = 'O2 Support Hub';
-export const BrandMark = () => <span className="brand-mark" aria-hidden="true">O<sub>2</sub></span>;
+export const BrandMark = () => <img src="/logo-mark.png" className="brand-mark-img" alt="" aria-hidden="true" />;
+export const BrandLogo = ({ className = '' }) => <img src="/logo.png" className={`brand-logo ${className}`} alt={APP_NAME} />;
 
 function NavItem({ to, icon: Icon, children, end, count, hot }) {
   return <NavLink to={to} end={end} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><Icon size={16} aria-hidden="true" /><span className="truncate">{children}</span>{count > 0 && <span className={`count ${hot ? 'hot' : ''}`}>{count}</span>}</NavLink>;
@@ -190,7 +191,7 @@ export default function Layout() {
       <a href="#main" className="skip-link">Skip to content</a>
       <header className="j-top">
         <button className="btn btn-ghost btn-icon" onClick={toggle} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title="Sidebar"><PanelLeft size={18} /></button>
-        <Link to="/" className="brand-link"><BrandMark /><span className="brand-text">{APP_NAME}</span></Link>
+        <Link to="/" className="brand-link" aria-label={`${APP_NAME} home`}><BrandLogo className="d-none d-sm-block" /><span className="d-sm-none"><BrandMark /></span></Link>
         <GlobalSearch />
         <NewMenu />
         <div className="right">

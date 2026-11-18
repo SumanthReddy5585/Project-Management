@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { APP_NAME, BrandMark } from '../components/Layout.jsx';
+import { APP_NAME, BrandLogo } from '../components/Layout.jsx';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { get, post } from '../api/client.js';
@@ -9,7 +9,7 @@ function Shell({ children }) {
   return (
     <div className="j-auth">
       <div className="j-auth-card">
-        <div className="j-auth-brand"><BrandMark /><span>{APP_NAME}</span></div>
+        <div className="j-auth-brand"><BrandLogo /></div>
         {children}
       </div>
       <div className="j-auth-foot">Projects, timelines and customer support in one place · Invitation-only workspace · © {new Date().getFullYear()}</div>
