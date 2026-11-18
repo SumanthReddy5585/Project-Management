@@ -1,8 +1,10 @@
-# Meridian: Projects & Service
+# O2 Support Hub
 
-A multi-tenant project management and ticketing application for managers, employees and external customers. It covers planning (phases, modules, tasks, dependencies, timeline, baselines, critical path), execution (Kanban, time tracking, timesheet approval, workload) and service (customer portal, tickets with SLA, deliverable approvals), with strict separation between internal and customer-visible information.
+A multi-tenant **customer support desk + project delivery** application for managers, support agents/employees and external clients. Support comes first: a live ticket queue with saved views, business-hours SLA timers, canned replies, internal notes, bulk triage, satisfaction ratings, a client portal and a searchable knowledge base. Delivery sits alongside it: planning (phases, modules, tasks, dependencies, timeline, baselines, critical path), execution (Kanban, time tracking, timesheet approval, workload) and service (customer portal, tickets with SLA, deliverable approvals), with strict separation between internal and customer-visible information.
 
-**Stack:** React 19 + Vite 8 + Bootstrap 5 + React Router 7 + Axios + Lucide + Chart.js · Node 22 + Express 5 + Prisma 7 (pg adapter) + PostgreSQL 16 · Vitest + Supertest + Playwright.
+**Stack:** React 19 + Vite 8 + Bootstrap 5 + React Router 7 + Axios + Lucide + Chart.js + Inter (OFL) · Node 22 + Express 5 + Prisma 7 (pg adapter) + PostgreSQL 16 + Server-Sent Events + Nodemailer · Vitest + Playwright. Every dependency is free and open source (MIT/ISC/Apache/OFL).
+
+**Realtime:** every signed-in browser holds one Server-Sent Events connection (`/api/events`). When a ticket, message, task or notification changes, the server pushes only ids, filtered per user and client company; screens re-fetch through the normal permission-checked API. No data travels on the stream itself.
 
 ## Run it (easiest)
 
@@ -39,8 +41,8 @@ Docker: `POSTGRES_PASSWORD=… docker compose up --build`, then open http://loca
 | Check | Result |
 |---|---|
 | Backend unit tests (calendar, SLA/business hours, progress, workflow, dependencies, CPM, capacity) | 27 passed |
-| Backend integration tests on a dedicated `_test` DB: acceptance workflow steps 1–13, cross-org and guessed-ID access, customer/internal separation across APIs, notifications, search, exports and activity, concurrency, duplicate approval, rate limiting, file security | 32 passed |
-| Browser E2E (Playwright + Chrome): project wizard → customer visibility → ticket public reply vs internal note → other-customer URL access | 6 passed |
+| Backend integration tests on a dedicated `_test` DB: acceptance workflow steps 1–13, cross-org and guessed-ID access, customer/internal separation across APIs, notifications, search, exports and activity, concurrency, duplicate approval, rate limiting, file security; support desk (views, bulk triage, CSAT rules, canned replies, KB visibility, live-event scoping, SSE stream, database file storage) | 44 passed |
+| Browser E2E (Playwright + Chrome): project + quick-add tasks → client visibility → client raises ticket → agent assigns, canned reply, internal note → **reply appears live in the client's open browser** → resolve + client rating → other-client URL access | 8 passed |
 | Production frontend build | OK |
 | Demo seed through the real HTTP API | OK |
 | One-click launcher from a fresh unzip (Linux, normal user): install → bundled DB → migration → demo data → app; E2E against it; stop/restart keeps data | OK |
@@ -54,7 +56,9 @@ Docker: `POSTGRES_PASSWORD=… docker compose up --build`, then open http://loca
 
 **Partial:** SS/FF/SF dependencies are stored and labelled but not scheduled. Timeline rescheduling uses a dialog rather than drag-and-drop. Org switcher for multi-org users is not built (users sign into their first organization).
 
-**Not implemented (deliberately not shown as working):** outbound email and email-to-ticket; configurable workflows per org; automatic (auto-scheduling) mode; MFA/SSO; antivirus scanning of uploads; S3-style storage provider.
+**Email:** invitations, password resets and notification copies are emailed when `SMTP_URL` is set (any SMTP provider, e.g. Brevo's free plan); without it the app shows copyable links and in-app notifications.
+
+**Not implemented (deliberately not shown as working):** email-to-ticket (inbound mail); configurable workflows per org; automatic (auto-scheduling) mode; MFA/SSO; antivirus scanning of uploads; S3-style storage provider.
 
 ## Production readiness
 

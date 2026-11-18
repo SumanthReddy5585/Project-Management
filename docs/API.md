@@ -58,3 +58,19 @@ Base path `/api`. JSON in and out. Authentication uses an HttpOnly session cooki
 
 ## Operations
 `GET /health` (liveness) · `GET /ready` (database reachable)
+
+## Support desk (added for O2 Support Hub)
+
+| Method & path | Who | Purpose |
+|---|---|---|
+| `GET /api/tickets/views` | all | Counts for queue views (`mine`, `unassigned`, `open`, `overdue`, `waiting`, `new`, `resolved`, `all`; clients: `open`, `waiting`, `resolved`, `requested`, `all`) |
+| `GET /api/tickets?view=…&tag=…` | all | List a view; `tag` is staff-only |
+| `GET /api/tickets/stats` | staff | Dashboard metrics: open/unassigned/breached/at-risk, 14-day created vs resolved, avg first reply & resolution, SLA compliance (30d), CSAT (90d), workload by agent and client |
+| `POST /api/tickets/bulk` | staff | `{ids, assigneeId?, priority?, status?, addTag?}`; illegal status moves are skipped and reported |
+| `PATCH /api/tickets/:id` | staff | Now also accepts `tags` |
+| `POST /api/tickets/:id/csat` | requester | `{rating 1–5, comment?}` once the ticket is resolved or closed |
+| `GET/POST/PATCH/DELETE /api/canned-responses` | staff | Saved replies; placeholders `{{requester}} {{number}} {{agent}} {{subject}}` are filled in the browser |
+| `GET /api/kb/articles?q=&category=` | all | Clients see published `PUBLIC` articles only; search matches every word in any order |
+| `GET /api/kb/articles/:id` · `POST …/feedback` | all | Read (counts a view) and vote helpful / not helpful |
+| `POST/PATCH /api/kb/articles` · `DELETE` | staff · managers | Write and publish; delete is managers only |
+| `GET /api/events` | all | Server-Sent Events: `{type, ticketId?, projectId?, self}` — ids only, filtered per user |

@@ -79,7 +79,7 @@ export function AdminCustomers() {
   const save = async () => { setErr(null); try { f.id ? await patch(`/org/customers/${f.id}`, { name: f.name, domain: f.domain || null, notes: f.notes || null }) : await post('/org/customers', { name: f.name, domain: f.domain || null, notes: f.notes || null }); setF(null); reload(); } catch (e) { setErr(e); } };
   return (
     <>
-      <PageHeader title="Clients" sub="Each client only sees projects and requests shared with them." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', domain: '', notes: '' })}><Plus size={15} /> Add client</button>} />
+      <PageHeader title="Clients" sub="Each client only sees projects and tickets shared with them." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', domain: '', notes: '' })}><Plus size={15} /> Add client</button>} />
       <ErrorBox error={error} />
       <div className="card">{loading && !data ? <div className="p-3"><Loading /></div> : data.data.length === 0 ? <Empty title="No customers yet" /> : <table className="table"><thead><tr><th>Company</th><th>Domain</th><th className="text-end">Contacts</th><th className="text-end">Projects</th><th className="text-end">Tickets</th><th /></tr></thead>
         <tbody>{data.data.map((c) => <tr key={c.id}><td className="fw-medium">{c.name}</td><td className="small">{c.domain}</td><td className="text-end">{c.contacts}</td><td className="text-end">{c.projects}</td><td className="text-end">{c.tickets}</td><td className="text-end"><button className="btn btn-sm btn-ghost" onClick={() => setF(c)}>Edit</button></td></tr>)}</tbody></table>}</div>
@@ -103,7 +103,7 @@ export function AdminCalendars() {
     try { f.id ? await patch(`/org/calendars/${f.id}`, body) : await post('/org/calendars', body); setF(null); reload(); toast('Calendar saved', 'success'); } catch (e) { setErr(e); } };
   return (
     <>
-      <PageHeader title="Working days" sub="Set working days, hours and holidays. Task durations and request response times use them." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', timezone: 'UTC', workDays: [1, 2, 3, 4, 5], dayStart: '09:00', dayEnd: '17:00', isDefault: false, holidays: [] })}><Plus size={15} /> New calendar</button>} />
+      <PageHeader title="Working days" sub="Set working days, hours and holidays. Task durations and SLA timers count working time only." actions={<button className="btn btn-primary" onClick={() => setF({ name: '', timezone: 'UTC', workDays: [1, 2, 3, 4, 5], dayStart: '09:00', dayEnd: '17:00', isDefault: false, holidays: [] })}><Plus size={15} /> New calendar</button>} />
       <ErrorBox error={error} />
       {loading && !data ? <Loading /> : <div className="row g-3">{data.data.map((c) => <div key={c.id} className="col-md-6"><Card title={<>{c.name} {c.isDefault && <Pill tone="blue">Default</Pill>}</>} actions={<button className="btn btn-sm btn-light" onClick={() => setF({ ...c, holidays: c.holidays.map((h) => ({ date: h.date, name: h.name })) })}>Edit</button>}>
         <dl className="kv"><dt>Working days</dt><dd>{DAYS.filter(([n]) => c.workDays.includes(n)).map(([, l]) => l).join(', ')}</dd><dt>Hours</dt><dd>{c.dayStart}–{c.dayEnd} ({c.timezone})</dd><dt>Holidays</dt><dd>{c.holidays.length ? c.holidays.slice(0, 5).map((h) => `${fmtDate(h.date)} ${h.name}`).join(' · ') : 'None'}{c.holidays.length > 5 && ` +${c.holidays.length - 5} more`}</dd></dl></Card></div>)}</div>}
@@ -171,13 +171,13 @@ export function AdminTicketSettings() {
   const setS = (i, k, val) => setF({ ...v, sla: v.sla.map((s, j) => (j === i ? { ...s, [k]: val } : s)) });
   return (
     <>
-      <PageHeader title="Requests" sub="Request categories and how fast your team aims to reply, in working minutes." actions={<button className="btn btn-primary" onClick={save}><Save size={14} /> Save</button>} />
+      <PageHeader title="SLA targets & categories" sub="How fast your team commits to reply and resolve, in working minutes, plus ticket categories." actions={<button className="btn btn-primary" onClick={save}><Save size={14} /> Save</button>} />
       <ErrorBox error={error} />
       {v && <div className="row g-3"><div className="col-lg-8"><Card title="Response time targets" bodyClass="p-0"><table className="table"><thead><tr><th>Priority</th><th>First response (min)</th><th>Resolution (min)</th><th>Working hours from</th></tr></thead>
         <tbody>{v.sla.map((s, i) => <tr key={s.priority}><td className="fw-medium">{labelize(s.priority)}</td><td><input aria-label={`${s.priority} response minutes`} type="number" min="5" className="form-control form-control-sm" value={s.responseMinutes} onChange={(e) => setS(i, 'responseMinutes', e.target.value)} /><div className="form-text">{(s.responseMinutes / 60).toFixed(1)} business h</div></td>
           <td><input aria-label={`${s.priority} resolution minutes`} type="number" min="5" className="form-control form-control-sm" value={s.resolutionMinutes} onChange={(e) => setS(i, 'resolutionMinutes', e.target.value)} /><div className="form-text">{(s.resolutionMinutes / 60).toFixed(1)} business h</div></td>
           <td><Select aria-label={`${s.priority} calendar`} value={s.calendarId} onChange={(val) => setS(i, 'calendarId', val)} placeholder="Organization default" options={cals.map((c) => ({ value: c.id, label: c.name }))} /></td></tr>)}</tbody></table>
-        <div className="p-3 small text-muted">Pause rules: both clocks pause while a request is “Waiting on client”; time spent resolved before a reopen is excluded. Changes apply to new requests and to requests whose priority changes.</div></Card></div>
+        <div className="p-3 small text-muted">Pause rules: both clocks pause while a ticket is “Waiting on client”; time spent resolved before a reopen is excluded. Changes apply to new requests and to requests whose priority changes.</div></Card></div>
         <div className="col-lg-4"><Card title="Categories"><Field label="One per line">{(id) => <textarea id={id} rows={8} className="form-control" value={v.categories} onChange={(e) => setF({ ...v, categories: e.target.value })} />}</Field></Card></div></div>}
     </>
   );

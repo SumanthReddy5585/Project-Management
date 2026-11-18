@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Info, Inbox, Loader2, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { labelize, initials, dueInfo, projectColor } from '../lib/format.js';
+import { labelize, initials, dueInfo, projectColor, avatarColors, fmtDuration } from '../lib/format.js';
 import { Check } from 'lucide-react';
 
 // ---------- Badges ----------
@@ -13,8 +13,9 @@ export const STATUS_TONE = {
 };
 export const Pill = ({ tone = 'neutral', children, title }) => <span className={`pill pill-${tone}`} title={title}>{children}</span>;
 export const StatusBadge = ({ status }) => <Pill tone={STATUS_TONE[status] || 'neutral'}>{labelize(status)}</Pill>;
-const PRI_TONE = { LOW: 'outline', MEDIUM: 'neutral', HIGH: 'warn', CRITICAL: 'risk' };
-export const PriorityBadge = ({ priority }) => <Pill tone={PRI_TONE[priority]}>{labelize(priority)}</Pill>;
+const PRI_LABEL = { LOW: 'Low', MEDIUM: 'Normal', HIGH: 'High', CRITICAL: 'Urgent' };
+export const PriorityBadge = ({ priority }) => (priority ? <span className={`prio ${priority}`}><i aria-hidden="true" />{PRI_LABEL[priority]}</span> : null);
+export const priorityLabel = (p) => PRI_LABEL[p] || p;
 const HEALTH_TONE = { GREEN: 'ok', AMBER: 'warn', RED: 'risk' };
 export const HealthBadge = ({ health }) => <Pill tone={HEALTH_TONE[health]} title="Project health"><span className={`dot dot-${health}`} aria-hidden="true" />{labelize(health)}</Pill>;
 export const DueChip = ({ date, done }) => { const d = dueInfo(date, done); return d ? <span className={`due ${d.tone}`} title={date}>{d.text}</span> : null; };
@@ -38,7 +39,20 @@ export function Meter({ value, label }) {
   );
 }
 
-export const Avatar = ({ name, sm, title }) => <span className={`avatar ${sm ? 'sm' : ''}`} title={title ?? name} aria-hidden="true">{initials(name)}</span>;
+export const Avatar = ({ name, sm, lg, title }) => { const [bg, ink] = avatarColors(name || '?'); return <span className={`avatar ${sm ? 'sm' : ''} ${lg ? 'lg' : ''}`} style={{ '--av': bg, '--av-ink': ink }} title={title ?? name} aria-hidden="true">{initials(name) || '?'}</span>; };
+
+/** Compact SLA countdown for queues: "2h 10m to reply", "3h over", "Paused", "Met". Uses working-time remaining from the server. */
+export function SlaTimer({ ticket: t }) {
+  if (!t?.sla || ['RESOLVED', 'CLOSED'].includes(t.status)) return t?.sla ? <span className={`sla ${t.sla.resolution?.state === 'BREACHED' ? 'risk' : 'ok'}`}>{t.sla.resolution?.state === 'BREACHED' ? 'Missed' : 'Met'}</span> : <span className="sla none">—</span>;
+  const running = [!t.firstResponseAt && { ...t.sla.response, which: 'reply' }, { ...t.sla.resolution, which: 'fix' }].filter((c) => c && c.state && c.state !== 'NONE' && c.state !== 'MET');
+  if (!running.length) return <span className="sla none">—</span>;
+  if (running.some((c) => c.state === 'PAUSED')) return <span className="sla paused" title="Clock paused while waiting on the client">Paused</span>;
+  const c = running.find((x) => x.state === 'BREACHED') || running.find((x) => x.state === 'AT_RISK') || running[0];
+  const label = c.which === 'reply' ? 'First reply' : 'Resolution';
+  if (c.state === 'BREACHED') return <span className="sla risk" title={`${label} target missed (due ${new Date(c.dueAt).toLocaleString()})`}>{fmtDuration(Date.now() - new Date(c.dueAt))} over</span>;
+  const left = c.remainingMinutes != null ? c.remainingMinutes * 60000 : new Date(c.dueAt) - Date.now();
+  return <span className={`sla ${c.state === 'AT_RISK' ? 'warn' : 'ok'}`} title={`${label} due ${new Date(c.dueAt).toLocaleString()} (working time)`}>{fmtDuration(left)} to {c.which}</span>;
+}
 
 // ---------- States ----------
 export const Spinner = ({ label = 'Loading' }) => <span className="d-inline-flex align-items-center gap-2 text-muted"><Loader2 size={16} className="spin" style={{ animation: 'spin 1s linear infinite' }} aria-hidden="true" /><span>{label}…</span></span>;
@@ -179,7 +193,7 @@ export function ToastProvider({ children }) {
     <ToastCtx.Provider value={push}>
       {children}
       <div className="toasts" role="status" aria-live="polite">
-        {items.map((t) => <div key={t.id} className={`toast-item ${t.tone}`}>{t.tone === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}<span className="flex-grow-1">{t.message}</span>
+        {items.map((t) => <div key={t.id} className={`toast-item ${t.tone}`}>{t.tone === 'error' ? <AlertTriangle size={16} /> : t.tone === 'live-evt' ? <Info size={16} /> : <CheckCircle2 size={16} />}<span className="flex-grow-1">{t.message}</span>
           <button className="btn btn-icon p-0 text-white" aria-label="Dismiss" onClick={() => setItems((x) => x.filter((y) => y.id !== t.id))}><X size={14} /></button></div>)}
       </div>
     </ToastCtx.Provider>

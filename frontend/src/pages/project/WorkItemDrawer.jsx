@@ -142,7 +142,7 @@ export function WorkItemDrawer({ itemId, onClose }) {
               <Select aria-label="Task this waits for" value={depFor} onChange={(v) => setDepFor(v || '')} placeholder="This waits for…" options={(all.data?.data || []).filter((x) => x.id !== it.id && x.type !== 'MODULE' && !it.dependencies.some((d) => d.item.id === x.id)).map((x) => ({ value: x.id, label: x.title }))} />
               <button className="btn btn-sm btn-light" disabled={!depFor}><Link2 size={14} /> Link</button></form>}
           </>}
-          {it.tickets?.length > 0 && <><h3 className="h-section mt-3">Linked requests</h3><ul className="list-plain">{it.tickets.map((t) => <li key={t.id}><Link to={`/tickets/${t.id}`} className="flex-grow-1">#{t.number} {t.subject}</Link><StatusBadge status={t.status} /></li>)}</ul></>}
+          {it.tickets?.length > 0 && <><h3 className="h-section mt-3">Linked tickets</h3><ul className="list-plain">{it.tickets.map((t) => <li key={t.id}><Link to={`/tickets/${t.id}`} className="flex-grow-1">#{t.number} {t.subject}</Link><StatusBadge status={t.status} /></li>)}</ul></>}
           {can('work.delete') && !project.readOnly && <div className="mt-3"><ConfirmButton title={`Delete "${it.title}"?`} message="This removes it and anything inside it. Items with logged time can't be deleted — set them to Cancelled instead." confirmLabel="Delete" onConfirm={async () => { await del(`/projects/${project.id}/work-items/${it.id}`); onClose(); reloadProject(); toast('Deleted', 'success'); }}><Trash2 size={14} /> Delete</ConfirmButton></div>}
         </details>}
 

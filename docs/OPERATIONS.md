@@ -104,3 +104,13 @@ Remaining before production:
 ## Continuous integration
 
 The GitHub Actions workflow is in `docs/github-actions-ci.yml`. To enable it, move it to `.github/workflows/ci.yml` (GitHub requires the "workflow" permission for that change, so do it in the GitHub web editor or with your own git credentials).
+
+## Free hosting that does not expire (Render + Neon)
+
+Render's free PostgreSQL is deleted 30 days after creation, so the live deployment uses **Neon** (free, no expiry; compute sleeps when idle and wakes in about a second).
+
+1. Create a free Neon project (region close to your Render region) and copy its **pooled** connection string.
+2. Render → service → **Environment** → set `DATABASE_URL` to that string → Save. The service redeploys, runs the migrations, and (when `ALLOW_DEMO_SEED=true` and the database is empty) loads the demo data.
+3. Uploaded files are stored in Postgres (`STORAGE_DRIVER=db`, the default on Render) so they survive restarts and redeploys. Neon's free tier includes 0.5 GB.
+4. Optional email: set `SMTP_URL` (e.g. Brevo free SMTP: `smtps://LOGIN:SMTP_KEY@smtp-relay.brevo.com:465`) and `MAIL_FROM` (a sender address you verified with the provider).
+5. Free Render services sleep after 15 minutes without traffic; the first request then takes ~30–60 s. An uptime pinger hitting `/health` every 10 minutes (e.g. the GitHub Actions workflow in `docs/keep-awake.yml`, or a free cron-job.org / UptimeRobot monitor) keeps it awake within the free 750 instance-hours per month.

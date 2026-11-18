@@ -13,6 +13,7 @@ import { loadCalendar, toBusinessCalendar } from '../services/calendars.js';
 import { initialDueDates, statusChangePatch, slaStatus } from '../domain/sla.js';
 import { canTransitionTicket } from '../domain/workflow.js';
 import { toCsv } from '../lib/csv.js';
+import { publish, ticketEvent } from '../services/events.js';
 
 const r = Router();
 const PRIORITY = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
@@ -43,7 +44,25 @@ async function names(ids) {
 }
 
 const listSchema = listQuery.extend({ status: z.string().optional(), priority: PRIORITY.optional(), type: TYPE.optional(), assigneeId: z.union([uuid, z.literal('me'), z.literal('none')]).optional(),
-  customerCompanyId: uuid.optional(), projectId: uuid.optional(), sla: z.enum(['BREACHED', 'AT_RISK']).optional() });
+  customerCompanyId: uuid.optional(), projectId: uuid.optional(), sla: z.enum(['BREACHED', 'AT_RISK']).optional(), tag: z.string().max(40).optional(), requester: z.literal('me').optional(),
+  view: z.enum(['mine', 'unassigned', 'open', 'overdue', 'waiting', 'new', 'resolved', 'all', 'requested']).optional() });
+
+const OPEN = ['NEW', 'OPEN', 'IN_PROGRESS', 'WAITING_ON_CUSTOMER'];
+const breachedWhere = () => ({ resolvedAt: null, status: { notIn: ['WAITING_ON_CUSTOMER', 'RESOLVED', 'CLOSED'] }, OR: [{ resolutionDueAt: { lt: new Date() } }, { firstResponseAt: null, responseDueAt: { lt: new Date() } }] });
+/** Saved views for the queue sidebar. Each maps to a where-fragment applied on top of the user's scope. */
+function viewWhere(view, auth) {
+  switch (view) {
+    case 'mine': return { status: { in: OPEN }, assigneeId: auth.userId };
+    case 'unassigned': return { status: { in: OPEN }, assigneeId: null };
+    case 'open': return { status: { in: OPEN } };
+    case 'overdue': return breachedWhere();
+    case 'waiting': return { status: 'WAITING_ON_CUSTOMER' };
+    case 'new': return { status: 'NEW' };
+    case 'resolved': return { status: { in: ['RESOLVED', 'CLOSED'] } };
+    case 'requested': return { requesterId: auth.userId };
+    default: return {};
+  }
+}
 
 async function listWhere(req, q) {
   const statuses = q.status === 'open' ? ['NEW', 'OPEN', 'IN_PROGRESS', 'WAITING_ON_CUSTOMER'] : q.status?.split(',').filter((s) => STATUS.safeParse(s).success);
@@ -55,9 +74,93 @@ async function listWhere(req, q) {
   if (q.customerCompanyId && !req.auth.isCustomer) and.push({ customerCompanyId: q.customerCompanyId });
   if (q.projectId) and.push({ projectId: q.projectId });
   if (q.q) and.push({ OR: [{ subject: { contains: q.q, mode: 'insensitive' } }, ...(/^#?\d+$/.test(q.q) ? [{ number: Number(q.q.replace('#', '')) }] : [])] });
-  if (q.sla === 'BREACHED') and.push({ resolvedAt: null, OR: [{ resolutionDueAt: { lt: new Date() } }, { firstResponseAt: null, responseDueAt: { lt: new Date() } }], status: { not: 'WAITING_ON_CUSTOMER' } });
+  if (q.sla === 'BREACHED') and.push(breachedWhere());
+  if (q.view) and.push(viewWhere(q.view, req.auth));
+  if (q.tag && !req.auth.isCustomer) and.push({ tags: { has: q.tag } });
+  if (q.requester === 'me') and.push({ requesterId: req.auth.userId });
   return { AND: and };
 }
+
+// Counts for the queue sidebar.
+r.get('/views', async (req, res) => {
+  const scope = await ticketsWhere(req.auth);
+  const keys = req.auth.isCustomer ? ['open', 'waiting', 'resolved', 'requested', 'all'] : ['mine', 'unassigned', 'open', 'overdue', 'waiting', 'new', 'resolved', 'all'];
+  const counts = await Promise.all(keys.map((k) => prisma.ticket.count({ where: { AND: [scope, viewWhere(k, req.auth)] } })));
+  res.json(Object.fromEntries(keys.map((k, i) => [k, counts[i]])));
+});
+
+const DAY = 86400000;
+// Service-desk dashboard metrics (staff only).
+r.get('/stats', async (req, res) => {
+  if (req.auth.isCustomer) throw forbidden();
+  const scope = await ticketsWhere(req.auth);
+  const now = Date.now();
+  const since30 = new Date(now - 30 * DAY);
+  const since14 = new Date(new Date().setHours(0, 0, 0, 0) - 13 * DAY);
+  const [open, recentCreated, recentResolved, rated] = await Promise.all([
+    prisma.ticket.findMany({ where: { AND: [scope, { status: { in: OPEN } }] }, include: { customerCompany: { select: { name: true } } } }),
+    prisma.ticket.findMany({ where: { AND: [scope, { createdAt: { gte: since30 } }] }, select: { createdAt: true, firstResponseAt: true } }),
+    prisma.ticket.findMany({ where: { AND: [scope, { resolvedAt: { gte: since30 } }] }, select: { createdAt: true, resolvedAt: true, resolutionDueAt: true, assigneeId: true } }),
+    prisma.ticket.findMany({ where: { AND: [scope, { csatAt: { gte: new Date(now - 90 * DAY) } }] }, select: { csatRating: true } }),
+  ]);
+  const enriched = await withSla(open);
+  const state = (x) => [x.sla.response, x.sla.resolution].some((c) => c?.state === 'BREACHED') ? 'BREACHED' : [x.sla.response, x.sla.resolution].some((c) => c?.state === 'AT_RISK') ? 'AT_RISK' : 'OK';
+  const days = [...Array(14)].map((_, i) => new Date(since14.getTime() + i * DAY).toISOString().slice(0, 10));
+  const perDay = (dates) => days.map((d) => dates.filter((x) => x && x.toISOString().slice(0, 10) === d).length);
+  const avg = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const responded = recentCreated.filter((t) => t.firstResponseAt);
+  const nm = await names([...open.map((t) => t.assigneeId), ...recentResolved.map((t) => t.assigneeId)]);
+  const agents = new Map();
+  for (const t of open) if (t.assigneeId) { const a = agents.get(t.assigneeId) || { id: t.assigneeId, name: nm.get(t.assigneeId), open: 0, resolved: 0 }; a.open++; agents.set(t.assigneeId, a); }
+  for (const t of recentResolved) if (t.assigneeId) { const a = agents.get(t.assigneeId) || { id: t.assigneeId, name: nm.get(t.assigneeId), open: 0, resolved: 0 }; a.resolved++; agents.set(t.assigneeId, a); }
+  const byCustomer = new Map();
+  for (const t of open) { const k = t.customerCompany?.name || 'Internal'; byCustomer.set(k, (byCustomer.get(k) || 0) + 1); }
+  const count = (key, vals) => Object.fromEntries(vals.map((v) => [v, open.filter((t) => t[key] === v).length]));
+  res.json({
+    open: open.length,
+    unassigned: open.filter((t) => !t.assigneeId).length,
+    breached: enriched.filter((x) => state(x) === 'BREACHED').length,
+    atRisk: enriched.filter((x) => state(x) === 'AT_RISK').length,
+    createdToday: recentCreated.filter((t) => t.createdAt >= new Date(new Date().setHours(0, 0, 0, 0))).length,
+    resolved30: recentResolved.length,
+    avgFirstResponseHours: avg(responded.map((t) => (t.firstResponseAt - t.createdAt) / 3600000)),
+    avgResolutionHours: avg(recentResolved.map((t) => (t.resolvedAt - t.createdAt) / 3600000)),
+    slaCompliance: recentResolved.length ? recentResolved.filter((t) => !t.resolutionDueAt || t.resolvedAt <= t.resolutionDueAt).length / recentResolved.length : null,
+    csat: { average: avg(rated.map((t) => t.csatRating)), count: rated.length },
+    byPriority: count('priority', ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']),
+    byStatus: count('status', OPEN),
+    trend: { days, created: perDay(recentCreated.map((t) => t.createdAt)), resolved: perDay(recentResolved.map((t) => t.resolvedAt)) },
+    agents: [...agents.values()].sort((a, b) => b.open - a.open).slice(0, 8),
+    customers: [...byCustomer].map(([name, n]) => ({ name, open: n })).sort((a, b) => b.open - a.open).slice(0, 6),
+  });
+});
+
+// Bulk triage: assign, change priority, set status or add a tag on many tickets at once.
+r.post('/bulk', async (req, res) => {
+  if (req.auth.isCustomer || !orgCan(req.auth, 'ticket.work')) throw forbidden();
+  const b = parse(z.object({ ids: z.array(uuid).min(1).max(200), assigneeId: uuid.nullable().optional(), priority: PRIORITY.optional(), status: STATUS.optional(), addTag: z.string().trim().min(1).max(40).optional() }), req.body);
+  if (b.assigneeId && !(await prisma.membership.findFirst({ where: { organizationId: req.auth.orgId, userId: b.assigneeId, status: 'ACTIVE', role: { not: 'CUSTOMER' } } }))) throw badRequest('Assignee must be an internal user');
+  const tickets = await prisma.ticket.findMany({ where: { AND: [await ticketsWhere(req.auth), { id: { in: b.ids } }] } });
+  let updated = 0; const skipped = [];
+  for (const t of tickets) {
+    const data = {};
+    if (b.assigneeId !== undefined) { data.assigneeId = b.assigneeId; if (b.assigneeId && t.status === 'NEW') data.status = 'OPEN'; }
+    if (b.priority && b.priority !== t.priority) { const { policy, cal } = await slaContext(t.organizationId, b.priority); Object.assign(data, { priority: b.priority }, initialDueDates(t.createdAt, policy, cal)); }
+    if (b.addTag && !t.tags.includes(b.addTag)) data.tags = [...t.tags, b.addTag];
+    if (b.status && b.status !== t.status) {
+      if (!canTransitionTicket(t.status, b.status, false)) { skipped.push({ id: t.id, number: t.number, reason: `can't move from ${t.status}` }); continue; }
+      const { cal } = await slaContext(t.organizationId, t.priority);
+      Object.assign(data, statusChangePatch(t, b.status, new Date(), cal));
+    }
+    if (!Object.keys(data).length) continue;
+    await prisma.ticket.update({ where: { id: t.id }, data: { ...data, version: { increment: 1 } } });
+    await audit(prisma, req.auth, { action: data.status ? 'ticket.status_changed' : 'ticket.updated', entityType: 'Ticket', entityId: t.id, projectId: t.projectId, visibility: data.status ? 'PUBLIC' : 'INTERNAL', metadata: data.status ? { from: t.status, to: data.status, bulk: true } : { changes: { ...b, ids: undefined }, bulk: true } }, req.ip);
+    if (b.assigneeId && b.assigneeId !== t.assigneeId) await notify(prisma, { orgId: req.auth.orgId, userIds: [b.assigneeId], exclude: req.auth.userId, type: 'ticket.assigned', title: `Ticket #${t.number} assigned to you`, link: `/tickets/${t.id}` });
+    publish(ticketEvent('ticket.updated', { ...t, ...data }, { actorId: req.auth.userId }));
+    updated++;
+  }
+  res.json({ updated, skipped });
+});
 
 r.get('/', async (req, res) => {
   const q = parse(listSchema, req.query);
@@ -121,6 +224,7 @@ r.post('/', async (req, res) => {
     await notify(tx, { orgId: auth.orgId, userIds: row.assigneeId ? [row.assigneeId] : desk.map((d) => d.userId), exclude: auth.userId, type: 'ticket.created', title: `New ticket #${row.number}: ${row.subject}`, link: `/tickets/${row.id}` });
     return row;
   });
+  publish(ticketEvent('ticket.created', t, { actorId: auth.userId }));
   res.status(201).json(S.ticket(t, auth.isCustomer));
 });
 
@@ -152,7 +256,8 @@ r.patch('/:id', async (req, res) => {
   const t = await ticketAccess(req.auth, req.params.id);
   if (req.auth.isCustomer || !orgCan(req.auth, 'ticket.work')) throw forbidden();
   const { version, ...b } = parse(z.object({ version: z.number().int(), subject: z.string().trim().min(3).max(200).optional(), priority: PRIORITY.optional(), severity: z.number().int().min(1).max(5).optional(),
-    type: TYPE.optional(), category: z.string().max(60).nullable().optional(), assigneeId: uuid.nullable().optional(), projectId: uuid.nullable().optional() }), req.body);
+    type: TYPE.optional(), category: z.string().max(60).nullable().optional(), assigneeId: uuid.nullable().optional(), projectId: uuid.nullable().optional(),
+    tags: z.array(z.string().trim().min(1).max(40)).max(20).optional() }), req.body);
   if (b.assigneeId && !(await prisma.membership.findFirst({ where: { organizationId: req.auth.orgId, userId: b.assigneeId, status: 'ACTIVE', role: { not: 'CUSTOMER' } } }))) throw badRequest('Assignee must be an internal user');
   if (b.projectId) { const a = await projectAccess(req.auth, b.projectId); if (t.customerCompanyId && a.project.customerCompanyId && a.project.customerCompanyId !== t.customerCompanyId) throw badRequest('That project belongs to a different customer'); }
   const data = { ...b, version: { increment: 1 } };
@@ -166,7 +271,22 @@ r.patch('/:id', async (req, res) => {
   if (!n.count) throw conflict('This ticket was updated by someone else. Reload and try again.');
   await audit(prisma, req.auth, { action: 'ticket.updated', entityType: 'Ticket', entityId: t.id, projectId: t.projectId, metadata: { changes: b } }, req.ip);
   if (b.assigneeId && b.assigneeId !== t.assigneeId) await notify(prisma, { orgId: req.auth.orgId, userIds: [b.assigneeId], exclude: req.auth.userId, type: 'ticket.assigned', title: `Ticket #${t.number} assigned to you`, link: `/tickets/${t.id}` });
-  res.json(S.ticket(await prisma.ticket.findUnique({ where: { id: t.id } }), false));
+  const fresh = await prisma.ticket.findUnique({ where: { id: t.id } });
+  publish(ticketEvent('ticket.updated', fresh, { actorId: req.auth.userId, internal: !('assigneeId' in b || 'priority' in b || 'subject' in b) }));
+  res.json(S.ticket(fresh, false));
+});
+
+// Customer satisfaction: the requester rates a resolved or closed ticket once (can update their rating).
+r.post('/:id/csat', async (req, res) => {
+  const t = await ticketAccess(req.auth, req.params.id);
+  if (t.requesterId !== req.auth.userId) throw forbidden('Only the person who raised the ticket can rate it');
+  if (!['RESOLVED', 'CLOSED'].includes(t.status)) throw badRequest('You can rate a ticket once it is resolved');
+  const b = parse(z.object({ rating: z.number().int().min(1).max(5), comment: z.string().trim().max(2000).optional().nullable() }), req.body);
+  const row = await prisma.ticket.update({ where: { id: t.id }, data: { csatRating: b.rating, csatComment: b.comment || null, csatAt: new Date() } });
+  await audit(prisma, req.auth, { action: 'ticket.rated', entityType: 'Ticket', entityId: t.id, projectId: t.projectId, visibility: 'PUBLIC', metadata: { rating: b.rating } }, req.ip);
+  if (t.assigneeId) await notify(prisma, { orgId: req.auth.orgId, userIds: [t.assigneeId], type: 'ticket.rated', title: `Ticket #${t.number} rated ${b.rating}/5`, body: b.comment?.slice(0, 200), link: `/tickets/${t.id}` });
+  publish(ticketEvent('ticket.updated', row, { actorId: req.auth.userId }));
+  res.json({ ok: true, rating: row.csatRating });
 });
 
 r.post('/:id/status', async (req, res) => {
@@ -180,6 +300,7 @@ r.post('/:id/status', async (req, res) => {
   if (!n.count) throw conflict('This ticket was updated by someone else. Reload and try again.');
   await audit(prisma, req.auth, { action: patch.reopenCount ? 'ticket.reopened' : 'ticket.status_changed', entityType: 'Ticket', entityId: t.id, projectId: t.projectId, visibility: 'PUBLIC', metadata: { from: t.status, to: status } }, req.ip);
   await notify(prisma, { orgId: req.auth.orgId, userIds: [t.requesterId, t.assigneeId], exclude: req.auth.userId, type: 'ticket.status', title: `Ticket #${t.number} is now ${status.replace(/_/g, ' ').toLowerCase()}`, link: `/tickets/${t.id}` });
+  publish(ticketEvent('ticket.updated', { ...t, status }, { actorId: req.auth.userId }));
   res.json({ ok: true, status });
 });
 
@@ -204,6 +325,7 @@ r.post('/:id/messages', async (req, res) => {
     await notifyMentions(tx, req.auth, { body: b.body, visibility: b.visibility, target: { label: `ticket #${t.number}`, link: `/tickets/${t.id}` }, ticketCompanyId: t.customerCompanyId });
     return row;
   });
+  publish(ticketEvent('ticket.message', t, { actorId: req.auth.userId, internal: b.visibility === 'INTERNAL' }));
   res.status(201).json(S.comment(msg, new Map([[req.auth.userId, req.auth.user]])));
 });
 

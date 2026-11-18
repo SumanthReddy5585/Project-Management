@@ -1,6 +1,7 @@
 // Applies committed Prisma migrations with plain SQL (no Prisma engine download needed) and records them
 // in _prisma_migrations exactly like `prisma migrate deploy`, so both tools stay interchangeable.
 // CLI: DATABASE_URL=... node scripts/db-migrate.js
+import '../src/lib/dbUrl.js';
 import pg from 'pg';
 import fs from 'node:fs';
 import path from 'node:path';

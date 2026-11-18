@@ -60,8 +60,9 @@ export function ticket(t, isCustomer, extra = {}) {
     id: t.id, number: t.number, subject: t.subject, description: t.description, customerCompanyId: t.customerCompanyId, projectId: t.projectId,
     category: t.category, type: t.type, priority: t.priority, severity: t.severity, status: t.status, requesterId: t.requesterId,
     createdAt: t.createdAt, updatedAt: t.updatedAt, firstResponseAt: t.firstResponseAt, resolvedAt: t.resolvedAt, closedAt: t.closedAt,
-    responseDueAt: t.responseDueAt, resolutionDueAt: t.resolutionDueAt, version: t.version, ...extra,
+    responseDueAt: t.responseDueAt, resolutionDueAt: t.resolutionDueAt, version: t.version,
+    csatRating: t.csatRating ?? null, csatComment: t.csatComment ?? null, csatAt: t.csatAt ?? null, ...extra,
   };
   if (isCustomer) return base;
-  return { ...base, assigneeId: t.assigneeId, reopenCount: t.reopenCount };
+  return { ...base, assigneeId: t.assigneeId, reopenCount: t.reopenCount, tags: t.tags ?? [] };
 }

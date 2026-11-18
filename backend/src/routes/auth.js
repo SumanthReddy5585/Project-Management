@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { config } from '../config.js';
 import { parse } from '../lib/http.js';
-import { sha256 } from '../lib/crypto.js';
+import { sha256, randomToken } from '../lib/crypto.js';
+import { sendMail } from '../services/mail.js';
 import { badRequest, unauthorized } from '../lib/errors.js';
 import { hashPassword, verifyPassword, burnHash, passwordSchema } from '../auth/passwords.js';
 import { createSession, destroySession } from '../auth/session.js';
@@ -97,19 +98,29 @@ r.post('/invitations/accept', tokenLimiter, async (req, res) => {
   res.status(201).json(await mePayload({ userId: user.id, orgId: inv.organizationId, csrfToken: s.csrfToken }));
 });
 
-// Self-service reset request. Email delivery is not configured in this build, so the request
-// notifies org admins, who can issue a one-time reset link from the Users screen.
+// Self-service reset request. With email configured the user receives a one-time link (valid 1 hour);
+// otherwise org admins are notified and can issue a link from Settings -> Users. The response never
+// reveals whether the account exists.
 r.post('/password/forgot', tokenLimiter, async (req, res) => {
   const { email } = parse(z.object({ email: z.string().email().max(200) }), req.body);
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() }, include: { memberships: { where: { status: 'ACTIVE' } } } });
-  if (user) {
-    for (const m of user.memberships) {
-      const admins = await prisma.membership.findMany({ where: { organizationId: m.organizationId, role: 'ADMIN', status: 'ACTIVE' }, select: { userId: true } });
-      await notify(prisma, { orgId: m.organizationId, userIds: admins.map((a) => a.userId), type: 'password.reset_requested', title: `${user.name} requested a password reset`,
-        body: 'Email delivery is not configured. Issue a reset link from Admin → Users.', link: '/admin/users', dedupeKey: `pwreset:${user.id}:${new Date().toISOString().slice(0, 13)}` });
+  if (user && user.memberships.length) {
+    if (config.emailConfigured) {
+      const token = randomToken();
+      await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 3600 * 1000) } });
+      await sendMail({ to: user.email, subject: 'Reset your O2 Support Hub password', heading: 'Reset your password',
+        body: `Hi ${user.name},\n\nSomeone asked to reset the password for this account. The link below works once and expires in 1 hour. If it wasn't you, you can ignore this email.`,
+        cta: 'Choose a new password', url: `${config.APP_ORIGIN}/reset-password?token=${token}` });
+    } else {
+      for (const m of user.memberships) {
+        const admins = await prisma.membership.findMany({ where: { organizationId: m.organizationId, role: 'ADMIN', status: 'ACTIVE' }, select: { userId: true } });
+        await notify(prisma, { orgId: m.organizationId, userIds: admins.map((a) => a.userId), type: 'password.reset_requested', title: `${user.name} requested a password reset`,
+          body: 'Issue a reset link from Settings → Users.', link: '/settings/users', dedupeKey: `pwreset:${user.id}:${new Date().toISOString().slice(0, 13)}` });
+      }
     }
   }
-  res.json({ ok: true, emailDelivery: 'NOT_CONFIGURED', message: 'If the account exists, your administrator has been notified.' });
+  res.json({ ok: true, emailDelivery: config.emailConfigured ? 'SENT' : 'NOT_CONFIGURED',
+    message: config.emailConfigured ? 'If the account exists, we have emailed a reset link.' : 'If the account exists, your administrator has been notified.' });
 });
 
 r.post('/password/reset', tokenLimiter, async (req, res) => {

@@ -39,15 +39,20 @@ export function MentionTextarea({ value, onChange, people = [], placeholder, id,
   );
 }
 
-export function Message({ m, internalLabel = 'Team only' }) {
+export function Message({ m, internalLabel = 'Team only', side }) {
+  const kind = m.visibility === 'INTERNAL' ? 'internal' : side || 'client';
   return (
-    <div className={`msg ${m.visibility === 'INTERNAL' ? 'internal' : ''}`}>
-      <div className="meta"><Avatar name={m.author?.name} /><strong className="text-body">{m.author?.name ?? 'Unknown'}</strong>
-        <span title={fmtDateTime(m.createdAt)}>{fmtRelative(m.createdAt)}</span>
-        {m.visibility === 'INTERNAL' && <span className="pill pill-warn"><Lock size={10} /> {internalLabel}</span>}
-        {m.visibility === 'PUBLIC' && m.showPublic && <span className="pill pill-blue"><Globe size={10} /> Shared with client</span>}
-        {m.editedAt && <span>(edited)</span>}</div>
-      <div className="body">{m.deleted ? <em className="text-muted">Comment deleted</em> : renderMentions(m.body)}</div>
+    <div className={`msg ${kind}`}>
+      <Avatar name={m.author?.name} />
+      <div className="bubble">
+        <div className="meta"><strong>{m.author?.name ?? 'Unknown'}</strong>
+          {side === 'agent' && m.visibility !== 'INTERNAL' && <span className="pill pill-blue py-0">Support</span>}
+          {side === 'client' && m.showPublic && <span className="pill pill-neutral py-0">Client</span>}
+          <span title={fmtDateTime(m.createdAt)}>{fmtRelative(m.createdAt)}</span>
+          {m.visibility === 'INTERNAL' && <span className="pill pill-warn py-0"><Lock size={10} /> {internalLabel}</span>}
+          {m.editedAt && <span>(edited)</span>}</div>
+        <div className="body">{m.deleted ? <em className="text-muted">Comment deleted</em> : renderMentions(m.body)}</div>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,6 @@
-# Render Blueprint: one free web service (API + web app on one HTTPS address) + one free PostgreSQL.
+# Render Blueprint for O2 Support Hub: one free web service (API + web app on one HTTPS address).
+# Database: point DATABASE_URL at any PostgreSQL 14+ (Neon's free tier does not expire; Render's free
+# Postgres is deleted after 30 days). Files are stored in the database because free instances have no disk.
 # Deploy: Render dashboard → New → Blueprint → pick this repository.
 services:
   - type: web
@@ -20,24 +22,24 @@ services:
         value: "1"
       - key: SERVE_WEB_DIR
         value: ../frontend/dist
-      # Render's free instances have no persistent disk: uploaded files are lost on restart/redeploy.
-      - key: UPLOAD_DIR
-        value: /tmp/meridian-uploads
+      # Free instances have no persistent disk, so uploads live in Postgres (FileBlob table).
+      - key: STORAGE_DRIVER
+        value: db
+      - key: APP_NAME
+        value: O2 Support Hub
       - key: LOG_LEVEL
         value: info
+      # Set in the dashboard: the connection string of your PostgreSQL (e.g. Neon). Never commit it.
       - key: DATABASE_URL
-        fromDatabase:
-          name: meridian-db
-          property: connectionString
+        sync: false
+      # Optional email: smtps://user:key@smtp-relay.brevo.com:465 (or any SMTP). Without it, in-app only.
+      - key: SMTP_URL
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       - key: ALLOW_DEMO_SEED
         value: "true"
       # Prompted when the blueprint is created; used for every demo account. Keep it private.
       - key: DEMO_PASSWORD
         sync: false
 
-databases:
-  - name: meridian-db
-    plan: free
-    region: singapore
-    databaseName: meridian
-    user: meridian

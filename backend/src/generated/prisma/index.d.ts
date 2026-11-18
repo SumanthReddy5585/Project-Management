@@ -218,6 +218,21 @@ export type Decision = $Result.DefaultSelection<Prisma.$DecisionPayload>
  * 
  */
 export type ChangeRequest = $Result.DefaultSelection<Prisma.$ChangeRequestPayload>
+/**
+ * Model CannedResponse
+ * 
+ */
+export type CannedResponse = $Result.DefaultSelection<Prisma.$CannedResponsePayload>
+/**
+ * Model KnowledgeArticle
+ * 
+ */
+export type KnowledgeArticle = $Result.DefaultSelection<Prisma.$KnowledgeArticlePayload>
+/**
+ * Model FileBlob
+ * File contents for the database storage driver (used on hosts without a persistent disk).
+ */
+export type FileBlob = $Result.DefaultSelection<Prisma.$FileBlobPayload>
 
 /**
  * Enums
@@ -991,6 +1006,36 @@ export class PrismaClient<
     * ```
     */
   get changeRequest(): Prisma.ChangeRequestDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.cannedResponse`: Exposes CRUD operations for the **CannedResponse** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CannedResponses
+    * const cannedResponses = await prisma.cannedResponse.findMany()
+    * ```
+    */
+  get cannedResponse(): Prisma.CannedResponseDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.knowledgeArticle`: Exposes CRUD operations for the **KnowledgeArticle** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more KnowledgeArticles
+    * const knowledgeArticles = await prisma.knowledgeArticle.findMany()
+    * ```
+    */
+  get knowledgeArticle(): Prisma.KnowledgeArticleDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.fileBlob`: Exposes CRUD operations for the **FileBlob** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more FileBlobs
+    * const fileBlobs = await prisma.fileBlob.findMany()
+    * ```
+    */
+  get fileBlob(): Prisma.FileBlobDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -1478,7 +1523,10 @@ export namespace Prisma {
     Risk: 'Risk',
     Issue: 'Issue',
     Decision: 'Decision',
-    ChangeRequest: 'ChangeRequest'
+    ChangeRequest: 'ChangeRequest',
+    CannedResponse: 'CannedResponse',
+    KnowledgeArticle: 'KnowledgeArticle',
+    FileBlob: 'FileBlob'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -1494,7 +1542,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "organization" | "user" | "membership" | "session" | "invitation" | "passwordResetToken" | "team" | "teamMember" | "customerCompany" | "workingCalendar" | "holiday" | "projectTemplate" | "templatePhase" | "project" | "projectMember" | "phase" | "workItem" | "workItemCollaborator" | "checklistItem" | "dependency" | "baseline" | "baselineItem" | "discussion" | "comment" | "fileObject" | "statusUpdate" | "deliverable" | "deliverableVersion" | "approval" | "notification" | "auditEvent" | "timesheet" | "timeEntry" | "ticketCategory" | "slaPolicy" | "ticket" | "ticketLink" | "risk" | "issue" | "decision" | "changeRequest"
+      modelProps: "organization" | "user" | "membership" | "session" | "invitation" | "passwordResetToken" | "team" | "teamMember" | "customerCompany" | "workingCalendar" | "holiday" | "projectTemplate" | "templatePhase" | "project" | "projectMember" | "phase" | "workItem" | "workItemCollaborator" | "checklistItem" | "dependency" | "baseline" | "baselineItem" | "discussion" | "comment" | "fileObject" | "statusUpdate" | "deliverable" | "deliverableVersion" | "approval" | "notification" | "auditEvent" | "timesheet" | "timeEntry" | "ticketCategory" | "slaPolicy" | "ticket" | "ticketLink" | "risk" | "issue" | "decision" | "changeRequest" | "cannedResponse" | "knowledgeArticle" | "fileBlob"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -4532,6 +4580,228 @@ export namespace Prisma {
           }
         }
       }
+      CannedResponse: {
+        payload: Prisma.$CannedResponsePayload<ExtArgs>
+        fields: Prisma.CannedResponseFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CannedResponseFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CannedResponseFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>
+          }
+          findFirst: {
+            args: Prisma.CannedResponseFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CannedResponseFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>
+          }
+          findMany: {
+            args: Prisma.CannedResponseFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>[]
+          }
+          create: {
+            args: Prisma.CannedResponseCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>
+          }
+          createMany: {
+            args: Prisma.CannedResponseCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CannedResponseCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>[]
+          }
+          delete: {
+            args: Prisma.CannedResponseDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>
+          }
+          update: {
+            args: Prisma.CannedResponseUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>
+          }
+          deleteMany: {
+            args: Prisma.CannedResponseDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CannedResponseUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CannedResponseUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>[]
+          }
+          upsert: {
+            args: Prisma.CannedResponseUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CannedResponsePayload>
+          }
+          aggregate: {
+            args: Prisma.CannedResponseAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCannedResponse>
+          }
+          groupBy: {
+            args: Prisma.CannedResponseGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CannedResponseGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CannedResponseCountArgs<ExtArgs>
+            result: $Utils.Optional<CannedResponseCountAggregateOutputType> | number
+          }
+        }
+      }
+      KnowledgeArticle: {
+        payload: Prisma.$KnowledgeArticlePayload<ExtArgs>
+        fields: Prisma.KnowledgeArticleFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.KnowledgeArticleFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.KnowledgeArticleFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>
+          }
+          findFirst: {
+            args: Prisma.KnowledgeArticleFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.KnowledgeArticleFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>
+          }
+          findMany: {
+            args: Prisma.KnowledgeArticleFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>[]
+          }
+          create: {
+            args: Prisma.KnowledgeArticleCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>
+          }
+          createMany: {
+            args: Prisma.KnowledgeArticleCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.KnowledgeArticleCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>[]
+          }
+          delete: {
+            args: Prisma.KnowledgeArticleDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>
+          }
+          update: {
+            args: Prisma.KnowledgeArticleUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>
+          }
+          deleteMany: {
+            args: Prisma.KnowledgeArticleDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.KnowledgeArticleUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.KnowledgeArticleUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>[]
+          }
+          upsert: {
+            args: Prisma.KnowledgeArticleUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KnowledgeArticlePayload>
+          }
+          aggregate: {
+            args: Prisma.KnowledgeArticleAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateKnowledgeArticle>
+          }
+          groupBy: {
+            args: Prisma.KnowledgeArticleGroupByArgs<ExtArgs>
+            result: $Utils.Optional<KnowledgeArticleGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.KnowledgeArticleCountArgs<ExtArgs>
+            result: $Utils.Optional<KnowledgeArticleCountAggregateOutputType> | number
+          }
+        }
+      }
+      FileBlob: {
+        payload: Prisma.$FileBlobPayload<ExtArgs>
+        fields: Prisma.FileBlobFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.FileBlobFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.FileBlobFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>
+          }
+          findFirst: {
+            args: Prisma.FileBlobFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.FileBlobFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>
+          }
+          findMany: {
+            args: Prisma.FileBlobFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>[]
+          }
+          create: {
+            args: Prisma.FileBlobCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>
+          }
+          createMany: {
+            args: Prisma.FileBlobCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.FileBlobCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>[]
+          }
+          delete: {
+            args: Prisma.FileBlobDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>
+          }
+          update: {
+            args: Prisma.FileBlobUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>
+          }
+          deleteMany: {
+            args: Prisma.FileBlobDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.FileBlobUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.FileBlobUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>[]
+          }
+          upsert: {
+            args: Prisma.FileBlobUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$FileBlobPayload>
+          }
+          aggregate: {
+            args: Prisma.FileBlobAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateFileBlob>
+          }
+          groupBy: {
+            args: Prisma.FileBlobGroupByArgs<ExtArgs>
+            result: $Utils.Optional<FileBlobGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.FileBlobCountArgs<ExtArgs>
+            result: $Utils.Optional<FileBlobCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -4696,6 +4966,9 @@ export namespace Prisma {
     issue?: IssueOmit
     decision?: DecisionOmit
     changeRequest?: ChangeRequestOmit
+    cannedResponse?: CannedResponseOmit
+    knowledgeArticle?: KnowledgeArticleOmit
+    fileBlob?: FileBlobOmit
   }
 
   /* Types for Logging */
@@ -4793,6 +5066,8 @@ export namespace Prisma {
     timesheets: number
     comments: number
     sessions: number
+    cannedResponses: number
+    articles: number
   }
 
   export type OrganizationCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -4813,6 +5088,8 @@ export namespace Prisma {
     timesheets?: boolean | OrganizationCountOutputTypeCountTimesheetsArgs
     comments?: boolean | OrganizationCountOutputTypeCountCommentsArgs
     sessions?: boolean | OrganizationCountOutputTypeCountSessionsArgs
+    cannedResponses?: boolean | OrganizationCountOutputTypeCountCannedResponsesArgs
+    articles?: boolean | OrganizationCountOutputTypeCountArticlesArgs
   }
 
   // Custom InputTypes
@@ -4943,6 +5220,20 @@ export namespace Prisma {
    */
   export type OrganizationCountOutputTypeCountSessionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: SessionWhereInput
+  }
+
+  /**
+   * OrganizationCountOutputType without action
+   */
+  export type OrganizationCountOutputTypeCountCannedResponsesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CannedResponseWhereInput
+  }
+
+  /**
+   * OrganizationCountOutputType without action
+   */
+  export type OrganizationCountOutputTypeCountArticlesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: KnowledgeArticleWhereInput
   }
 
 
@@ -5858,6 +6149,8 @@ export namespace Prisma {
     timesheets?: boolean | Organization$timesheetsArgs<ExtArgs>
     comments?: boolean | Organization$commentsArgs<ExtArgs>
     sessions?: boolean | Organization$sessionsArgs<ExtArgs>
+    cannedResponses?: boolean | Organization$cannedResponsesArgs<ExtArgs>
+    articles?: boolean | Organization$articlesArgs<ExtArgs>
     _count?: boolean | OrganizationCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["organization"]>
 
@@ -5913,6 +6206,8 @@ export namespace Prisma {
     timesheets?: boolean | Organization$timesheetsArgs<ExtArgs>
     comments?: boolean | Organization$commentsArgs<ExtArgs>
     sessions?: boolean | Organization$sessionsArgs<ExtArgs>
+    cannedResponses?: boolean | Organization$cannedResponsesArgs<ExtArgs>
+    articles?: boolean | Organization$articlesArgs<ExtArgs>
     _count?: boolean | OrganizationCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type OrganizationIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -5938,6 +6233,8 @@ export namespace Prisma {
       timesheets: Prisma.$TimesheetPayload<ExtArgs>[]
       comments: Prisma.$CommentPayload<ExtArgs>[]
       sessions: Prisma.$SessionPayload<ExtArgs>[]
+      cannedResponses: Prisma.$CannedResponsePayload<ExtArgs>[]
+      articles: Prisma.$KnowledgeArticlePayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -6359,6 +6656,8 @@ export namespace Prisma {
     timesheets<T extends Organization$timesheetsArgs<ExtArgs> = {}>(args?: Subset<T, Organization$timesheetsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$TimesheetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     comments<T extends Organization$commentsArgs<ExtArgs> = {}>(args?: Subset<T, Organization$commentsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     sessions<T extends Organization$sessionsArgs<ExtArgs> = {}>(args?: Subset<T, Organization$sessionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    cannedResponses<T extends Organization$cannedResponsesArgs<ExtArgs> = {}>(args?: Subset<T, Organization$cannedResponsesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    articles<T extends Organization$articlesArgs<ExtArgs> = {}>(args?: Subset<T, Organization$articlesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -7194,6 +7493,54 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: SessionScalarFieldEnum | SessionScalarFieldEnum[]
+  }
+
+  /**
+   * Organization.cannedResponses
+   */
+  export type Organization$cannedResponsesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    where?: CannedResponseWhereInput
+    orderBy?: CannedResponseOrderByWithRelationInput | CannedResponseOrderByWithRelationInput[]
+    cursor?: CannedResponseWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CannedResponseScalarFieldEnum | CannedResponseScalarFieldEnum[]
+  }
+
+  /**
+   * Organization.articles
+   */
+  export type Organization$articlesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    where?: KnowledgeArticleWhereInput
+    orderBy?: KnowledgeArticleOrderByWithRelationInput | KnowledgeArticleOrderByWithRelationInput[]
+    cursor?: KnowledgeArticleWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: KnowledgeArticleScalarFieldEnum | KnowledgeArticleScalarFieldEnum[]
   }
 
   /**
@@ -47041,6 +47388,7 @@ export namespace Prisma {
     number: number | null
     severity: number | null
     reopenCount: number | null
+    csatRating: number | null
     version: number | null
   }
 
@@ -47048,6 +47396,7 @@ export namespace Prisma {
     number: number | null
     severity: number | null
     reopenCount: number | null
+    csatRating: number | null
     version: number | null
   }
 
@@ -47073,6 +47422,9 @@ export namespace Prisma {
     closedAt: Date | null
     slaPausedAt: Date | null
     reopenCount: number | null
+    csatRating: number | null
+    csatComment: string | null
+    csatAt: Date | null
     version: number | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -47100,6 +47452,9 @@ export namespace Prisma {
     closedAt: Date | null
     slaPausedAt: Date | null
     reopenCount: number | null
+    csatRating: number | null
+    csatComment: string | null
+    csatAt: Date | null
     version: number | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -47127,6 +47482,10 @@ export namespace Prisma {
     closedAt: number
     slaPausedAt: number
     reopenCount: number
+    tags: number
+    csatRating: number
+    csatComment: number
+    csatAt: number
     version: number
     createdAt: number
     updatedAt: number
@@ -47138,6 +47497,7 @@ export namespace Prisma {
     number?: true
     severity?: true
     reopenCount?: true
+    csatRating?: true
     version?: true
   }
 
@@ -47145,6 +47505,7 @@ export namespace Prisma {
     number?: true
     severity?: true
     reopenCount?: true
+    csatRating?: true
     version?: true
   }
 
@@ -47170,6 +47531,9 @@ export namespace Prisma {
     closedAt?: true
     slaPausedAt?: true
     reopenCount?: true
+    csatRating?: true
+    csatComment?: true
+    csatAt?: true
     version?: true
     createdAt?: true
     updatedAt?: true
@@ -47197,6 +47561,9 @@ export namespace Prisma {
     closedAt?: true
     slaPausedAt?: true
     reopenCount?: true
+    csatRating?: true
+    csatComment?: true
+    csatAt?: true
     version?: true
     createdAt?: true
     updatedAt?: true
@@ -47224,6 +47591,10 @@ export namespace Prisma {
     closedAt?: true
     slaPausedAt?: true
     reopenCount?: true
+    tags?: true
+    csatRating?: true
+    csatComment?: true
+    csatAt?: true
     version?: true
     createdAt?: true
     updatedAt?: true
@@ -47338,6 +47709,10 @@ export namespace Prisma {
     closedAt: Date | null
     slaPausedAt: Date | null
     reopenCount: number
+    tags: string[]
+    csatRating: number | null
+    csatComment: string | null
+    csatAt: Date | null
     version: number
     createdAt: Date
     updatedAt: Date
@@ -47384,6 +47759,10 @@ export namespace Prisma {
     closedAt?: boolean
     slaPausedAt?: boolean
     reopenCount?: boolean
+    tags?: boolean
+    csatRating?: boolean
+    csatComment?: boolean
+    csatAt?: boolean
     version?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -47416,6 +47795,10 @@ export namespace Prisma {
     closedAt?: boolean
     slaPausedAt?: boolean
     reopenCount?: boolean
+    tags?: boolean
+    csatRating?: boolean
+    csatComment?: boolean
+    csatAt?: boolean
     version?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -47446,6 +47829,10 @@ export namespace Prisma {
     closedAt?: boolean
     slaPausedAt?: boolean
     reopenCount?: boolean
+    tags?: boolean
+    csatRating?: boolean
+    csatComment?: boolean
+    csatAt?: boolean
     version?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -47476,12 +47863,16 @@ export namespace Prisma {
     closedAt?: boolean
     slaPausedAt?: boolean
     reopenCount?: boolean
+    tags?: boolean
+    csatRating?: boolean
+    csatComment?: boolean
+    csatAt?: boolean
     version?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type TicketOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "organizationId" | "number" | "subject" | "description" | "customerCompanyId" | "projectId" | "category" | "type" | "priority" | "severity" | "status" | "assigneeId" | "requesterId" | "responseDueAt" | "resolutionDueAt" | "firstResponseAt" | "resolvedAt" | "closedAt" | "slaPausedAt" | "reopenCount" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["ticket"]>
+  export type TicketOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "organizationId" | "number" | "subject" | "description" | "customerCompanyId" | "projectId" | "category" | "type" | "priority" | "severity" | "status" | "assigneeId" | "requesterId" | "responseDueAt" | "resolutionDueAt" | "firstResponseAt" | "resolvedAt" | "closedAt" | "slaPausedAt" | "reopenCount" | "tags" | "csatRating" | "csatComment" | "csatAt" | "version" | "createdAt" | "updatedAt", ExtArgs["result"]["ticket"]>
   export type TicketInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     organization?: boolean | OrganizationDefaultArgs<ExtArgs>
     customerCompany?: boolean | Ticket$customerCompanyArgs<ExtArgs>
@@ -47530,6 +47921,10 @@ export namespace Prisma {
       closedAt: Date | null
       slaPausedAt: Date | null
       reopenCount: number
+      tags: string[]
+      csatRating: number | null
+      csatComment: string | null
+      csatAt: Date | null
       version: number
       createdAt: Date
       updatedAt: Date
@@ -47981,6 +48376,10 @@ export namespace Prisma {
     readonly closedAt: FieldRef<"Ticket", 'DateTime'>
     readonly slaPausedAt: FieldRef<"Ticket", 'DateTime'>
     readonly reopenCount: FieldRef<"Ticket", 'Int'>
+    readonly tags: FieldRef<"Ticket", 'String[]'>
+    readonly csatRating: FieldRef<"Ticket", 'Int'>
+    readonly csatComment: FieldRef<"Ticket", 'String'>
+    readonly csatAt: FieldRef<"Ticket", 'DateTime'>
     readonly version: FieldRef<"Ticket", 'Int'>
     readonly createdAt: FieldRef<"Ticket", 'DateTime'>
     readonly updatedAt: FieldRef<"Ticket", 'DateTime'>
@@ -54188,6 +54587,3325 @@ export namespace Prisma {
 
 
   /**
+   * Model CannedResponse
+   */
+
+  export type AggregateCannedResponse = {
+    _count: CannedResponseCountAggregateOutputType | null
+    _min: CannedResponseMinAggregateOutputType | null
+    _max: CannedResponseMaxAggregateOutputType | null
+  }
+
+  export type CannedResponseMinAggregateOutputType = {
+    id: string | null
+    organizationId: string | null
+    title: string | null
+    body: string | null
+    createdById: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CannedResponseMaxAggregateOutputType = {
+    id: string | null
+    organizationId: string | null
+    title: string | null
+    body: string | null
+    createdById: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CannedResponseCountAggregateOutputType = {
+    id: number
+    organizationId: number
+    title: number
+    body: number
+    createdById: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CannedResponseMinAggregateInputType = {
+    id?: true
+    organizationId?: true
+    title?: true
+    body?: true
+    createdById?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CannedResponseMaxAggregateInputType = {
+    id?: true
+    organizationId?: true
+    title?: true
+    body?: true
+    createdById?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CannedResponseCountAggregateInputType = {
+    id?: true
+    organizationId?: true
+    title?: true
+    body?: true
+    createdById?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CannedResponseAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CannedResponse to aggregate.
+     */
+    where?: CannedResponseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CannedResponses to fetch.
+     */
+    orderBy?: CannedResponseOrderByWithRelationInput | CannedResponseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CannedResponseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CannedResponses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CannedResponses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CannedResponses
+    **/
+    _count?: true | CannedResponseCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CannedResponseMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CannedResponseMaxAggregateInputType
+  }
+
+  export type GetCannedResponseAggregateType<T extends CannedResponseAggregateArgs> = {
+        [P in keyof T & keyof AggregateCannedResponse]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCannedResponse[P]>
+      : GetScalarType<T[P], AggregateCannedResponse[P]>
+  }
+
+
+
+
+  export type CannedResponseGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CannedResponseWhereInput
+    orderBy?: CannedResponseOrderByWithAggregationInput | CannedResponseOrderByWithAggregationInput[]
+    by: CannedResponseScalarFieldEnum[] | CannedResponseScalarFieldEnum
+    having?: CannedResponseScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CannedResponseCountAggregateInputType | true
+    _min?: CannedResponseMinAggregateInputType
+    _max?: CannedResponseMaxAggregateInputType
+  }
+
+  export type CannedResponseGroupByOutputType = {
+    id: string
+    organizationId: string
+    title: string
+    body: string
+    createdById: string
+    createdAt: Date
+    updatedAt: Date
+    _count: CannedResponseCountAggregateOutputType | null
+    _min: CannedResponseMinAggregateOutputType | null
+    _max: CannedResponseMaxAggregateOutputType | null
+  }
+
+  type GetCannedResponseGroupByPayload<T extends CannedResponseGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CannedResponseGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CannedResponseGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CannedResponseGroupByOutputType[P]>
+            : GetScalarType<T[P], CannedResponseGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CannedResponseSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    organizationId?: boolean
+    title?: boolean
+    body?: boolean
+    createdById?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["cannedResponse"]>
+
+  export type CannedResponseSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    organizationId?: boolean
+    title?: boolean
+    body?: boolean
+    createdById?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["cannedResponse"]>
+
+  export type CannedResponseSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    organizationId?: boolean
+    title?: boolean
+    body?: boolean
+    createdById?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["cannedResponse"]>
+
+  export type CannedResponseSelectScalar = {
+    id?: boolean
+    organizationId?: boolean
+    title?: boolean
+    body?: boolean
+    createdById?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type CannedResponseOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "organizationId" | "title" | "body" | "createdById" | "createdAt" | "updatedAt", ExtArgs["result"]["cannedResponse"]>
+  export type CannedResponseInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }
+  export type CannedResponseIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }
+  export type CannedResponseIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }
+
+  export type $CannedResponsePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CannedResponse"
+    objects: {
+      organization: Prisma.$OrganizationPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      organizationId: string
+      title: string
+      body: string
+      createdById: string
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["cannedResponse"]>
+    composites: {}
+  }
+
+  type CannedResponseGetPayload<S extends boolean | null | undefined | CannedResponseDefaultArgs> = $Result.GetResult<Prisma.$CannedResponsePayload, S>
+
+  type CannedResponseCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CannedResponseFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CannedResponseCountAggregateInputType | true
+    }
+
+  export interface CannedResponseDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CannedResponse'], meta: { name: 'CannedResponse' } }
+    /**
+     * Find zero or one CannedResponse that matches the filter.
+     * @param {CannedResponseFindUniqueArgs} args - Arguments to find a CannedResponse
+     * @example
+     * // Get one CannedResponse
+     * const cannedResponse = await prisma.cannedResponse.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CannedResponseFindUniqueArgs>(args: SelectSubset<T, CannedResponseFindUniqueArgs<ExtArgs>>): Prisma__CannedResponseClient<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CannedResponse that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CannedResponseFindUniqueOrThrowArgs} args - Arguments to find a CannedResponse
+     * @example
+     * // Get one CannedResponse
+     * const cannedResponse = await prisma.cannedResponse.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CannedResponseFindUniqueOrThrowArgs>(args: SelectSubset<T, CannedResponseFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CannedResponseClient<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CannedResponse that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CannedResponseFindFirstArgs} args - Arguments to find a CannedResponse
+     * @example
+     * // Get one CannedResponse
+     * const cannedResponse = await prisma.cannedResponse.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CannedResponseFindFirstArgs>(args?: SelectSubset<T, CannedResponseFindFirstArgs<ExtArgs>>): Prisma__CannedResponseClient<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CannedResponse that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CannedResponseFindFirstOrThrowArgs} args - Arguments to find a CannedResponse
+     * @example
+     * // Get one CannedResponse
+     * const cannedResponse = await prisma.cannedResponse.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CannedResponseFindFirstOrThrowArgs>(args?: SelectSubset<T, CannedResponseFindFirstOrThrowArgs<ExtArgs>>): Prisma__CannedResponseClient<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CannedResponses that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CannedResponseFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CannedResponses
+     * const cannedResponses = await prisma.cannedResponse.findMany()
+     * 
+     * // Get first 10 CannedResponses
+     * const cannedResponses = await prisma.cannedResponse.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const cannedResponseWithIdOnly = await prisma.cannedResponse.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CannedResponseFindManyArgs>(args?: SelectSubset<T, CannedResponseFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CannedResponse.
+     * @param {CannedResponseCreateArgs} args - Arguments to create a CannedResponse.
+     * @example
+     * // Create one CannedResponse
+     * const CannedResponse = await prisma.cannedResponse.create({
+     *   data: {
+     *     // ... data to create a CannedResponse
+     *   }
+     * })
+     * 
+     */
+    create<T extends CannedResponseCreateArgs>(args: SelectSubset<T, CannedResponseCreateArgs<ExtArgs>>): Prisma__CannedResponseClient<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CannedResponses.
+     * @param {CannedResponseCreateManyArgs} args - Arguments to create many CannedResponses.
+     * @example
+     * // Create many CannedResponses
+     * const cannedResponse = await prisma.cannedResponse.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CannedResponseCreateManyArgs>(args?: SelectSubset<T, CannedResponseCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CannedResponses and returns the data saved in the database.
+     * @param {CannedResponseCreateManyAndReturnArgs} args - Arguments to create many CannedResponses.
+     * @example
+     * // Create many CannedResponses
+     * const cannedResponse = await prisma.cannedResponse.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CannedResponses and only return the `id`
+     * const cannedResponseWithIdOnly = await prisma.cannedResponse.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CannedResponseCreateManyAndReturnArgs>(args?: SelectSubset<T, CannedResponseCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CannedResponse.
+     * @param {CannedResponseDeleteArgs} args - Arguments to delete one CannedResponse.
+     * @example
+     * // Delete one CannedResponse
+     * const CannedResponse = await prisma.cannedResponse.delete({
+     *   where: {
+     *     // ... filter to delete one CannedResponse
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CannedResponseDeleteArgs>(args: SelectSubset<T, CannedResponseDeleteArgs<ExtArgs>>): Prisma__CannedResponseClient<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CannedResponse.
+     * @param {CannedResponseUpdateArgs} args - Arguments to update one CannedResponse.
+     * @example
+     * // Update one CannedResponse
+     * const cannedResponse = await prisma.cannedResponse.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CannedResponseUpdateArgs>(args: SelectSubset<T, CannedResponseUpdateArgs<ExtArgs>>): Prisma__CannedResponseClient<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CannedResponses.
+     * @param {CannedResponseDeleteManyArgs} args - Arguments to filter CannedResponses to delete.
+     * @example
+     * // Delete a few CannedResponses
+     * const { count } = await prisma.cannedResponse.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CannedResponseDeleteManyArgs>(args?: SelectSubset<T, CannedResponseDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CannedResponses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CannedResponseUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CannedResponses
+     * const cannedResponse = await prisma.cannedResponse.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CannedResponseUpdateManyArgs>(args: SelectSubset<T, CannedResponseUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CannedResponses and returns the data updated in the database.
+     * @param {CannedResponseUpdateManyAndReturnArgs} args - Arguments to update many CannedResponses.
+     * @example
+     * // Update many CannedResponses
+     * const cannedResponse = await prisma.cannedResponse.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CannedResponses and only return the `id`
+     * const cannedResponseWithIdOnly = await prisma.cannedResponse.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CannedResponseUpdateManyAndReturnArgs>(args: SelectSubset<T, CannedResponseUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CannedResponse.
+     * @param {CannedResponseUpsertArgs} args - Arguments to update or create a CannedResponse.
+     * @example
+     * // Update or create a CannedResponse
+     * const cannedResponse = await prisma.cannedResponse.upsert({
+     *   create: {
+     *     // ... data to create a CannedResponse
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CannedResponse we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CannedResponseUpsertArgs>(args: SelectSubset<T, CannedResponseUpsertArgs<ExtArgs>>): Prisma__CannedResponseClient<$Result.GetResult<Prisma.$CannedResponsePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CannedResponses.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CannedResponseCountArgs} args - Arguments to filter CannedResponses to count.
+     * @example
+     * // Count the number of CannedResponses
+     * const count = await prisma.cannedResponse.count({
+     *   where: {
+     *     // ... the filter for the CannedResponses we want to count
+     *   }
+     * })
+    **/
+    count<T extends CannedResponseCountArgs>(
+      args?: Subset<T, CannedResponseCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CannedResponseCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CannedResponse.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CannedResponseAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CannedResponseAggregateArgs>(args: Subset<T, CannedResponseAggregateArgs>): Prisma.PrismaPromise<GetCannedResponseAggregateType<T>>
+
+    /**
+     * Group by CannedResponse.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CannedResponseGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CannedResponseGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CannedResponseGroupByArgs['orderBy'] }
+        : { orderBy?: CannedResponseGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CannedResponseGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCannedResponseGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CannedResponse model
+   */
+  readonly fields: CannedResponseFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CannedResponse.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CannedResponseClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    organization<T extends OrganizationDefaultArgs<ExtArgs> = {}>(args?: Subset<T, OrganizationDefaultArgs<ExtArgs>>): Prisma__OrganizationClient<$Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CannedResponse model
+   */
+  interface CannedResponseFieldRefs {
+    readonly id: FieldRef<"CannedResponse", 'String'>
+    readonly organizationId: FieldRef<"CannedResponse", 'String'>
+    readonly title: FieldRef<"CannedResponse", 'String'>
+    readonly body: FieldRef<"CannedResponse", 'String'>
+    readonly createdById: FieldRef<"CannedResponse", 'String'>
+    readonly createdAt: FieldRef<"CannedResponse", 'DateTime'>
+    readonly updatedAt: FieldRef<"CannedResponse", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CannedResponse findUnique
+   */
+  export type CannedResponseFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * Filter, which CannedResponse to fetch.
+     */
+    where: CannedResponseWhereUniqueInput
+  }
+
+  /**
+   * CannedResponse findUniqueOrThrow
+   */
+  export type CannedResponseFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * Filter, which CannedResponse to fetch.
+     */
+    where: CannedResponseWhereUniqueInput
+  }
+
+  /**
+   * CannedResponse findFirst
+   */
+  export type CannedResponseFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * Filter, which CannedResponse to fetch.
+     */
+    where?: CannedResponseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CannedResponses to fetch.
+     */
+    orderBy?: CannedResponseOrderByWithRelationInput | CannedResponseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CannedResponses.
+     */
+    cursor?: CannedResponseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CannedResponses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CannedResponses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CannedResponses.
+     */
+    distinct?: CannedResponseScalarFieldEnum | CannedResponseScalarFieldEnum[]
+  }
+
+  /**
+   * CannedResponse findFirstOrThrow
+   */
+  export type CannedResponseFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * Filter, which CannedResponse to fetch.
+     */
+    where?: CannedResponseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CannedResponses to fetch.
+     */
+    orderBy?: CannedResponseOrderByWithRelationInput | CannedResponseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CannedResponses.
+     */
+    cursor?: CannedResponseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CannedResponses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CannedResponses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CannedResponses.
+     */
+    distinct?: CannedResponseScalarFieldEnum | CannedResponseScalarFieldEnum[]
+  }
+
+  /**
+   * CannedResponse findMany
+   */
+  export type CannedResponseFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * Filter, which CannedResponses to fetch.
+     */
+    where?: CannedResponseWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CannedResponses to fetch.
+     */
+    orderBy?: CannedResponseOrderByWithRelationInput | CannedResponseOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CannedResponses.
+     */
+    cursor?: CannedResponseWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CannedResponses from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CannedResponses.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CannedResponses.
+     */
+    distinct?: CannedResponseScalarFieldEnum | CannedResponseScalarFieldEnum[]
+  }
+
+  /**
+   * CannedResponse create
+   */
+  export type CannedResponseCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CannedResponse.
+     */
+    data: XOR<CannedResponseCreateInput, CannedResponseUncheckedCreateInput>
+  }
+
+  /**
+   * CannedResponse createMany
+   */
+  export type CannedResponseCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CannedResponses.
+     */
+    data: CannedResponseCreateManyInput | CannedResponseCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CannedResponse createManyAndReturn
+   */
+  export type CannedResponseCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * The data used to create many CannedResponses.
+     */
+    data: CannedResponseCreateManyInput | CannedResponseCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CannedResponse update
+   */
+  export type CannedResponseUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CannedResponse.
+     */
+    data: XOR<CannedResponseUpdateInput, CannedResponseUncheckedUpdateInput>
+    /**
+     * Choose, which CannedResponse to update.
+     */
+    where: CannedResponseWhereUniqueInput
+  }
+
+  /**
+   * CannedResponse updateMany
+   */
+  export type CannedResponseUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CannedResponses.
+     */
+    data: XOR<CannedResponseUpdateManyMutationInput, CannedResponseUncheckedUpdateManyInput>
+    /**
+     * Filter which CannedResponses to update
+     */
+    where?: CannedResponseWhereInput
+    /**
+     * Limit how many CannedResponses to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CannedResponse updateManyAndReturn
+   */
+  export type CannedResponseUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * The data used to update CannedResponses.
+     */
+    data: XOR<CannedResponseUpdateManyMutationInput, CannedResponseUncheckedUpdateManyInput>
+    /**
+     * Filter which CannedResponses to update
+     */
+    where?: CannedResponseWhereInput
+    /**
+     * Limit how many CannedResponses to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CannedResponse upsert
+   */
+  export type CannedResponseUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CannedResponse to update in case it exists.
+     */
+    where: CannedResponseWhereUniqueInput
+    /**
+     * In case the CannedResponse found by the `where` argument doesn't exist, create a new CannedResponse with this data.
+     */
+    create: XOR<CannedResponseCreateInput, CannedResponseUncheckedCreateInput>
+    /**
+     * In case the CannedResponse was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CannedResponseUpdateInput, CannedResponseUncheckedUpdateInput>
+  }
+
+  /**
+   * CannedResponse delete
+   */
+  export type CannedResponseDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+    /**
+     * Filter which CannedResponse to delete.
+     */
+    where: CannedResponseWhereUniqueInput
+  }
+
+  /**
+   * CannedResponse deleteMany
+   */
+  export type CannedResponseDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CannedResponses to delete
+     */
+    where?: CannedResponseWhereInput
+    /**
+     * Limit how many CannedResponses to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CannedResponse without action
+   */
+  export type CannedResponseDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CannedResponse
+     */
+    select?: CannedResponseSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CannedResponse
+     */
+    omit?: CannedResponseOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CannedResponseInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model KnowledgeArticle
+   */
+
+  export type AggregateKnowledgeArticle = {
+    _count: KnowledgeArticleCountAggregateOutputType | null
+    _avg: KnowledgeArticleAvgAggregateOutputType | null
+    _sum: KnowledgeArticleSumAggregateOutputType | null
+    _min: KnowledgeArticleMinAggregateOutputType | null
+    _max: KnowledgeArticleMaxAggregateOutputType | null
+  }
+
+  export type KnowledgeArticleAvgAggregateOutputType = {
+    views: number | null
+    helpfulYes: number | null
+    helpfulNo: number | null
+  }
+
+  export type KnowledgeArticleSumAggregateOutputType = {
+    views: number | null
+    helpfulYes: number | null
+    helpfulNo: number | null
+  }
+
+  export type KnowledgeArticleMinAggregateOutputType = {
+    id: string | null
+    organizationId: string | null
+    title: string | null
+    body: string | null
+    category: string | null
+    visibility: $Enums.Visibility | null
+    published: boolean | null
+    authorId: string | null
+    views: number | null
+    helpfulYes: number | null
+    helpfulNo: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type KnowledgeArticleMaxAggregateOutputType = {
+    id: string | null
+    organizationId: string | null
+    title: string | null
+    body: string | null
+    category: string | null
+    visibility: $Enums.Visibility | null
+    published: boolean | null
+    authorId: string | null
+    views: number | null
+    helpfulYes: number | null
+    helpfulNo: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type KnowledgeArticleCountAggregateOutputType = {
+    id: number
+    organizationId: number
+    title: number
+    body: number
+    category: number
+    visibility: number
+    published: number
+    authorId: number
+    views: number
+    helpfulYes: number
+    helpfulNo: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type KnowledgeArticleAvgAggregateInputType = {
+    views?: true
+    helpfulYes?: true
+    helpfulNo?: true
+  }
+
+  export type KnowledgeArticleSumAggregateInputType = {
+    views?: true
+    helpfulYes?: true
+    helpfulNo?: true
+  }
+
+  export type KnowledgeArticleMinAggregateInputType = {
+    id?: true
+    organizationId?: true
+    title?: true
+    body?: true
+    category?: true
+    visibility?: true
+    published?: true
+    authorId?: true
+    views?: true
+    helpfulYes?: true
+    helpfulNo?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type KnowledgeArticleMaxAggregateInputType = {
+    id?: true
+    organizationId?: true
+    title?: true
+    body?: true
+    category?: true
+    visibility?: true
+    published?: true
+    authorId?: true
+    views?: true
+    helpfulYes?: true
+    helpfulNo?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type KnowledgeArticleCountAggregateInputType = {
+    id?: true
+    organizationId?: true
+    title?: true
+    body?: true
+    category?: true
+    visibility?: true
+    published?: true
+    authorId?: true
+    views?: true
+    helpfulYes?: true
+    helpfulNo?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type KnowledgeArticleAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which KnowledgeArticle to aggregate.
+     */
+    where?: KnowledgeArticleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of KnowledgeArticles to fetch.
+     */
+    orderBy?: KnowledgeArticleOrderByWithRelationInput | KnowledgeArticleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: KnowledgeArticleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` KnowledgeArticles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` KnowledgeArticles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned KnowledgeArticles
+    **/
+    _count?: true | KnowledgeArticleCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: KnowledgeArticleAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: KnowledgeArticleSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: KnowledgeArticleMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: KnowledgeArticleMaxAggregateInputType
+  }
+
+  export type GetKnowledgeArticleAggregateType<T extends KnowledgeArticleAggregateArgs> = {
+        [P in keyof T & keyof AggregateKnowledgeArticle]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateKnowledgeArticle[P]>
+      : GetScalarType<T[P], AggregateKnowledgeArticle[P]>
+  }
+
+
+
+
+  export type KnowledgeArticleGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: KnowledgeArticleWhereInput
+    orderBy?: KnowledgeArticleOrderByWithAggregationInput | KnowledgeArticleOrderByWithAggregationInput[]
+    by: KnowledgeArticleScalarFieldEnum[] | KnowledgeArticleScalarFieldEnum
+    having?: KnowledgeArticleScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: KnowledgeArticleCountAggregateInputType | true
+    _avg?: KnowledgeArticleAvgAggregateInputType
+    _sum?: KnowledgeArticleSumAggregateInputType
+    _min?: KnowledgeArticleMinAggregateInputType
+    _max?: KnowledgeArticleMaxAggregateInputType
+  }
+
+  export type KnowledgeArticleGroupByOutputType = {
+    id: string
+    organizationId: string
+    title: string
+    body: string
+    category: string
+    visibility: $Enums.Visibility
+    published: boolean
+    authorId: string
+    views: number
+    helpfulYes: number
+    helpfulNo: number
+    createdAt: Date
+    updatedAt: Date
+    _count: KnowledgeArticleCountAggregateOutputType | null
+    _avg: KnowledgeArticleAvgAggregateOutputType | null
+    _sum: KnowledgeArticleSumAggregateOutputType | null
+    _min: KnowledgeArticleMinAggregateOutputType | null
+    _max: KnowledgeArticleMaxAggregateOutputType | null
+  }
+
+  type GetKnowledgeArticleGroupByPayload<T extends KnowledgeArticleGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<KnowledgeArticleGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof KnowledgeArticleGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], KnowledgeArticleGroupByOutputType[P]>
+            : GetScalarType<T[P], KnowledgeArticleGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type KnowledgeArticleSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    organizationId?: boolean
+    title?: boolean
+    body?: boolean
+    category?: boolean
+    visibility?: boolean
+    published?: boolean
+    authorId?: boolean
+    views?: boolean
+    helpfulYes?: boolean
+    helpfulNo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["knowledgeArticle"]>
+
+  export type KnowledgeArticleSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    organizationId?: boolean
+    title?: boolean
+    body?: boolean
+    category?: boolean
+    visibility?: boolean
+    published?: boolean
+    authorId?: boolean
+    views?: boolean
+    helpfulYes?: boolean
+    helpfulNo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["knowledgeArticle"]>
+
+  export type KnowledgeArticleSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    organizationId?: boolean
+    title?: boolean
+    body?: boolean
+    category?: boolean
+    visibility?: boolean
+    published?: boolean
+    authorId?: boolean
+    views?: boolean
+    helpfulYes?: boolean
+    helpfulNo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["knowledgeArticle"]>
+
+  export type KnowledgeArticleSelectScalar = {
+    id?: boolean
+    organizationId?: boolean
+    title?: boolean
+    body?: boolean
+    category?: boolean
+    visibility?: boolean
+    published?: boolean
+    authorId?: boolean
+    views?: boolean
+    helpfulYes?: boolean
+    helpfulNo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type KnowledgeArticleOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "organizationId" | "title" | "body" | "category" | "visibility" | "published" | "authorId" | "views" | "helpfulYes" | "helpfulNo" | "createdAt" | "updatedAt", ExtArgs["result"]["knowledgeArticle"]>
+  export type KnowledgeArticleInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }
+  export type KnowledgeArticleIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }
+  export type KnowledgeArticleIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    organization?: boolean | OrganizationDefaultArgs<ExtArgs>
+  }
+
+  export type $KnowledgeArticlePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "KnowledgeArticle"
+    objects: {
+      organization: Prisma.$OrganizationPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      organizationId: string
+      title: string
+      body: string
+      category: string
+      visibility: $Enums.Visibility
+      published: boolean
+      authorId: string
+      views: number
+      helpfulYes: number
+      helpfulNo: number
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["knowledgeArticle"]>
+    composites: {}
+  }
+
+  type KnowledgeArticleGetPayload<S extends boolean | null | undefined | KnowledgeArticleDefaultArgs> = $Result.GetResult<Prisma.$KnowledgeArticlePayload, S>
+
+  type KnowledgeArticleCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<KnowledgeArticleFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: KnowledgeArticleCountAggregateInputType | true
+    }
+
+  export interface KnowledgeArticleDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['KnowledgeArticle'], meta: { name: 'KnowledgeArticle' } }
+    /**
+     * Find zero or one KnowledgeArticle that matches the filter.
+     * @param {KnowledgeArticleFindUniqueArgs} args - Arguments to find a KnowledgeArticle
+     * @example
+     * // Get one KnowledgeArticle
+     * const knowledgeArticle = await prisma.knowledgeArticle.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends KnowledgeArticleFindUniqueArgs>(args: SelectSubset<T, KnowledgeArticleFindUniqueArgs<ExtArgs>>): Prisma__KnowledgeArticleClient<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one KnowledgeArticle that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {KnowledgeArticleFindUniqueOrThrowArgs} args - Arguments to find a KnowledgeArticle
+     * @example
+     * // Get one KnowledgeArticle
+     * const knowledgeArticle = await prisma.knowledgeArticle.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends KnowledgeArticleFindUniqueOrThrowArgs>(args: SelectSubset<T, KnowledgeArticleFindUniqueOrThrowArgs<ExtArgs>>): Prisma__KnowledgeArticleClient<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first KnowledgeArticle that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KnowledgeArticleFindFirstArgs} args - Arguments to find a KnowledgeArticle
+     * @example
+     * // Get one KnowledgeArticle
+     * const knowledgeArticle = await prisma.knowledgeArticle.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends KnowledgeArticleFindFirstArgs>(args?: SelectSubset<T, KnowledgeArticleFindFirstArgs<ExtArgs>>): Prisma__KnowledgeArticleClient<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first KnowledgeArticle that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KnowledgeArticleFindFirstOrThrowArgs} args - Arguments to find a KnowledgeArticle
+     * @example
+     * // Get one KnowledgeArticle
+     * const knowledgeArticle = await prisma.knowledgeArticle.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends KnowledgeArticleFindFirstOrThrowArgs>(args?: SelectSubset<T, KnowledgeArticleFindFirstOrThrowArgs<ExtArgs>>): Prisma__KnowledgeArticleClient<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more KnowledgeArticles that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KnowledgeArticleFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all KnowledgeArticles
+     * const knowledgeArticles = await prisma.knowledgeArticle.findMany()
+     * 
+     * // Get first 10 KnowledgeArticles
+     * const knowledgeArticles = await prisma.knowledgeArticle.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const knowledgeArticleWithIdOnly = await prisma.knowledgeArticle.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends KnowledgeArticleFindManyArgs>(args?: SelectSubset<T, KnowledgeArticleFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a KnowledgeArticle.
+     * @param {KnowledgeArticleCreateArgs} args - Arguments to create a KnowledgeArticle.
+     * @example
+     * // Create one KnowledgeArticle
+     * const KnowledgeArticle = await prisma.knowledgeArticle.create({
+     *   data: {
+     *     // ... data to create a KnowledgeArticle
+     *   }
+     * })
+     * 
+     */
+    create<T extends KnowledgeArticleCreateArgs>(args: SelectSubset<T, KnowledgeArticleCreateArgs<ExtArgs>>): Prisma__KnowledgeArticleClient<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many KnowledgeArticles.
+     * @param {KnowledgeArticleCreateManyArgs} args - Arguments to create many KnowledgeArticles.
+     * @example
+     * // Create many KnowledgeArticles
+     * const knowledgeArticle = await prisma.knowledgeArticle.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends KnowledgeArticleCreateManyArgs>(args?: SelectSubset<T, KnowledgeArticleCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many KnowledgeArticles and returns the data saved in the database.
+     * @param {KnowledgeArticleCreateManyAndReturnArgs} args - Arguments to create many KnowledgeArticles.
+     * @example
+     * // Create many KnowledgeArticles
+     * const knowledgeArticle = await prisma.knowledgeArticle.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many KnowledgeArticles and only return the `id`
+     * const knowledgeArticleWithIdOnly = await prisma.knowledgeArticle.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends KnowledgeArticleCreateManyAndReturnArgs>(args?: SelectSubset<T, KnowledgeArticleCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a KnowledgeArticle.
+     * @param {KnowledgeArticleDeleteArgs} args - Arguments to delete one KnowledgeArticle.
+     * @example
+     * // Delete one KnowledgeArticle
+     * const KnowledgeArticle = await prisma.knowledgeArticle.delete({
+     *   where: {
+     *     // ... filter to delete one KnowledgeArticle
+     *   }
+     * })
+     * 
+     */
+    delete<T extends KnowledgeArticleDeleteArgs>(args: SelectSubset<T, KnowledgeArticleDeleteArgs<ExtArgs>>): Prisma__KnowledgeArticleClient<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one KnowledgeArticle.
+     * @param {KnowledgeArticleUpdateArgs} args - Arguments to update one KnowledgeArticle.
+     * @example
+     * // Update one KnowledgeArticle
+     * const knowledgeArticle = await prisma.knowledgeArticle.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends KnowledgeArticleUpdateArgs>(args: SelectSubset<T, KnowledgeArticleUpdateArgs<ExtArgs>>): Prisma__KnowledgeArticleClient<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more KnowledgeArticles.
+     * @param {KnowledgeArticleDeleteManyArgs} args - Arguments to filter KnowledgeArticles to delete.
+     * @example
+     * // Delete a few KnowledgeArticles
+     * const { count } = await prisma.knowledgeArticle.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends KnowledgeArticleDeleteManyArgs>(args?: SelectSubset<T, KnowledgeArticleDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more KnowledgeArticles.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KnowledgeArticleUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many KnowledgeArticles
+     * const knowledgeArticle = await prisma.knowledgeArticle.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends KnowledgeArticleUpdateManyArgs>(args: SelectSubset<T, KnowledgeArticleUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more KnowledgeArticles and returns the data updated in the database.
+     * @param {KnowledgeArticleUpdateManyAndReturnArgs} args - Arguments to update many KnowledgeArticles.
+     * @example
+     * // Update many KnowledgeArticles
+     * const knowledgeArticle = await prisma.knowledgeArticle.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more KnowledgeArticles and only return the `id`
+     * const knowledgeArticleWithIdOnly = await prisma.knowledgeArticle.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends KnowledgeArticleUpdateManyAndReturnArgs>(args: SelectSubset<T, KnowledgeArticleUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one KnowledgeArticle.
+     * @param {KnowledgeArticleUpsertArgs} args - Arguments to update or create a KnowledgeArticle.
+     * @example
+     * // Update or create a KnowledgeArticle
+     * const knowledgeArticle = await prisma.knowledgeArticle.upsert({
+     *   create: {
+     *     // ... data to create a KnowledgeArticle
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the KnowledgeArticle we want to update
+     *   }
+     * })
+     */
+    upsert<T extends KnowledgeArticleUpsertArgs>(args: SelectSubset<T, KnowledgeArticleUpsertArgs<ExtArgs>>): Prisma__KnowledgeArticleClient<$Result.GetResult<Prisma.$KnowledgeArticlePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of KnowledgeArticles.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KnowledgeArticleCountArgs} args - Arguments to filter KnowledgeArticles to count.
+     * @example
+     * // Count the number of KnowledgeArticles
+     * const count = await prisma.knowledgeArticle.count({
+     *   where: {
+     *     // ... the filter for the KnowledgeArticles we want to count
+     *   }
+     * })
+    **/
+    count<T extends KnowledgeArticleCountArgs>(
+      args?: Subset<T, KnowledgeArticleCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], KnowledgeArticleCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a KnowledgeArticle.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KnowledgeArticleAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends KnowledgeArticleAggregateArgs>(args: Subset<T, KnowledgeArticleAggregateArgs>): Prisma.PrismaPromise<GetKnowledgeArticleAggregateType<T>>
+
+    /**
+     * Group by KnowledgeArticle.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KnowledgeArticleGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends KnowledgeArticleGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: KnowledgeArticleGroupByArgs['orderBy'] }
+        : { orderBy?: KnowledgeArticleGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, KnowledgeArticleGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetKnowledgeArticleGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the KnowledgeArticle model
+   */
+  readonly fields: KnowledgeArticleFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for KnowledgeArticle.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__KnowledgeArticleClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    organization<T extends OrganizationDefaultArgs<ExtArgs> = {}>(args?: Subset<T, OrganizationDefaultArgs<ExtArgs>>): Prisma__OrganizationClient<$Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the KnowledgeArticle model
+   */
+  interface KnowledgeArticleFieldRefs {
+    readonly id: FieldRef<"KnowledgeArticle", 'String'>
+    readonly organizationId: FieldRef<"KnowledgeArticle", 'String'>
+    readonly title: FieldRef<"KnowledgeArticle", 'String'>
+    readonly body: FieldRef<"KnowledgeArticle", 'String'>
+    readonly category: FieldRef<"KnowledgeArticle", 'String'>
+    readonly visibility: FieldRef<"KnowledgeArticle", 'Visibility'>
+    readonly published: FieldRef<"KnowledgeArticle", 'Boolean'>
+    readonly authorId: FieldRef<"KnowledgeArticle", 'String'>
+    readonly views: FieldRef<"KnowledgeArticle", 'Int'>
+    readonly helpfulYes: FieldRef<"KnowledgeArticle", 'Int'>
+    readonly helpfulNo: FieldRef<"KnowledgeArticle", 'Int'>
+    readonly createdAt: FieldRef<"KnowledgeArticle", 'DateTime'>
+    readonly updatedAt: FieldRef<"KnowledgeArticle", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * KnowledgeArticle findUnique
+   */
+  export type KnowledgeArticleFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * Filter, which KnowledgeArticle to fetch.
+     */
+    where: KnowledgeArticleWhereUniqueInput
+  }
+
+  /**
+   * KnowledgeArticle findUniqueOrThrow
+   */
+  export type KnowledgeArticleFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * Filter, which KnowledgeArticle to fetch.
+     */
+    where: KnowledgeArticleWhereUniqueInput
+  }
+
+  /**
+   * KnowledgeArticle findFirst
+   */
+  export type KnowledgeArticleFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * Filter, which KnowledgeArticle to fetch.
+     */
+    where?: KnowledgeArticleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of KnowledgeArticles to fetch.
+     */
+    orderBy?: KnowledgeArticleOrderByWithRelationInput | KnowledgeArticleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for KnowledgeArticles.
+     */
+    cursor?: KnowledgeArticleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` KnowledgeArticles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` KnowledgeArticles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of KnowledgeArticles.
+     */
+    distinct?: KnowledgeArticleScalarFieldEnum | KnowledgeArticleScalarFieldEnum[]
+  }
+
+  /**
+   * KnowledgeArticle findFirstOrThrow
+   */
+  export type KnowledgeArticleFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * Filter, which KnowledgeArticle to fetch.
+     */
+    where?: KnowledgeArticleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of KnowledgeArticles to fetch.
+     */
+    orderBy?: KnowledgeArticleOrderByWithRelationInput | KnowledgeArticleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for KnowledgeArticles.
+     */
+    cursor?: KnowledgeArticleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` KnowledgeArticles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` KnowledgeArticles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of KnowledgeArticles.
+     */
+    distinct?: KnowledgeArticleScalarFieldEnum | KnowledgeArticleScalarFieldEnum[]
+  }
+
+  /**
+   * KnowledgeArticle findMany
+   */
+  export type KnowledgeArticleFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * Filter, which KnowledgeArticles to fetch.
+     */
+    where?: KnowledgeArticleWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of KnowledgeArticles to fetch.
+     */
+    orderBy?: KnowledgeArticleOrderByWithRelationInput | KnowledgeArticleOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing KnowledgeArticles.
+     */
+    cursor?: KnowledgeArticleWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` KnowledgeArticles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` KnowledgeArticles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of KnowledgeArticles.
+     */
+    distinct?: KnowledgeArticleScalarFieldEnum | KnowledgeArticleScalarFieldEnum[]
+  }
+
+  /**
+   * KnowledgeArticle create
+   */
+  export type KnowledgeArticleCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * The data needed to create a KnowledgeArticle.
+     */
+    data: XOR<KnowledgeArticleCreateInput, KnowledgeArticleUncheckedCreateInput>
+  }
+
+  /**
+   * KnowledgeArticle createMany
+   */
+  export type KnowledgeArticleCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many KnowledgeArticles.
+     */
+    data: KnowledgeArticleCreateManyInput | KnowledgeArticleCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * KnowledgeArticle createManyAndReturn
+   */
+  export type KnowledgeArticleCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * The data used to create many KnowledgeArticles.
+     */
+    data: KnowledgeArticleCreateManyInput | KnowledgeArticleCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * KnowledgeArticle update
+   */
+  export type KnowledgeArticleUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * The data needed to update a KnowledgeArticle.
+     */
+    data: XOR<KnowledgeArticleUpdateInput, KnowledgeArticleUncheckedUpdateInput>
+    /**
+     * Choose, which KnowledgeArticle to update.
+     */
+    where: KnowledgeArticleWhereUniqueInput
+  }
+
+  /**
+   * KnowledgeArticle updateMany
+   */
+  export type KnowledgeArticleUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update KnowledgeArticles.
+     */
+    data: XOR<KnowledgeArticleUpdateManyMutationInput, KnowledgeArticleUncheckedUpdateManyInput>
+    /**
+     * Filter which KnowledgeArticles to update
+     */
+    where?: KnowledgeArticleWhereInput
+    /**
+     * Limit how many KnowledgeArticles to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * KnowledgeArticle updateManyAndReturn
+   */
+  export type KnowledgeArticleUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * The data used to update KnowledgeArticles.
+     */
+    data: XOR<KnowledgeArticleUpdateManyMutationInput, KnowledgeArticleUncheckedUpdateManyInput>
+    /**
+     * Filter which KnowledgeArticles to update
+     */
+    where?: KnowledgeArticleWhereInput
+    /**
+     * Limit how many KnowledgeArticles to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * KnowledgeArticle upsert
+   */
+  export type KnowledgeArticleUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * The filter to search for the KnowledgeArticle to update in case it exists.
+     */
+    where: KnowledgeArticleWhereUniqueInput
+    /**
+     * In case the KnowledgeArticle found by the `where` argument doesn't exist, create a new KnowledgeArticle with this data.
+     */
+    create: XOR<KnowledgeArticleCreateInput, KnowledgeArticleUncheckedCreateInput>
+    /**
+     * In case the KnowledgeArticle was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<KnowledgeArticleUpdateInput, KnowledgeArticleUncheckedUpdateInput>
+  }
+
+  /**
+   * KnowledgeArticle delete
+   */
+  export type KnowledgeArticleDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+    /**
+     * Filter which KnowledgeArticle to delete.
+     */
+    where: KnowledgeArticleWhereUniqueInput
+  }
+
+  /**
+   * KnowledgeArticle deleteMany
+   */
+  export type KnowledgeArticleDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which KnowledgeArticles to delete
+     */
+    where?: KnowledgeArticleWhereInput
+    /**
+     * Limit how many KnowledgeArticles to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * KnowledgeArticle without action
+   */
+  export type KnowledgeArticleDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KnowledgeArticle
+     */
+    select?: KnowledgeArticleSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the KnowledgeArticle
+     */
+    omit?: KnowledgeArticleOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: KnowledgeArticleInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model FileBlob
+   */
+
+  export type AggregateFileBlob = {
+    _count: FileBlobCountAggregateOutputType | null
+    _avg: FileBlobAvgAggregateOutputType | null
+    _sum: FileBlobSumAggregateOutputType | null
+    _min: FileBlobMinAggregateOutputType | null
+    _max: FileBlobMaxAggregateOutputType | null
+  }
+
+  export type FileBlobAvgAggregateOutputType = {
+    size: number | null
+  }
+
+  export type FileBlobSumAggregateOutputType = {
+    size: number | null
+  }
+
+  export type FileBlobMinAggregateOutputType = {
+    key: string | null
+    data: Bytes | null
+    size: number | null
+    createdAt: Date | null
+  }
+
+  export type FileBlobMaxAggregateOutputType = {
+    key: string | null
+    data: Bytes | null
+    size: number | null
+    createdAt: Date | null
+  }
+
+  export type FileBlobCountAggregateOutputType = {
+    key: number
+    data: number
+    size: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type FileBlobAvgAggregateInputType = {
+    size?: true
+  }
+
+  export type FileBlobSumAggregateInputType = {
+    size?: true
+  }
+
+  export type FileBlobMinAggregateInputType = {
+    key?: true
+    data?: true
+    size?: true
+    createdAt?: true
+  }
+
+  export type FileBlobMaxAggregateInputType = {
+    key?: true
+    data?: true
+    size?: true
+    createdAt?: true
+  }
+
+  export type FileBlobCountAggregateInputType = {
+    key?: true
+    data?: true
+    size?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type FileBlobAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which FileBlob to aggregate.
+     */
+    where?: FileBlobWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FileBlobs to fetch.
+     */
+    orderBy?: FileBlobOrderByWithRelationInput | FileBlobOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: FileBlobWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FileBlobs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FileBlobs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned FileBlobs
+    **/
+    _count?: true | FileBlobCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: FileBlobAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: FileBlobSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: FileBlobMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: FileBlobMaxAggregateInputType
+  }
+
+  export type GetFileBlobAggregateType<T extends FileBlobAggregateArgs> = {
+        [P in keyof T & keyof AggregateFileBlob]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateFileBlob[P]>
+      : GetScalarType<T[P], AggregateFileBlob[P]>
+  }
+
+
+
+
+  export type FileBlobGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: FileBlobWhereInput
+    orderBy?: FileBlobOrderByWithAggregationInput | FileBlobOrderByWithAggregationInput[]
+    by: FileBlobScalarFieldEnum[] | FileBlobScalarFieldEnum
+    having?: FileBlobScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: FileBlobCountAggregateInputType | true
+    _avg?: FileBlobAvgAggregateInputType
+    _sum?: FileBlobSumAggregateInputType
+    _min?: FileBlobMinAggregateInputType
+    _max?: FileBlobMaxAggregateInputType
+  }
+
+  export type FileBlobGroupByOutputType = {
+    key: string
+    data: Bytes
+    size: number
+    createdAt: Date
+    _count: FileBlobCountAggregateOutputType | null
+    _avg: FileBlobAvgAggregateOutputType | null
+    _sum: FileBlobSumAggregateOutputType | null
+    _min: FileBlobMinAggregateOutputType | null
+    _max: FileBlobMaxAggregateOutputType | null
+  }
+
+  type GetFileBlobGroupByPayload<T extends FileBlobGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<FileBlobGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof FileBlobGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], FileBlobGroupByOutputType[P]>
+            : GetScalarType<T[P], FileBlobGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type FileBlobSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    key?: boolean
+    data?: boolean
+    size?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["fileBlob"]>
+
+  export type FileBlobSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    key?: boolean
+    data?: boolean
+    size?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["fileBlob"]>
+
+  export type FileBlobSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    key?: boolean
+    data?: boolean
+    size?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["fileBlob"]>
+
+  export type FileBlobSelectScalar = {
+    key?: boolean
+    data?: boolean
+    size?: boolean
+    createdAt?: boolean
+  }
+
+  export type FileBlobOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"key" | "data" | "size" | "createdAt", ExtArgs["result"]["fileBlob"]>
+
+  export type $FileBlobPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "FileBlob"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      key: string
+      data: Prisma.Bytes
+      size: number
+      createdAt: Date
+    }, ExtArgs["result"]["fileBlob"]>
+    composites: {}
+  }
+
+  type FileBlobGetPayload<S extends boolean | null | undefined | FileBlobDefaultArgs> = $Result.GetResult<Prisma.$FileBlobPayload, S>
+
+  type FileBlobCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<FileBlobFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: FileBlobCountAggregateInputType | true
+    }
+
+  export interface FileBlobDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['FileBlob'], meta: { name: 'FileBlob' } }
+    /**
+     * Find zero or one FileBlob that matches the filter.
+     * @param {FileBlobFindUniqueArgs} args - Arguments to find a FileBlob
+     * @example
+     * // Get one FileBlob
+     * const fileBlob = await prisma.fileBlob.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends FileBlobFindUniqueArgs>(args: SelectSubset<T, FileBlobFindUniqueArgs<ExtArgs>>): Prisma__FileBlobClient<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one FileBlob that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {FileBlobFindUniqueOrThrowArgs} args - Arguments to find a FileBlob
+     * @example
+     * // Get one FileBlob
+     * const fileBlob = await prisma.fileBlob.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends FileBlobFindUniqueOrThrowArgs>(args: SelectSubset<T, FileBlobFindUniqueOrThrowArgs<ExtArgs>>): Prisma__FileBlobClient<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first FileBlob that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FileBlobFindFirstArgs} args - Arguments to find a FileBlob
+     * @example
+     * // Get one FileBlob
+     * const fileBlob = await prisma.fileBlob.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends FileBlobFindFirstArgs>(args?: SelectSubset<T, FileBlobFindFirstArgs<ExtArgs>>): Prisma__FileBlobClient<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first FileBlob that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FileBlobFindFirstOrThrowArgs} args - Arguments to find a FileBlob
+     * @example
+     * // Get one FileBlob
+     * const fileBlob = await prisma.fileBlob.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends FileBlobFindFirstOrThrowArgs>(args?: SelectSubset<T, FileBlobFindFirstOrThrowArgs<ExtArgs>>): Prisma__FileBlobClient<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more FileBlobs that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FileBlobFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all FileBlobs
+     * const fileBlobs = await prisma.fileBlob.findMany()
+     * 
+     * // Get first 10 FileBlobs
+     * const fileBlobs = await prisma.fileBlob.findMany({ take: 10 })
+     * 
+     * // Only select the `key`
+     * const fileBlobWithKeyOnly = await prisma.fileBlob.findMany({ select: { key: true } })
+     * 
+     */
+    findMany<T extends FileBlobFindManyArgs>(args?: SelectSubset<T, FileBlobFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a FileBlob.
+     * @param {FileBlobCreateArgs} args - Arguments to create a FileBlob.
+     * @example
+     * // Create one FileBlob
+     * const FileBlob = await prisma.fileBlob.create({
+     *   data: {
+     *     // ... data to create a FileBlob
+     *   }
+     * })
+     * 
+     */
+    create<T extends FileBlobCreateArgs>(args: SelectSubset<T, FileBlobCreateArgs<ExtArgs>>): Prisma__FileBlobClient<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many FileBlobs.
+     * @param {FileBlobCreateManyArgs} args - Arguments to create many FileBlobs.
+     * @example
+     * // Create many FileBlobs
+     * const fileBlob = await prisma.fileBlob.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends FileBlobCreateManyArgs>(args?: SelectSubset<T, FileBlobCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many FileBlobs and returns the data saved in the database.
+     * @param {FileBlobCreateManyAndReturnArgs} args - Arguments to create many FileBlobs.
+     * @example
+     * // Create many FileBlobs
+     * const fileBlob = await prisma.fileBlob.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many FileBlobs and only return the `key`
+     * const fileBlobWithKeyOnly = await prisma.fileBlob.createManyAndReturn({
+     *   select: { key: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends FileBlobCreateManyAndReturnArgs>(args?: SelectSubset<T, FileBlobCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a FileBlob.
+     * @param {FileBlobDeleteArgs} args - Arguments to delete one FileBlob.
+     * @example
+     * // Delete one FileBlob
+     * const FileBlob = await prisma.fileBlob.delete({
+     *   where: {
+     *     // ... filter to delete one FileBlob
+     *   }
+     * })
+     * 
+     */
+    delete<T extends FileBlobDeleteArgs>(args: SelectSubset<T, FileBlobDeleteArgs<ExtArgs>>): Prisma__FileBlobClient<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one FileBlob.
+     * @param {FileBlobUpdateArgs} args - Arguments to update one FileBlob.
+     * @example
+     * // Update one FileBlob
+     * const fileBlob = await prisma.fileBlob.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends FileBlobUpdateArgs>(args: SelectSubset<T, FileBlobUpdateArgs<ExtArgs>>): Prisma__FileBlobClient<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more FileBlobs.
+     * @param {FileBlobDeleteManyArgs} args - Arguments to filter FileBlobs to delete.
+     * @example
+     * // Delete a few FileBlobs
+     * const { count } = await prisma.fileBlob.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends FileBlobDeleteManyArgs>(args?: SelectSubset<T, FileBlobDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more FileBlobs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FileBlobUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many FileBlobs
+     * const fileBlob = await prisma.fileBlob.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends FileBlobUpdateManyArgs>(args: SelectSubset<T, FileBlobUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more FileBlobs and returns the data updated in the database.
+     * @param {FileBlobUpdateManyAndReturnArgs} args - Arguments to update many FileBlobs.
+     * @example
+     * // Update many FileBlobs
+     * const fileBlob = await prisma.fileBlob.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more FileBlobs and only return the `key`
+     * const fileBlobWithKeyOnly = await prisma.fileBlob.updateManyAndReturn({
+     *   select: { key: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends FileBlobUpdateManyAndReturnArgs>(args: SelectSubset<T, FileBlobUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one FileBlob.
+     * @param {FileBlobUpsertArgs} args - Arguments to update or create a FileBlob.
+     * @example
+     * // Update or create a FileBlob
+     * const fileBlob = await prisma.fileBlob.upsert({
+     *   create: {
+     *     // ... data to create a FileBlob
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the FileBlob we want to update
+     *   }
+     * })
+     */
+    upsert<T extends FileBlobUpsertArgs>(args: SelectSubset<T, FileBlobUpsertArgs<ExtArgs>>): Prisma__FileBlobClient<$Result.GetResult<Prisma.$FileBlobPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of FileBlobs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FileBlobCountArgs} args - Arguments to filter FileBlobs to count.
+     * @example
+     * // Count the number of FileBlobs
+     * const count = await prisma.fileBlob.count({
+     *   where: {
+     *     // ... the filter for the FileBlobs we want to count
+     *   }
+     * })
+    **/
+    count<T extends FileBlobCountArgs>(
+      args?: Subset<T, FileBlobCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], FileBlobCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a FileBlob.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FileBlobAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends FileBlobAggregateArgs>(args: Subset<T, FileBlobAggregateArgs>): Prisma.PrismaPromise<GetFileBlobAggregateType<T>>
+
+    /**
+     * Group by FileBlob.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {FileBlobGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends FileBlobGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: FileBlobGroupByArgs['orderBy'] }
+        : { orderBy?: FileBlobGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, FileBlobGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetFileBlobGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the FileBlob model
+   */
+  readonly fields: FileBlobFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for FileBlob.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__FileBlobClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the FileBlob model
+   */
+  interface FileBlobFieldRefs {
+    readonly key: FieldRef<"FileBlob", 'String'>
+    readonly data: FieldRef<"FileBlob", 'Bytes'>
+    readonly size: FieldRef<"FileBlob", 'Int'>
+    readonly createdAt: FieldRef<"FileBlob", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * FileBlob findUnique
+   */
+  export type FileBlobFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * Filter, which FileBlob to fetch.
+     */
+    where: FileBlobWhereUniqueInput
+  }
+
+  /**
+   * FileBlob findUniqueOrThrow
+   */
+  export type FileBlobFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * Filter, which FileBlob to fetch.
+     */
+    where: FileBlobWhereUniqueInput
+  }
+
+  /**
+   * FileBlob findFirst
+   */
+  export type FileBlobFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * Filter, which FileBlob to fetch.
+     */
+    where?: FileBlobWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FileBlobs to fetch.
+     */
+    orderBy?: FileBlobOrderByWithRelationInput | FileBlobOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for FileBlobs.
+     */
+    cursor?: FileBlobWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FileBlobs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FileBlobs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FileBlobs.
+     */
+    distinct?: FileBlobScalarFieldEnum | FileBlobScalarFieldEnum[]
+  }
+
+  /**
+   * FileBlob findFirstOrThrow
+   */
+  export type FileBlobFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * Filter, which FileBlob to fetch.
+     */
+    where?: FileBlobWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FileBlobs to fetch.
+     */
+    orderBy?: FileBlobOrderByWithRelationInput | FileBlobOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for FileBlobs.
+     */
+    cursor?: FileBlobWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FileBlobs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FileBlobs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FileBlobs.
+     */
+    distinct?: FileBlobScalarFieldEnum | FileBlobScalarFieldEnum[]
+  }
+
+  /**
+   * FileBlob findMany
+   */
+  export type FileBlobFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * Filter, which FileBlobs to fetch.
+     */
+    where?: FileBlobWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of FileBlobs to fetch.
+     */
+    orderBy?: FileBlobOrderByWithRelationInput | FileBlobOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing FileBlobs.
+     */
+    cursor?: FileBlobWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` FileBlobs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` FileBlobs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of FileBlobs.
+     */
+    distinct?: FileBlobScalarFieldEnum | FileBlobScalarFieldEnum[]
+  }
+
+  /**
+   * FileBlob create
+   */
+  export type FileBlobCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * The data needed to create a FileBlob.
+     */
+    data: XOR<FileBlobCreateInput, FileBlobUncheckedCreateInput>
+  }
+
+  /**
+   * FileBlob createMany
+   */
+  export type FileBlobCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many FileBlobs.
+     */
+    data: FileBlobCreateManyInput | FileBlobCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * FileBlob createManyAndReturn
+   */
+  export type FileBlobCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * The data used to create many FileBlobs.
+     */
+    data: FileBlobCreateManyInput | FileBlobCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * FileBlob update
+   */
+  export type FileBlobUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * The data needed to update a FileBlob.
+     */
+    data: XOR<FileBlobUpdateInput, FileBlobUncheckedUpdateInput>
+    /**
+     * Choose, which FileBlob to update.
+     */
+    where: FileBlobWhereUniqueInput
+  }
+
+  /**
+   * FileBlob updateMany
+   */
+  export type FileBlobUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update FileBlobs.
+     */
+    data: XOR<FileBlobUpdateManyMutationInput, FileBlobUncheckedUpdateManyInput>
+    /**
+     * Filter which FileBlobs to update
+     */
+    where?: FileBlobWhereInput
+    /**
+     * Limit how many FileBlobs to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * FileBlob updateManyAndReturn
+   */
+  export type FileBlobUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * The data used to update FileBlobs.
+     */
+    data: XOR<FileBlobUpdateManyMutationInput, FileBlobUncheckedUpdateManyInput>
+    /**
+     * Filter which FileBlobs to update
+     */
+    where?: FileBlobWhereInput
+    /**
+     * Limit how many FileBlobs to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * FileBlob upsert
+   */
+  export type FileBlobUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * The filter to search for the FileBlob to update in case it exists.
+     */
+    where: FileBlobWhereUniqueInput
+    /**
+     * In case the FileBlob found by the `where` argument doesn't exist, create a new FileBlob with this data.
+     */
+    create: XOR<FileBlobCreateInput, FileBlobUncheckedCreateInput>
+    /**
+     * In case the FileBlob was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<FileBlobUpdateInput, FileBlobUncheckedUpdateInput>
+  }
+
+  /**
+   * FileBlob delete
+   */
+  export type FileBlobDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+    /**
+     * Filter which FileBlob to delete.
+     */
+    where: FileBlobWhereUniqueInput
+  }
+
+  /**
+   * FileBlob deleteMany
+   */
+  export type FileBlobDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which FileBlobs to delete
+     */
+    where?: FileBlobWhereInput
+    /**
+     * Limit how many FileBlobs to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * FileBlob without action
+   */
+  export type FileBlobDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the FileBlob
+     */
+    select?: FileBlobSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the FileBlob
+     */
+    omit?: FileBlobOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -54734,6 +58452,10 @@ export namespace Prisma {
     closedAt: 'closedAt',
     slaPausedAt: 'slaPausedAt',
     reopenCount: 'reopenCount',
+    tags: 'tags',
+    csatRating: 'csatRating',
+    csatComment: 'csatComment',
+    csatAt: 'csatAt',
     version: 'version',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -54817,6 +58539,48 @@ export namespace Prisma {
   };
 
   export type ChangeRequestScalarFieldEnum = (typeof ChangeRequestScalarFieldEnum)[keyof typeof ChangeRequestScalarFieldEnum]
+
+
+  export const CannedResponseScalarFieldEnum: {
+    id: 'id',
+    organizationId: 'organizationId',
+    title: 'title',
+    body: 'body',
+    createdById: 'createdById',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type CannedResponseScalarFieldEnum = (typeof CannedResponseScalarFieldEnum)[keyof typeof CannedResponseScalarFieldEnum]
+
+
+  export const KnowledgeArticleScalarFieldEnum: {
+    id: 'id',
+    organizationId: 'organizationId',
+    title: 'title',
+    body: 'body',
+    category: 'category',
+    visibility: 'visibility',
+    published: 'published',
+    authorId: 'authorId',
+    views: 'views',
+    helpfulYes: 'helpfulYes',
+    helpfulNo: 'helpfulNo',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type KnowledgeArticleScalarFieldEnum = (typeof KnowledgeArticleScalarFieldEnum)[keyof typeof KnowledgeArticleScalarFieldEnum]
+
+
+  export const FileBlobScalarFieldEnum: {
+    key: 'key',
+    data: 'data',
+    size: 'size',
+    createdAt: 'createdAt'
+  };
+
+  export type FileBlobScalarFieldEnum = (typeof FileBlobScalarFieldEnum)[keyof typeof FileBlobScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -55180,6 +58944,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Bytes'
+   */
+  export type BytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes'>
+    
+
+
+  /**
+   * Reference to a field of type 'Bytes[]'
+   */
+  export type ListBytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes[]'>
+    
+
+
+  /**
    * Reference to a field of type 'Float'
    */
   export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -55225,6 +59003,8 @@ export namespace Prisma {
     timesheets?: TimesheetListRelationFilter
     comments?: CommentListRelationFilter
     sessions?: SessionListRelationFilter
+    cannedResponses?: CannedResponseListRelationFilter
+    articles?: KnowledgeArticleListRelationFilter
   }
 
   export type OrganizationOrderByWithRelationInput = {
@@ -55253,6 +59033,8 @@ export namespace Prisma {
     timesheets?: TimesheetOrderByRelationAggregateInput
     comments?: CommentOrderByRelationAggregateInput
     sessions?: SessionOrderByRelationAggregateInput
+    cannedResponses?: CannedResponseOrderByRelationAggregateInput
+    articles?: KnowledgeArticleOrderByRelationAggregateInput
   }
 
   export type OrganizationWhereUniqueInput = Prisma.AtLeast<{
@@ -55284,6 +59066,8 @@ export namespace Prisma {
     timesheets?: TimesheetListRelationFilter
     comments?: CommentListRelationFilter
     sessions?: SessionListRelationFilter
+    cannedResponses?: CannedResponseListRelationFilter
+    articles?: KnowledgeArticleListRelationFilter
   }, "id" | "slug">
 
   export type OrganizationOrderByWithAggregationInput = {
@@ -58054,6 +61838,10 @@ export namespace Prisma {
     closedAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     slaPausedAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     reopenCount?: IntFilter<"Ticket"> | number
+    tags?: StringNullableListFilter<"Ticket">
+    csatRating?: IntNullableFilter<"Ticket"> | number | null
+    csatComment?: StringNullableFilter<"Ticket"> | string | null
+    csatAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     version?: IntFilter<"Ticket"> | number
     createdAt?: DateTimeFilter<"Ticket"> | Date | string
     updatedAt?: DateTimeFilter<"Ticket"> | Date | string
@@ -58085,6 +61873,10 @@ export namespace Prisma {
     closedAt?: SortOrderInput | SortOrder
     slaPausedAt?: SortOrderInput | SortOrder
     reopenCount?: SortOrder
+    tags?: SortOrder
+    csatRating?: SortOrderInput | SortOrder
+    csatComment?: SortOrderInput | SortOrder
+    csatAt?: SortOrderInput | SortOrder
     version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -58120,6 +61912,10 @@ export namespace Prisma {
     closedAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     slaPausedAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     reopenCount?: IntFilter<"Ticket"> | number
+    tags?: StringNullableListFilter<"Ticket">
+    csatRating?: IntNullableFilter<"Ticket"> | number | null
+    csatComment?: StringNullableFilter<"Ticket"> | string | null
+    csatAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     version?: IntFilter<"Ticket"> | number
     createdAt?: DateTimeFilter<"Ticket"> | Date | string
     updatedAt?: DateTimeFilter<"Ticket"> | Date | string
@@ -58151,6 +61947,10 @@ export namespace Prisma {
     closedAt?: SortOrderInput | SortOrder
     slaPausedAt?: SortOrderInput | SortOrder
     reopenCount?: SortOrder
+    tags?: SortOrder
+    csatRating?: SortOrderInput | SortOrder
+    csatComment?: SortOrderInput | SortOrder
+    csatAt?: SortOrderInput | SortOrder
     version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -58186,6 +61986,10 @@ export namespace Prisma {
     closedAt?: DateTimeNullableWithAggregatesFilter<"Ticket"> | Date | string | null
     slaPausedAt?: DateTimeNullableWithAggregatesFilter<"Ticket"> | Date | string | null
     reopenCount?: IntWithAggregatesFilter<"Ticket"> | number
+    tags?: StringNullableListFilter<"Ticket">
+    csatRating?: IntNullableWithAggregatesFilter<"Ticket"> | number | null
+    csatComment?: StringNullableWithAggregatesFilter<"Ticket"> | string | null
+    csatAt?: DateTimeNullableWithAggregatesFilter<"Ticket"> | Date | string | null
     version?: IntWithAggregatesFilter<"Ticket"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Ticket"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Ticket"> | Date | string
@@ -58586,6 +62390,217 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"ChangeRequest"> | Date | string
   }
 
+  export type CannedResponseWhereInput = {
+    AND?: CannedResponseWhereInput | CannedResponseWhereInput[]
+    OR?: CannedResponseWhereInput[]
+    NOT?: CannedResponseWhereInput | CannedResponseWhereInput[]
+    id?: UuidFilter<"CannedResponse"> | string
+    organizationId?: UuidFilter<"CannedResponse"> | string
+    title?: StringFilter<"CannedResponse"> | string
+    body?: StringFilter<"CannedResponse"> | string
+    createdById?: UuidFilter<"CannedResponse"> | string
+    createdAt?: DateTimeFilter<"CannedResponse"> | Date | string
+    updatedAt?: DateTimeFilter<"CannedResponse"> | Date | string
+    organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
+  }
+
+  export type CannedResponseOrderByWithRelationInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    createdById?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    organization?: OrganizationOrderByWithRelationInput
+  }
+
+  export type CannedResponseWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: CannedResponseWhereInput | CannedResponseWhereInput[]
+    OR?: CannedResponseWhereInput[]
+    NOT?: CannedResponseWhereInput | CannedResponseWhereInput[]
+    organizationId?: UuidFilter<"CannedResponse"> | string
+    title?: StringFilter<"CannedResponse"> | string
+    body?: StringFilter<"CannedResponse"> | string
+    createdById?: UuidFilter<"CannedResponse"> | string
+    createdAt?: DateTimeFilter<"CannedResponse"> | Date | string
+    updatedAt?: DateTimeFilter<"CannedResponse"> | Date | string
+    organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
+  }, "id">
+
+  export type CannedResponseOrderByWithAggregationInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    createdById?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CannedResponseCountOrderByAggregateInput
+    _max?: CannedResponseMaxOrderByAggregateInput
+    _min?: CannedResponseMinOrderByAggregateInput
+  }
+
+  export type CannedResponseScalarWhereWithAggregatesInput = {
+    AND?: CannedResponseScalarWhereWithAggregatesInput | CannedResponseScalarWhereWithAggregatesInput[]
+    OR?: CannedResponseScalarWhereWithAggregatesInput[]
+    NOT?: CannedResponseScalarWhereWithAggregatesInput | CannedResponseScalarWhereWithAggregatesInput[]
+    id?: UuidWithAggregatesFilter<"CannedResponse"> | string
+    organizationId?: UuidWithAggregatesFilter<"CannedResponse"> | string
+    title?: StringWithAggregatesFilter<"CannedResponse"> | string
+    body?: StringWithAggregatesFilter<"CannedResponse"> | string
+    createdById?: UuidWithAggregatesFilter<"CannedResponse"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"CannedResponse"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"CannedResponse"> | Date | string
+  }
+
+  export type KnowledgeArticleWhereInput = {
+    AND?: KnowledgeArticleWhereInput | KnowledgeArticleWhereInput[]
+    OR?: KnowledgeArticleWhereInput[]
+    NOT?: KnowledgeArticleWhereInput | KnowledgeArticleWhereInput[]
+    id?: UuidFilter<"KnowledgeArticle"> | string
+    organizationId?: UuidFilter<"KnowledgeArticle"> | string
+    title?: StringFilter<"KnowledgeArticle"> | string
+    body?: StringFilter<"KnowledgeArticle"> | string
+    category?: StringFilter<"KnowledgeArticle"> | string
+    visibility?: EnumVisibilityFilter<"KnowledgeArticle"> | $Enums.Visibility
+    published?: BoolFilter<"KnowledgeArticle"> | boolean
+    authorId?: UuidFilter<"KnowledgeArticle"> | string
+    views?: IntFilter<"KnowledgeArticle"> | number
+    helpfulYes?: IntFilter<"KnowledgeArticle"> | number
+    helpfulNo?: IntFilter<"KnowledgeArticle"> | number
+    createdAt?: DateTimeFilter<"KnowledgeArticle"> | Date | string
+    updatedAt?: DateTimeFilter<"KnowledgeArticle"> | Date | string
+    organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
+  }
+
+  export type KnowledgeArticleOrderByWithRelationInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    category?: SortOrder
+    visibility?: SortOrder
+    published?: SortOrder
+    authorId?: SortOrder
+    views?: SortOrder
+    helpfulYes?: SortOrder
+    helpfulNo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    organization?: OrganizationOrderByWithRelationInput
+  }
+
+  export type KnowledgeArticleWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: KnowledgeArticleWhereInput | KnowledgeArticleWhereInput[]
+    OR?: KnowledgeArticleWhereInput[]
+    NOT?: KnowledgeArticleWhereInput | KnowledgeArticleWhereInput[]
+    organizationId?: UuidFilter<"KnowledgeArticle"> | string
+    title?: StringFilter<"KnowledgeArticle"> | string
+    body?: StringFilter<"KnowledgeArticle"> | string
+    category?: StringFilter<"KnowledgeArticle"> | string
+    visibility?: EnumVisibilityFilter<"KnowledgeArticle"> | $Enums.Visibility
+    published?: BoolFilter<"KnowledgeArticle"> | boolean
+    authorId?: UuidFilter<"KnowledgeArticle"> | string
+    views?: IntFilter<"KnowledgeArticle"> | number
+    helpfulYes?: IntFilter<"KnowledgeArticle"> | number
+    helpfulNo?: IntFilter<"KnowledgeArticle"> | number
+    createdAt?: DateTimeFilter<"KnowledgeArticle"> | Date | string
+    updatedAt?: DateTimeFilter<"KnowledgeArticle"> | Date | string
+    organization?: XOR<OrganizationScalarRelationFilter, OrganizationWhereInput>
+  }, "id">
+
+  export type KnowledgeArticleOrderByWithAggregationInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    category?: SortOrder
+    visibility?: SortOrder
+    published?: SortOrder
+    authorId?: SortOrder
+    views?: SortOrder
+    helpfulYes?: SortOrder
+    helpfulNo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: KnowledgeArticleCountOrderByAggregateInput
+    _avg?: KnowledgeArticleAvgOrderByAggregateInput
+    _max?: KnowledgeArticleMaxOrderByAggregateInput
+    _min?: KnowledgeArticleMinOrderByAggregateInput
+    _sum?: KnowledgeArticleSumOrderByAggregateInput
+  }
+
+  export type KnowledgeArticleScalarWhereWithAggregatesInput = {
+    AND?: KnowledgeArticleScalarWhereWithAggregatesInput | KnowledgeArticleScalarWhereWithAggregatesInput[]
+    OR?: KnowledgeArticleScalarWhereWithAggregatesInput[]
+    NOT?: KnowledgeArticleScalarWhereWithAggregatesInput | KnowledgeArticleScalarWhereWithAggregatesInput[]
+    id?: UuidWithAggregatesFilter<"KnowledgeArticle"> | string
+    organizationId?: UuidWithAggregatesFilter<"KnowledgeArticle"> | string
+    title?: StringWithAggregatesFilter<"KnowledgeArticle"> | string
+    body?: StringWithAggregatesFilter<"KnowledgeArticle"> | string
+    category?: StringWithAggregatesFilter<"KnowledgeArticle"> | string
+    visibility?: EnumVisibilityWithAggregatesFilter<"KnowledgeArticle"> | $Enums.Visibility
+    published?: BoolWithAggregatesFilter<"KnowledgeArticle"> | boolean
+    authorId?: UuidWithAggregatesFilter<"KnowledgeArticle"> | string
+    views?: IntWithAggregatesFilter<"KnowledgeArticle"> | number
+    helpfulYes?: IntWithAggregatesFilter<"KnowledgeArticle"> | number
+    helpfulNo?: IntWithAggregatesFilter<"KnowledgeArticle"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"KnowledgeArticle"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"KnowledgeArticle"> | Date | string
+  }
+
+  export type FileBlobWhereInput = {
+    AND?: FileBlobWhereInput | FileBlobWhereInput[]
+    OR?: FileBlobWhereInput[]
+    NOT?: FileBlobWhereInput | FileBlobWhereInput[]
+    key?: StringFilter<"FileBlob"> | string
+    data?: BytesFilter<"FileBlob"> | Bytes
+    size?: IntFilter<"FileBlob"> | number
+    createdAt?: DateTimeFilter<"FileBlob"> | Date | string
+  }
+
+  export type FileBlobOrderByWithRelationInput = {
+    key?: SortOrder
+    data?: SortOrder
+    size?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type FileBlobWhereUniqueInput = Prisma.AtLeast<{
+    key?: string
+    AND?: FileBlobWhereInput | FileBlobWhereInput[]
+    OR?: FileBlobWhereInput[]
+    NOT?: FileBlobWhereInput | FileBlobWhereInput[]
+    data?: BytesFilter<"FileBlob"> | Bytes
+    size?: IntFilter<"FileBlob"> | number
+    createdAt?: DateTimeFilter<"FileBlob"> | Date | string
+  }, "key">
+
+  export type FileBlobOrderByWithAggregationInput = {
+    key?: SortOrder
+    data?: SortOrder
+    size?: SortOrder
+    createdAt?: SortOrder
+    _count?: FileBlobCountOrderByAggregateInput
+    _avg?: FileBlobAvgOrderByAggregateInput
+    _max?: FileBlobMaxOrderByAggregateInput
+    _min?: FileBlobMinOrderByAggregateInput
+    _sum?: FileBlobSumOrderByAggregateInput
+  }
+
+  export type FileBlobScalarWhereWithAggregatesInput = {
+    AND?: FileBlobScalarWhereWithAggregatesInput | FileBlobScalarWhereWithAggregatesInput[]
+    OR?: FileBlobScalarWhereWithAggregatesInput[]
+    NOT?: FileBlobScalarWhereWithAggregatesInput | FileBlobScalarWhereWithAggregatesInput[]
+    key?: StringWithAggregatesFilter<"FileBlob"> | string
+    data?: BytesWithAggregatesFilter<"FileBlob"> | Bytes
+    size?: IntWithAggregatesFilter<"FileBlob"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"FileBlob"> | Date | string
+  }
+
   export type OrganizationCreateInput = {
     id?: string
     name: string
@@ -58612,6 +62627,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateInput = {
@@ -58640,6 +62657,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUpdateInput = {
@@ -58668,6 +62687,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateInput = {
@@ -58696,6 +62717,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationCreateManyInput = {
@@ -61633,6 +65656,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -61664,6 +65691,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -61689,6 +65720,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -61720,6 +65755,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -61748,6 +65787,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -61772,6 +65815,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -61799,6 +65846,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -62232,6 +66283,235 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type CannedResponseCreateInput = {
+    id?: string
+    title: string
+    body: string
+    createdById: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    organization: OrganizationCreateNestedOneWithoutCannedResponsesInput
+  }
+
+  export type CannedResponseUncheckedCreateInput = {
+    id?: string
+    organizationId: string
+    title: string
+    body: string
+    createdById: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CannedResponseUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    createdById?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    organization?: OrganizationUpdateOneRequiredWithoutCannedResponsesNestedInput
+  }
+
+  export type CannedResponseUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    createdById?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CannedResponseCreateManyInput = {
+    id?: string
+    organizationId: string
+    title: string
+    body: string
+    createdById: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CannedResponseUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    createdById?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CannedResponseUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    createdById?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KnowledgeArticleCreateInput = {
+    id?: string
+    title: string
+    body: string
+    category?: string
+    visibility?: $Enums.Visibility
+    published?: boolean
+    authorId: string
+    views?: number
+    helpfulYes?: number
+    helpfulNo?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    organization: OrganizationCreateNestedOneWithoutArticlesInput
+  }
+
+  export type KnowledgeArticleUncheckedCreateInput = {
+    id?: string
+    organizationId: string
+    title: string
+    body: string
+    category?: string
+    visibility?: $Enums.Visibility
+    published?: boolean
+    authorId: string
+    views?: number
+    helpfulYes?: number
+    helpfulNo?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type KnowledgeArticleUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    visibility?: EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+    published?: BoolFieldUpdateOperationsInput | boolean
+    authorId?: StringFieldUpdateOperationsInput | string
+    views?: IntFieldUpdateOperationsInput | number
+    helpfulYes?: IntFieldUpdateOperationsInput | number
+    helpfulNo?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    organization?: OrganizationUpdateOneRequiredWithoutArticlesNestedInput
+  }
+
+  export type KnowledgeArticleUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    visibility?: EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+    published?: BoolFieldUpdateOperationsInput | boolean
+    authorId?: StringFieldUpdateOperationsInput | string
+    views?: IntFieldUpdateOperationsInput | number
+    helpfulYes?: IntFieldUpdateOperationsInput | number
+    helpfulNo?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KnowledgeArticleCreateManyInput = {
+    id?: string
+    organizationId: string
+    title: string
+    body: string
+    category?: string
+    visibility?: $Enums.Visibility
+    published?: boolean
+    authorId: string
+    views?: number
+    helpfulYes?: number
+    helpfulNo?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type KnowledgeArticleUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    visibility?: EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+    published?: BoolFieldUpdateOperationsInput | boolean
+    authorId?: StringFieldUpdateOperationsInput | string
+    views?: IntFieldUpdateOperationsInput | number
+    helpfulYes?: IntFieldUpdateOperationsInput | number
+    helpfulNo?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KnowledgeArticleUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    organizationId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    visibility?: EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+    published?: BoolFieldUpdateOperationsInput | boolean
+    authorId?: StringFieldUpdateOperationsInput | string
+    views?: IntFieldUpdateOperationsInput | number
+    helpfulYes?: IntFieldUpdateOperationsInput | number
+    helpfulNo?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FileBlobCreateInput = {
+    key: string
+    data: Bytes
+    size: number
+    createdAt?: Date | string
+  }
+
+  export type FileBlobUncheckedCreateInput = {
+    key: string
+    data: Bytes
+    size: number
+    createdAt?: Date | string
+  }
+
+  export type FileBlobUpdateInput = {
+    key?: StringFieldUpdateOperationsInput | string
+    data?: BytesFieldUpdateOperationsInput | Bytes
+    size?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FileBlobUncheckedUpdateInput = {
+    key?: StringFieldUpdateOperationsInput | string
+    data?: BytesFieldUpdateOperationsInput | Bytes
+    size?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FileBlobCreateManyInput = {
+    key: string
+    data: Bytes
+    size: number
+    createdAt?: Date | string
+  }
+
+  export type FileBlobUpdateManyMutationInput = {
+    key?: StringFieldUpdateOperationsInput | string
+    data?: BytesFieldUpdateOperationsInput | Bytes
+    size?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type FileBlobUncheckedUpdateManyInput = {
+    key?: StringFieldUpdateOperationsInput | string
+    data?: BytesFieldUpdateOperationsInput | Bytes
+    size?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type UuidFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -62406,6 +66686,18 @@ export namespace Prisma {
     none?: SessionWhereInput
   }
 
+  export type CannedResponseListRelationFilter = {
+    every?: CannedResponseWhereInput
+    some?: CannedResponseWhereInput
+    none?: CannedResponseWhereInput
+  }
+
+  export type KnowledgeArticleListRelationFilter = {
+    every?: KnowledgeArticleWhereInput
+    some?: KnowledgeArticleWhereInput
+    none?: KnowledgeArticleWhereInput
+  }
+
   export type MembershipOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -62471,6 +66763,14 @@ export namespace Prisma {
   }
 
   export type SessionOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CannedResponseOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type KnowledgeArticleOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -64731,6 +69031,17 @@ export namespace Prisma {
     not?: NestedEnumTicketStatusFilter<$PrismaModel> | $Enums.TicketStatus
   }
 
+  export type IntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
   export type ProjectNullableScalarRelationFilter = {
     is?: ProjectWhereInput | null
     isNot?: ProjectWhereInput | null
@@ -64763,6 +69074,10 @@ export namespace Prisma {
     closedAt?: SortOrder
     slaPausedAt?: SortOrder
     reopenCount?: SortOrder
+    tags?: SortOrder
+    csatRating?: SortOrder
+    csatComment?: SortOrder
+    csatAt?: SortOrder
     version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -64772,6 +69087,7 @@ export namespace Prisma {
     number?: SortOrder
     severity?: SortOrder
     reopenCount?: SortOrder
+    csatRating?: SortOrder
     version?: SortOrder
   }
 
@@ -64797,6 +69113,9 @@ export namespace Prisma {
     closedAt?: SortOrder
     slaPausedAt?: SortOrder
     reopenCount?: SortOrder
+    csatRating?: SortOrder
+    csatComment?: SortOrder
+    csatAt?: SortOrder
     version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -64824,6 +69143,9 @@ export namespace Prisma {
     closedAt?: SortOrder
     slaPausedAt?: SortOrder
     reopenCount?: SortOrder
+    csatRating?: SortOrder
+    csatComment?: SortOrder
+    csatAt?: SortOrder
     version?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -64833,6 +69155,7 @@ export namespace Prisma {
     number?: SortOrder
     severity?: SortOrder
     reopenCount?: SortOrder
+    csatRating?: SortOrder
     version?: SortOrder
   }
 
@@ -64854,6 +69177,22 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumTicketStatusFilter<$PrismaModel>
     _max?: NestedEnumTicketStatusFilter<$PrismaModel>
+  }
+
+  export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
   }
 
   export type TicketScalarRelationFilter = {
@@ -65114,6 +69453,142 @@ export namespace Prisma {
     _max?: NestedEnumChangeRequestStatusFilter<$PrismaModel>
   }
 
+  export type CannedResponseCountOrderByAggregateInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    createdById?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CannedResponseMaxOrderByAggregateInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    createdById?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CannedResponseMinOrderByAggregateInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    createdById?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type KnowledgeArticleCountOrderByAggregateInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    category?: SortOrder
+    visibility?: SortOrder
+    published?: SortOrder
+    authorId?: SortOrder
+    views?: SortOrder
+    helpfulYes?: SortOrder
+    helpfulNo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type KnowledgeArticleAvgOrderByAggregateInput = {
+    views?: SortOrder
+    helpfulYes?: SortOrder
+    helpfulNo?: SortOrder
+  }
+
+  export type KnowledgeArticleMaxOrderByAggregateInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    category?: SortOrder
+    visibility?: SortOrder
+    published?: SortOrder
+    authorId?: SortOrder
+    views?: SortOrder
+    helpfulYes?: SortOrder
+    helpfulNo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type KnowledgeArticleMinOrderByAggregateInput = {
+    id?: SortOrder
+    organizationId?: SortOrder
+    title?: SortOrder
+    body?: SortOrder
+    category?: SortOrder
+    visibility?: SortOrder
+    published?: SortOrder
+    authorId?: SortOrder
+    views?: SortOrder
+    helpfulYes?: SortOrder
+    helpfulNo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type KnowledgeArticleSumOrderByAggregateInput = {
+    views?: SortOrder
+    helpfulYes?: SortOrder
+    helpfulNo?: SortOrder
+  }
+
+  export type BytesFilter<$PrismaModel = never> = {
+    equals?: Bytes | BytesFieldRefInput<$PrismaModel>
+    in?: Bytes[] | ListBytesFieldRefInput<$PrismaModel>
+    notIn?: Bytes[] | ListBytesFieldRefInput<$PrismaModel>
+    not?: NestedBytesFilter<$PrismaModel> | Bytes
+  }
+
+  export type FileBlobCountOrderByAggregateInput = {
+    key?: SortOrder
+    data?: SortOrder
+    size?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type FileBlobAvgOrderByAggregateInput = {
+    size?: SortOrder
+  }
+
+  export type FileBlobMaxOrderByAggregateInput = {
+    key?: SortOrder
+    data?: SortOrder
+    size?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type FileBlobMinOrderByAggregateInput = {
+    key?: SortOrder
+    data?: SortOrder
+    size?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type FileBlobSumOrderByAggregateInput = {
+    size?: SortOrder
+  }
+
+  export type BytesWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Bytes | BytesFieldRefInput<$PrismaModel>
+    in?: Bytes[] | ListBytesFieldRefInput<$PrismaModel>
+    notIn?: Bytes[] | ListBytesFieldRefInput<$PrismaModel>
+    not?: NestedBytesWithAggregatesFilter<$PrismaModel> | Bytes
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBytesFilter<$PrismaModel>
+    _max?: NestedBytesFilter<$PrismaModel>
+  }
+
   export type MembershipCreateNestedManyWithoutOrganizationInput = {
     create?: XOR<MembershipCreateWithoutOrganizationInput, MembershipUncheckedCreateWithoutOrganizationInput> | MembershipCreateWithoutOrganizationInput[] | MembershipUncheckedCreateWithoutOrganizationInput[]
     connectOrCreate?: MembershipCreateOrConnectWithoutOrganizationInput | MembershipCreateOrConnectWithoutOrganizationInput[]
@@ -65233,6 +69708,20 @@ export namespace Prisma {
     connect?: SessionWhereUniqueInput | SessionWhereUniqueInput[]
   }
 
+  export type CannedResponseCreateNestedManyWithoutOrganizationInput = {
+    create?: XOR<CannedResponseCreateWithoutOrganizationInput, CannedResponseUncheckedCreateWithoutOrganizationInput> | CannedResponseCreateWithoutOrganizationInput[] | CannedResponseUncheckedCreateWithoutOrganizationInput[]
+    connectOrCreate?: CannedResponseCreateOrConnectWithoutOrganizationInput | CannedResponseCreateOrConnectWithoutOrganizationInput[]
+    createMany?: CannedResponseCreateManyOrganizationInputEnvelope
+    connect?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+  }
+
+  export type KnowledgeArticleCreateNestedManyWithoutOrganizationInput = {
+    create?: XOR<KnowledgeArticleCreateWithoutOrganizationInput, KnowledgeArticleUncheckedCreateWithoutOrganizationInput> | KnowledgeArticleCreateWithoutOrganizationInput[] | KnowledgeArticleUncheckedCreateWithoutOrganizationInput[]
+    connectOrCreate?: KnowledgeArticleCreateOrConnectWithoutOrganizationInput | KnowledgeArticleCreateOrConnectWithoutOrganizationInput[]
+    createMany?: KnowledgeArticleCreateManyOrganizationInputEnvelope
+    connect?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+  }
+
   export type MembershipUncheckedCreateNestedManyWithoutOrganizationInput = {
     create?: XOR<MembershipCreateWithoutOrganizationInput, MembershipUncheckedCreateWithoutOrganizationInput> | MembershipCreateWithoutOrganizationInput[] | MembershipUncheckedCreateWithoutOrganizationInput[]
     connectOrCreate?: MembershipCreateOrConnectWithoutOrganizationInput | MembershipCreateOrConnectWithoutOrganizationInput[]
@@ -65350,6 +69839,20 @@ export namespace Prisma {
     connectOrCreate?: SessionCreateOrConnectWithoutOrganizationInput | SessionCreateOrConnectWithoutOrganizationInput[]
     createMany?: SessionCreateManyOrganizationInputEnvelope
     connect?: SessionWhereUniqueInput | SessionWhereUniqueInput[]
+  }
+
+  export type CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput = {
+    create?: XOR<CannedResponseCreateWithoutOrganizationInput, CannedResponseUncheckedCreateWithoutOrganizationInput> | CannedResponseCreateWithoutOrganizationInput[] | CannedResponseUncheckedCreateWithoutOrganizationInput[]
+    connectOrCreate?: CannedResponseCreateOrConnectWithoutOrganizationInput | CannedResponseCreateOrConnectWithoutOrganizationInput[]
+    createMany?: CannedResponseCreateManyOrganizationInputEnvelope
+    connect?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+  }
+
+  export type KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput = {
+    create?: XOR<KnowledgeArticleCreateWithoutOrganizationInput, KnowledgeArticleUncheckedCreateWithoutOrganizationInput> | KnowledgeArticleCreateWithoutOrganizationInput[] | KnowledgeArticleUncheckedCreateWithoutOrganizationInput[]
+    connectOrCreate?: KnowledgeArticleCreateOrConnectWithoutOrganizationInput | KnowledgeArticleCreateOrConnectWithoutOrganizationInput[]
+    createMany?: KnowledgeArticleCreateManyOrganizationInputEnvelope
+    connect?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -65606,6 +70109,34 @@ export namespace Prisma {
     deleteMany?: SessionScalarWhereInput | SessionScalarWhereInput[]
   }
 
+  export type CannedResponseUpdateManyWithoutOrganizationNestedInput = {
+    create?: XOR<CannedResponseCreateWithoutOrganizationInput, CannedResponseUncheckedCreateWithoutOrganizationInput> | CannedResponseCreateWithoutOrganizationInput[] | CannedResponseUncheckedCreateWithoutOrganizationInput[]
+    connectOrCreate?: CannedResponseCreateOrConnectWithoutOrganizationInput | CannedResponseCreateOrConnectWithoutOrganizationInput[]
+    upsert?: CannedResponseUpsertWithWhereUniqueWithoutOrganizationInput | CannedResponseUpsertWithWhereUniqueWithoutOrganizationInput[]
+    createMany?: CannedResponseCreateManyOrganizationInputEnvelope
+    set?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+    disconnect?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+    delete?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+    connect?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+    update?: CannedResponseUpdateWithWhereUniqueWithoutOrganizationInput | CannedResponseUpdateWithWhereUniqueWithoutOrganizationInput[]
+    updateMany?: CannedResponseUpdateManyWithWhereWithoutOrganizationInput | CannedResponseUpdateManyWithWhereWithoutOrganizationInput[]
+    deleteMany?: CannedResponseScalarWhereInput | CannedResponseScalarWhereInput[]
+  }
+
+  export type KnowledgeArticleUpdateManyWithoutOrganizationNestedInput = {
+    create?: XOR<KnowledgeArticleCreateWithoutOrganizationInput, KnowledgeArticleUncheckedCreateWithoutOrganizationInput> | KnowledgeArticleCreateWithoutOrganizationInput[] | KnowledgeArticleUncheckedCreateWithoutOrganizationInput[]
+    connectOrCreate?: KnowledgeArticleCreateOrConnectWithoutOrganizationInput | KnowledgeArticleCreateOrConnectWithoutOrganizationInput[]
+    upsert?: KnowledgeArticleUpsertWithWhereUniqueWithoutOrganizationInput | KnowledgeArticleUpsertWithWhereUniqueWithoutOrganizationInput[]
+    createMany?: KnowledgeArticleCreateManyOrganizationInputEnvelope
+    set?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+    disconnect?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+    delete?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+    connect?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+    update?: KnowledgeArticleUpdateWithWhereUniqueWithoutOrganizationInput | KnowledgeArticleUpdateWithWhereUniqueWithoutOrganizationInput[]
+    updateMany?: KnowledgeArticleUpdateManyWithWhereWithoutOrganizationInput | KnowledgeArticleUpdateManyWithWhereWithoutOrganizationInput[]
+    deleteMany?: KnowledgeArticleScalarWhereInput | KnowledgeArticleScalarWhereInput[]
+  }
+
   export type MembershipUncheckedUpdateManyWithoutOrganizationNestedInput = {
     create?: XOR<MembershipCreateWithoutOrganizationInput, MembershipUncheckedCreateWithoutOrganizationInput> | MembershipCreateWithoutOrganizationInput[] | MembershipUncheckedCreateWithoutOrganizationInput[]
     connectOrCreate?: MembershipCreateOrConnectWithoutOrganizationInput | MembershipCreateOrConnectWithoutOrganizationInput[]
@@ -65842,6 +70373,34 @@ export namespace Prisma {
     update?: SessionUpdateWithWhereUniqueWithoutOrganizationInput | SessionUpdateWithWhereUniqueWithoutOrganizationInput[]
     updateMany?: SessionUpdateManyWithWhereWithoutOrganizationInput | SessionUpdateManyWithWhereWithoutOrganizationInput[]
     deleteMany?: SessionScalarWhereInput | SessionScalarWhereInput[]
+  }
+
+  export type CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput = {
+    create?: XOR<CannedResponseCreateWithoutOrganizationInput, CannedResponseUncheckedCreateWithoutOrganizationInput> | CannedResponseCreateWithoutOrganizationInput[] | CannedResponseUncheckedCreateWithoutOrganizationInput[]
+    connectOrCreate?: CannedResponseCreateOrConnectWithoutOrganizationInput | CannedResponseCreateOrConnectWithoutOrganizationInput[]
+    upsert?: CannedResponseUpsertWithWhereUniqueWithoutOrganizationInput | CannedResponseUpsertWithWhereUniqueWithoutOrganizationInput[]
+    createMany?: CannedResponseCreateManyOrganizationInputEnvelope
+    set?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+    disconnect?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+    delete?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+    connect?: CannedResponseWhereUniqueInput | CannedResponseWhereUniqueInput[]
+    update?: CannedResponseUpdateWithWhereUniqueWithoutOrganizationInput | CannedResponseUpdateWithWhereUniqueWithoutOrganizationInput[]
+    updateMany?: CannedResponseUpdateManyWithWhereWithoutOrganizationInput | CannedResponseUpdateManyWithWhereWithoutOrganizationInput[]
+    deleteMany?: CannedResponseScalarWhereInput | CannedResponseScalarWhereInput[]
+  }
+
+  export type KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput = {
+    create?: XOR<KnowledgeArticleCreateWithoutOrganizationInput, KnowledgeArticleUncheckedCreateWithoutOrganizationInput> | KnowledgeArticleCreateWithoutOrganizationInput[] | KnowledgeArticleUncheckedCreateWithoutOrganizationInput[]
+    connectOrCreate?: KnowledgeArticleCreateOrConnectWithoutOrganizationInput | KnowledgeArticleCreateOrConnectWithoutOrganizationInput[]
+    upsert?: KnowledgeArticleUpsertWithWhereUniqueWithoutOrganizationInput | KnowledgeArticleUpsertWithWhereUniqueWithoutOrganizationInput[]
+    createMany?: KnowledgeArticleCreateManyOrganizationInputEnvelope
+    set?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+    disconnect?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+    delete?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+    connect?: KnowledgeArticleWhereUniqueInput | KnowledgeArticleWhereUniqueInput[]
+    update?: KnowledgeArticleUpdateWithWhereUniqueWithoutOrganizationInput | KnowledgeArticleUpdateWithWhereUniqueWithoutOrganizationInput[]
+    updateMany?: KnowledgeArticleUpdateManyWithWhereWithoutOrganizationInput | KnowledgeArticleUpdateManyWithWhereWithoutOrganizationInput[]
+    deleteMany?: KnowledgeArticleScalarWhereInput | KnowledgeArticleScalarWhereInput[]
   }
 
   export type UserCreateskillsInput = {
@@ -68465,6 +73024,10 @@ export namespace Prisma {
     update?: XOR<XOR<OrganizationUpdateToOneWithWhereWithoutSlaPoliciesInput, OrganizationUpdateWithoutSlaPoliciesInput>, OrganizationUncheckedUpdateWithoutSlaPoliciesInput>
   }
 
+  export type TicketCreatetagsInput = {
+    set: string[]
+  }
+
   export type OrganizationCreateNestedOneWithoutTicketsInput = {
     create?: XOR<OrganizationCreateWithoutTicketsInput, OrganizationUncheckedCreateWithoutTicketsInput>
     connectOrCreate?: OrganizationCreateOrConnectWithoutTicketsInput
@@ -68503,6 +73066,19 @@ export namespace Prisma {
 
   export type EnumTicketStatusFieldUpdateOperationsInput = {
     set?: $Enums.TicketStatus
+  }
+
+  export type TicketUpdatetagsInput = {
+    set?: string[]
+    push?: string | string[]
+  }
+
+  export type NullableIntFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
   }
 
   export type OrganizationUpdateOneRequiredWithoutTicketsNestedInput = {
@@ -68651,6 +73227,38 @@ export namespace Prisma {
     upsert?: ProjectUpsertWithoutChangeRequestsInput
     connect?: ProjectWhereUniqueInput
     update?: XOR<XOR<ProjectUpdateToOneWithWhereWithoutChangeRequestsInput, ProjectUpdateWithoutChangeRequestsInput>, ProjectUncheckedUpdateWithoutChangeRequestsInput>
+  }
+
+  export type OrganizationCreateNestedOneWithoutCannedResponsesInput = {
+    create?: XOR<OrganizationCreateWithoutCannedResponsesInput, OrganizationUncheckedCreateWithoutCannedResponsesInput>
+    connectOrCreate?: OrganizationCreateOrConnectWithoutCannedResponsesInput
+    connect?: OrganizationWhereUniqueInput
+  }
+
+  export type OrganizationUpdateOneRequiredWithoutCannedResponsesNestedInput = {
+    create?: XOR<OrganizationCreateWithoutCannedResponsesInput, OrganizationUncheckedCreateWithoutCannedResponsesInput>
+    connectOrCreate?: OrganizationCreateOrConnectWithoutCannedResponsesInput
+    upsert?: OrganizationUpsertWithoutCannedResponsesInput
+    connect?: OrganizationWhereUniqueInput
+    update?: XOR<XOR<OrganizationUpdateToOneWithWhereWithoutCannedResponsesInput, OrganizationUpdateWithoutCannedResponsesInput>, OrganizationUncheckedUpdateWithoutCannedResponsesInput>
+  }
+
+  export type OrganizationCreateNestedOneWithoutArticlesInput = {
+    create?: XOR<OrganizationCreateWithoutArticlesInput, OrganizationUncheckedCreateWithoutArticlesInput>
+    connectOrCreate?: OrganizationCreateOrConnectWithoutArticlesInput
+    connect?: OrganizationWhereUniqueInput
+  }
+
+  export type OrganizationUpdateOneRequiredWithoutArticlesNestedInput = {
+    create?: XOR<OrganizationCreateWithoutArticlesInput, OrganizationUncheckedCreateWithoutArticlesInput>
+    connectOrCreate?: OrganizationCreateOrConnectWithoutArticlesInput
+    upsert?: OrganizationUpsertWithoutArticlesInput
+    connect?: OrganizationWhereUniqueInput
+    update?: XOR<XOR<OrganizationUpdateToOneWithWhereWithoutArticlesInput, OrganizationUpdateWithoutArticlesInput>, OrganizationUncheckedUpdateWithoutArticlesInput>
+  }
+
+  export type BytesFieldUpdateOperationsInput = {
+    set?: Bytes
   }
 
   export type NestedUuidFilter<$PrismaModel = never> = {
@@ -69209,6 +73817,33 @@ export namespace Prisma {
     _max?: NestedEnumTicketStatusFilter<$PrismaModel>
   }
 
+  export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
+  export type NestedFloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
   export type NestedEnumRegisterStatusFilter<$PrismaModel = never> = {
     equals?: $Enums.RegisterStatus | EnumRegisterStatusFieldRefInput<$PrismaModel>
     in?: $Enums.RegisterStatus[] | ListEnumRegisterStatusFieldRefInput<$PrismaModel>
@@ -69241,6 +73876,23 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumChangeRequestStatusFilter<$PrismaModel>
     _max?: NestedEnumChangeRequestStatusFilter<$PrismaModel>
+  }
+
+  export type NestedBytesFilter<$PrismaModel = never> = {
+    equals?: Bytes | BytesFieldRefInput<$PrismaModel>
+    in?: Bytes[] | ListBytesFieldRefInput<$PrismaModel>
+    notIn?: Bytes[] | ListBytesFieldRefInput<$PrismaModel>
+    not?: NestedBytesFilter<$PrismaModel> | Bytes
+  }
+
+  export type NestedBytesWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Bytes | BytesFieldRefInput<$PrismaModel>
+    in?: Bytes[] | ListBytesFieldRefInput<$PrismaModel>
+    notIn?: Bytes[] | ListBytesFieldRefInput<$PrismaModel>
+    not?: NestedBytesWithAggregatesFilter<$PrismaModel> | Bytes
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBytesFilter<$PrismaModel>
+    _max?: NestedBytesFilter<$PrismaModel>
   }
 
   export type MembershipCreateWithoutOrganizationInput = {
@@ -69544,6 +74196,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -69573,6 +74229,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -69897,6 +74557,74 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type CannedResponseCreateWithoutOrganizationInput = {
+    id?: string
+    title: string
+    body: string
+    createdById: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CannedResponseUncheckedCreateWithoutOrganizationInput = {
+    id?: string
+    title: string
+    body: string
+    createdById: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CannedResponseCreateOrConnectWithoutOrganizationInput = {
+    where: CannedResponseWhereUniqueInput
+    create: XOR<CannedResponseCreateWithoutOrganizationInput, CannedResponseUncheckedCreateWithoutOrganizationInput>
+  }
+
+  export type CannedResponseCreateManyOrganizationInputEnvelope = {
+    data: CannedResponseCreateManyOrganizationInput | CannedResponseCreateManyOrganizationInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type KnowledgeArticleCreateWithoutOrganizationInput = {
+    id?: string
+    title: string
+    body: string
+    category?: string
+    visibility?: $Enums.Visibility
+    published?: boolean
+    authorId: string
+    views?: number
+    helpfulYes?: number
+    helpfulNo?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type KnowledgeArticleUncheckedCreateWithoutOrganizationInput = {
+    id?: string
+    title: string
+    body: string
+    category?: string
+    visibility?: $Enums.Visibility
+    published?: boolean
+    authorId: string
+    views?: number
+    helpfulYes?: number
+    helpfulNo?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type KnowledgeArticleCreateOrConnectWithoutOrganizationInput = {
+    where: KnowledgeArticleWhereUniqueInput
+    create: XOR<KnowledgeArticleCreateWithoutOrganizationInput, KnowledgeArticleUncheckedCreateWithoutOrganizationInput>
+  }
+
+  export type KnowledgeArticleCreateManyOrganizationInputEnvelope = {
+    data: KnowledgeArticleCreateManyOrganizationInput | KnowledgeArticleCreateManyOrganizationInput[]
+    skipDuplicates?: boolean
+  }
+
   export type MembershipUpsertWithWhereUniqueWithoutOrganizationInput = {
     where: MembershipWhereUniqueInput
     update: XOR<MembershipUpdateWithoutOrganizationInput, MembershipUncheckedUpdateWithoutOrganizationInput>
@@ -70162,6 +74890,10 @@ export namespace Prisma {
     closedAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     slaPausedAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     reopenCount?: IntFilter<"Ticket"> | number
+    tags?: StringNullableListFilter<"Ticket">
+    csatRating?: IntNullableFilter<"Ticket"> | number | null
+    csatComment?: StringNullableFilter<"Ticket"> | string | null
+    csatAt?: DateTimeNullableFilter<"Ticket"> | Date | string | null
     version?: IntFilter<"Ticket"> | number
     createdAt?: DateTimeFilter<"Ticket"> | Date | string
     updatedAt?: DateTimeFilter<"Ticket"> | Date | string
@@ -70453,6 +75185,70 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Session"> | Date | string
     ip?: StringNullableFilter<"Session"> | string | null
     userAgent?: StringNullableFilter<"Session"> | string | null
+  }
+
+  export type CannedResponseUpsertWithWhereUniqueWithoutOrganizationInput = {
+    where: CannedResponseWhereUniqueInput
+    update: XOR<CannedResponseUpdateWithoutOrganizationInput, CannedResponseUncheckedUpdateWithoutOrganizationInput>
+    create: XOR<CannedResponseCreateWithoutOrganizationInput, CannedResponseUncheckedCreateWithoutOrganizationInput>
+  }
+
+  export type CannedResponseUpdateWithWhereUniqueWithoutOrganizationInput = {
+    where: CannedResponseWhereUniqueInput
+    data: XOR<CannedResponseUpdateWithoutOrganizationInput, CannedResponseUncheckedUpdateWithoutOrganizationInput>
+  }
+
+  export type CannedResponseUpdateManyWithWhereWithoutOrganizationInput = {
+    where: CannedResponseScalarWhereInput
+    data: XOR<CannedResponseUpdateManyMutationInput, CannedResponseUncheckedUpdateManyWithoutOrganizationInput>
+  }
+
+  export type CannedResponseScalarWhereInput = {
+    AND?: CannedResponseScalarWhereInput | CannedResponseScalarWhereInput[]
+    OR?: CannedResponseScalarWhereInput[]
+    NOT?: CannedResponseScalarWhereInput | CannedResponseScalarWhereInput[]
+    id?: UuidFilter<"CannedResponse"> | string
+    organizationId?: UuidFilter<"CannedResponse"> | string
+    title?: StringFilter<"CannedResponse"> | string
+    body?: StringFilter<"CannedResponse"> | string
+    createdById?: UuidFilter<"CannedResponse"> | string
+    createdAt?: DateTimeFilter<"CannedResponse"> | Date | string
+    updatedAt?: DateTimeFilter<"CannedResponse"> | Date | string
+  }
+
+  export type KnowledgeArticleUpsertWithWhereUniqueWithoutOrganizationInput = {
+    where: KnowledgeArticleWhereUniqueInput
+    update: XOR<KnowledgeArticleUpdateWithoutOrganizationInput, KnowledgeArticleUncheckedUpdateWithoutOrganizationInput>
+    create: XOR<KnowledgeArticleCreateWithoutOrganizationInput, KnowledgeArticleUncheckedCreateWithoutOrganizationInput>
+  }
+
+  export type KnowledgeArticleUpdateWithWhereUniqueWithoutOrganizationInput = {
+    where: KnowledgeArticleWhereUniqueInput
+    data: XOR<KnowledgeArticleUpdateWithoutOrganizationInput, KnowledgeArticleUncheckedUpdateWithoutOrganizationInput>
+  }
+
+  export type KnowledgeArticleUpdateManyWithWhereWithoutOrganizationInput = {
+    where: KnowledgeArticleScalarWhereInput
+    data: XOR<KnowledgeArticleUpdateManyMutationInput, KnowledgeArticleUncheckedUpdateManyWithoutOrganizationInput>
+  }
+
+  export type KnowledgeArticleScalarWhereInput = {
+    AND?: KnowledgeArticleScalarWhereInput | KnowledgeArticleScalarWhereInput[]
+    OR?: KnowledgeArticleScalarWhereInput[]
+    NOT?: KnowledgeArticleScalarWhereInput | KnowledgeArticleScalarWhereInput[]
+    id?: UuidFilter<"KnowledgeArticle"> | string
+    organizationId?: UuidFilter<"KnowledgeArticle"> | string
+    title?: StringFilter<"KnowledgeArticle"> | string
+    body?: StringFilter<"KnowledgeArticle"> | string
+    category?: StringFilter<"KnowledgeArticle"> | string
+    visibility?: EnumVisibilityFilter<"KnowledgeArticle"> | $Enums.Visibility
+    published?: BoolFilter<"KnowledgeArticle"> | boolean
+    authorId?: UuidFilter<"KnowledgeArticle"> | string
+    views?: IntFilter<"KnowledgeArticle"> | number
+    helpfulYes?: IntFilter<"KnowledgeArticle"> | number
+    helpfulNo?: IntFilter<"KnowledgeArticle"> | number
+    createdAt?: DateTimeFilter<"KnowledgeArticle"> | Date | string
+    updatedAt?: DateTimeFilter<"KnowledgeArticle"> | Date | string
   }
 
   export type MembershipCreateWithoutUserInput = {
@@ -70773,6 +75569,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutMembershipsInput = {
@@ -70800,6 +75598,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutMembershipsInput = {
@@ -70911,6 +75711,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutMembershipsInput = {
@@ -70938,6 +75740,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type UserUpsertWithoutMembershipsInput = {
@@ -71086,6 +75890,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryCreateNestedManyWithoutOrganizationInput
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutSessionsInput = {
@@ -71113,6 +75919,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutOrganizationInput
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutSessionsInput = {
@@ -71203,6 +76011,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUpdateManyWithoutOrganizationNestedInput
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutSessionsInput = {
@@ -71230,6 +76040,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutOrganizationNestedInput
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationCreateWithoutInvitationsInput = {
@@ -71257,6 +76069,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutInvitationsInput = {
@@ -71284,6 +76098,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutInvitationsInput = {
@@ -71327,6 +76143,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutInvitationsInput = {
@@ -71354,6 +76172,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type UserCreateWithoutResetTokensInput = {
@@ -71469,6 +76289,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutTeamsInput = {
@@ -71496,6 +76318,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutTeamsInput = {
@@ -71557,6 +76381,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutTeamsInput = {
@@ -71584,6 +76410,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type TeamMemberUpsertWithWhereUniqueWithoutTeamInput = {
@@ -71763,6 +76591,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutCustomersInput = {
@@ -71790,6 +76620,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutCustomersInput = {
@@ -71936,6 +76768,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -71965,6 +76801,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -72017,6 +76857,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutCustomersInput = {
@@ -72044,6 +76886,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type MembershipUpsertWithWhereUniqueWithoutCustomerCompanyInput = {
@@ -72119,6 +76963,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutCalendarsInput = {
@@ -72146,6 +76992,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutCalendarsInput = {
@@ -72303,6 +77151,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutCalendarsInput = {
@@ -72330,6 +77180,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type HolidayUpsertWithWhereUniqueWithoutCalendarInput = {
@@ -72467,6 +77319,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutTemplatesInput = {
@@ -72494,6 +77348,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutTemplatesInput = {
@@ -72659,6 +77515,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutTemplatesInput = {
@@ -72686,6 +77544,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type TemplatePhaseUpsertWithWhereUniqueWithoutTemplateInput = {
@@ -72815,6 +77675,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutProjectsInput = {
@@ -72842,6 +77704,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutProjectsInput = {
@@ -73383,6 +78247,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -73412,6 +78280,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -73502,6 +78374,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutProjectsInput = {
@@ -73529,6 +78403,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type CustomerCompanyUpsertWithoutProjectsInput = {
@@ -76696,6 +81572,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryCreateNestedManyWithoutOrganizationInput
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutCommentsInput = {
@@ -76723,6 +81601,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutOrganizationInput
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutCommentsInput = {
@@ -76766,6 +81646,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUpdateManyWithoutOrganizationNestedInput
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutCommentsInput = {
@@ -76793,6 +81675,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutOrganizationNestedInput
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationCreateWithoutFilesInput = {
@@ -76820,6 +81704,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutFilesInput = {
@@ -76847,6 +81733,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutFilesInput = {
@@ -76915,6 +81803,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutFilesInput = {
@@ -76942,6 +81832,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type DeliverableVersionUpsertWithoutFilesInput = {
@@ -77732,6 +82624,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutNotificationsInput = {
@@ -77759,6 +82653,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutNotificationsInput = {
@@ -77843,6 +82739,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutNotificationsInput = {
@@ -77870,6 +82768,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type UserUpsertWithoutNotificationsInput = {
@@ -77944,6 +82844,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutAuditEventsInput = {
@@ -77971,6 +82873,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutAuditEventsInput = {
@@ -78014,6 +82918,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutAuditEventsInput = {
@@ -78041,6 +82947,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationCreateWithoutTimesheetsInput = {
@@ -78068,6 +82976,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutTimesheetsInput = {
@@ -78095,6 +83005,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutTimesheetsInput = {
@@ -78176,6 +83088,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutTimesheetsInput = {
@@ -78203,6 +83117,8 @@ export namespace Prisma {
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type TimeEntryUpsertWithWhereUniqueWithoutTimesheetInput = {
@@ -78246,6 +83162,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutTimeEntriesInput = {
@@ -78273,6 +83191,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutTimeEntriesInput = {
@@ -78507,6 +83427,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutTimeEntriesInput = {
@@ -78534,6 +83456,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type ProjectUpsertWithoutTimeEntriesInput = {
@@ -78770,6 +83694,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutTicketCategoriesInput = {
@@ -78797,6 +83723,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutTicketCategoriesInput = {
@@ -78840,6 +83768,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutTicketCategoriesInput = {
@@ -78867,6 +83797,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationCreateWithoutSlaPoliciesInput = {
@@ -78894,6 +83826,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutSlaPoliciesInput = {
@@ -78921,6 +83855,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutSlaPoliciesInput = {
@@ -78964,6 +83900,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutSlaPoliciesInput = {
@@ -78991,6 +83929,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationCreateWithoutTicketsInput = {
@@ -79018,6 +83958,8 @@ export namespace Prisma {
     timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
     comments?: CommentCreateNestedManyWithoutOrganizationInput
     sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationUncheckedCreateWithoutTicketsInput = {
@@ -79045,6 +83987,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
     comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
     sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
   }
 
   export type OrganizationCreateOrConnectWithoutTicketsInput = {
@@ -79224,6 +84168,8 @@ export namespace Prisma {
     timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
   }
 
   export type OrganizationUncheckedUpdateWithoutTicketsInput = {
@@ -79251,6 +84197,8 @@ export namespace Prisma {
     timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
     comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
     sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
   }
 
   export type CustomerCompanyUpsertWithoutTicketsInput = {
@@ -79414,6 +84362,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -79444,6 +84396,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -79557,6 +84513,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -79587,6 +84547,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -80391,6 +85355,270 @@ export namespace Prisma {
     timeEntries?: TimeEntryUncheckedUpdateManyWithoutProjectNestedInput
   }
 
+  export type OrganizationCreateWithoutCannedResponsesInput = {
+    id?: string
+    name: string
+    slug: string
+    timezone?: string
+    settings?: JsonNullValueInput | InputJsonValue
+    ticketSeq?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    memberships?: MembershipCreateNestedManyWithoutOrganizationInput
+    invitations?: InvitationCreateNestedManyWithoutOrganizationInput
+    teams?: TeamCreateNestedManyWithoutOrganizationInput
+    customers?: CustomerCompanyCreateNestedManyWithoutOrganizationInput
+    calendars?: WorkingCalendarCreateNestedManyWithoutOrganizationInput
+    templates?: ProjectTemplateCreateNestedManyWithoutOrganizationInput
+    projects?: ProjectCreateNestedManyWithoutOrganizationInput
+    tickets?: TicketCreateNestedManyWithoutOrganizationInput
+    ticketCategories?: TicketCategoryCreateNestedManyWithoutOrganizationInput
+    slaPolicies?: SlaPolicyCreateNestedManyWithoutOrganizationInput
+    notifications?: NotificationCreateNestedManyWithoutOrganizationInput
+    auditEvents?: AuditEventCreateNestedManyWithoutOrganizationInput
+    files?: FileObjectCreateNestedManyWithoutOrganizationInput
+    timeEntries?: TimeEntryCreateNestedManyWithoutOrganizationInput
+    timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
+    comments?: CommentCreateNestedManyWithoutOrganizationInput
+    sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleCreateNestedManyWithoutOrganizationInput
+  }
+
+  export type OrganizationUncheckedCreateWithoutCannedResponsesInput = {
+    id?: string
+    name: string
+    slug: string
+    timezone?: string
+    settings?: JsonNullValueInput | InputJsonValue
+    ticketSeq?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    memberships?: MembershipUncheckedCreateNestedManyWithoutOrganizationInput
+    invitations?: InvitationUncheckedCreateNestedManyWithoutOrganizationInput
+    teams?: TeamUncheckedCreateNestedManyWithoutOrganizationInput
+    customers?: CustomerCompanyUncheckedCreateNestedManyWithoutOrganizationInput
+    calendars?: WorkingCalendarUncheckedCreateNestedManyWithoutOrganizationInput
+    templates?: ProjectTemplateUncheckedCreateNestedManyWithoutOrganizationInput
+    projects?: ProjectUncheckedCreateNestedManyWithoutOrganizationInput
+    tickets?: TicketUncheckedCreateNestedManyWithoutOrganizationInput
+    ticketCategories?: TicketCategoryUncheckedCreateNestedManyWithoutOrganizationInput
+    slaPolicies?: SlaPolicyUncheckedCreateNestedManyWithoutOrganizationInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutOrganizationInput
+    auditEvents?: AuditEventUncheckedCreateNestedManyWithoutOrganizationInput
+    files?: FileObjectUncheckedCreateNestedManyWithoutOrganizationInput
+    timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutOrganizationInput
+    timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
+    comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
+    sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    articles?: KnowledgeArticleUncheckedCreateNestedManyWithoutOrganizationInput
+  }
+
+  export type OrganizationCreateOrConnectWithoutCannedResponsesInput = {
+    where: OrganizationWhereUniqueInput
+    create: XOR<OrganizationCreateWithoutCannedResponsesInput, OrganizationUncheckedCreateWithoutCannedResponsesInput>
+  }
+
+  export type OrganizationUpsertWithoutCannedResponsesInput = {
+    update: XOR<OrganizationUpdateWithoutCannedResponsesInput, OrganizationUncheckedUpdateWithoutCannedResponsesInput>
+    create: XOR<OrganizationCreateWithoutCannedResponsesInput, OrganizationUncheckedCreateWithoutCannedResponsesInput>
+    where?: OrganizationWhereInput
+  }
+
+  export type OrganizationUpdateToOneWithWhereWithoutCannedResponsesInput = {
+    where?: OrganizationWhereInput
+    data: XOR<OrganizationUpdateWithoutCannedResponsesInput, OrganizationUncheckedUpdateWithoutCannedResponsesInput>
+  }
+
+  export type OrganizationUpdateWithoutCannedResponsesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    settings?: JsonNullValueInput | InputJsonValue
+    ticketSeq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    memberships?: MembershipUpdateManyWithoutOrganizationNestedInput
+    invitations?: InvitationUpdateManyWithoutOrganizationNestedInput
+    teams?: TeamUpdateManyWithoutOrganizationNestedInput
+    customers?: CustomerCompanyUpdateManyWithoutOrganizationNestedInput
+    calendars?: WorkingCalendarUpdateManyWithoutOrganizationNestedInput
+    templates?: ProjectTemplateUpdateManyWithoutOrganizationNestedInput
+    projects?: ProjectUpdateManyWithoutOrganizationNestedInput
+    tickets?: TicketUpdateManyWithoutOrganizationNestedInput
+    ticketCategories?: TicketCategoryUpdateManyWithoutOrganizationNestedInput
+    slaPolicies?: SlaPolicyUpdateManyWithoutOrganizationNestedInput
+    notifications?: NotificationUpdateManyWithoutOrganizationNestedInput
+    auditEvents?: AuditEventUpdateManyWithoutOrganizationNestedInput
+    files?: FileObjectUpdateManyWithoutOrganizationNestedInput
+    timeEntries?: TimeEntryUpdateManyWithoutOrganizationNestedInput
+    timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
+    comments?: CommentUpdateManyWithoutOrganizationNestedInput
+    sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUpdateManyWithoutOrganizationNestedInput
+  }
+
+  export type OrganizationUncheckedUpdateWithoutCannedResponsesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    settings?: JsonNullValueInput | InputJsonValue
+    ticketSeq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    memberships?: MembershipUncheckedUpdateManyWithoutOrganizationNestedInput
+    invitations?: InvitationUncheckedUpdateManyWithoutOrganizationNestedInput
+    teams?: TeamUncheckedUpdateManyWithoutOrganizationNestedInput
+    customers?: CustomerCompanyUncheckedUpdateManyWithoutOrganizationNestedInput
+    calendars?: WorkingCalendarUncheckedUpdateManyWithoutOrganizationNestedInput
+    templates?: ProjectTemplateUncheckedUpdateManyWithoutOrganizationNestedInput
+    projects?: ProjectUncheckedUpdateManyWithoutOrganizationNestedInput
+    tickets?: TicketUncheckedUpdateManyWithoutOrganizationNestedInput
+    ticketCategories?: TicketCategoryUncheckedUpdateManyWithoutOrganizationNestedInput
+    slaPolicies?: SlaPolicyUncheckedUpdateManyWithoutOrganizationNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutOrganizationNestedInput
+    auditEvents?: AuditEventUncheckedUpdateManyWithoutOrganizationNestedInput
+    files?: FileObjectUncheckedUpdateManyWithoutOrganizationNestedInput
+    timeEntries?: TimeEntryUncheckedUpdateManyWithoutOrganizationNestedInput
+    timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
+    comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
+    sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    articles?: KnowledgeArticleUncheckedUpdateManyWithoutOrganizationNestedInput
+  }
+
+  export type OrganizationCreateWithoutArticlesInput = {
+    id?: string
+    name: string
+    slug: string
+    timezone?: string
+    settings?: JsonNullValueInput | InputJsonValue
+    ticketSeq?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    memberships?: MembershipCreateNestedManyWithoutOrganizationInput
+    invitations?: InvitationCreateNestedManyWithoutOrganizationInput
+    teams?: TeamCreateNestedManyWithoutOrganizationInput
+    customers?: CustomerCompanyCreateNestedManyWithoutOrganizationInput
+    calendars?: WorkingCalendarCreateNestedManyWithoutOrganizationInput
+    templates?: ProjectTemplateCreateNestedManyWithoutOrganizationInput
+    projects?: ProjectCreateNestedManyWithoutOrganizationInput
+    tickets?: TicketCreateNestedManyWithoutOrganizationInput
+    ticketCategories?: TicketCategoryCreateNestedManyWithoutOrganizationInput
+    slaPolicies?: SlaPolicyCreateNestedManyWithoutOrganizationInput
+    notifications?: NotificationCreateNestedManyWithoutOrganizationInput
+    auditEvents?: AuditEventCreateNestedManyWithoutOrganizationInput
+    files?: FileObjectCreateNestedManyWithoutOrganizationInput
+    timeEntries?: TimeEntryCreateNestedManyWithoutOrganizationInput
+    timesheets?: TimesheetCreateNestedManyWithoutOrganizationInput
+    comments?: CommentCreateNestedManyWithoutOrganizationInput
+    sessions?: SessionCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseCreateNestedManyWithoutOrganizationInput
+  }
+
+  export type OrganizationUncheckedCreateWithoutArticlesInput = {
+    id?: string
+    name: string
+    slug: string
+    timezone?: string
+    settings?: JsonNullValueInput | InputJsonValue
+    ticketSeq?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    memberships?: MembershipUncheckedCreateNestedManyWithoutOrganizationInput
+    invitations?: InvitationUncheckedCreateNestedManyWithoutOrganizationInput
+    teams?: TeamUncheckedCreateNestedManyWithoutOrganizationInput
+    customers?: CustomerCompanyUncheckedCreateNestedManyWithoutOrganizationInput
+    calendars?: WorkingCalendarUncheckedCreateNestedManyWithoutOrganizationInput
+    templates?: ProjectTemplateUncheckedCreateNestedManyWithoutOrganizationInput
+    projects?: ProjectUncheckedCreateNestedManyWithoutOrganizationInput
+    tickets?: TicketUncheckedCreateNestedManyWithoutOrganizationInput
+    ticketCategories?: TicketCategoryUncheckedCreateNestedManyWithoutOrganizationInput
+    slaPolicies?: SlaPolicyUncheckedCreateNestedManyWithoutOrganizationInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutOrganizationInput
+    auditEvents?: AuditEventUncheckedCreateNestedManyWithoutOrganizationInput
+    files?: FileObjectUncheckedCreateNestedManyWithoutOrganizationInput
+    timeEntries?: TimeEntryUncheckedCreateNestedManyWithoutOrganizationInput
+    timesheets?: TimesheetUncheckedCreateNestedManyWithoutOrganizationInput
+    comments?: CommentUncheckedCreateNestedManyWithoutOrganizationInput
+    sessions?: SessionUncheckedCreateNestedManyWithoutOrganizationInput
+    cannedResponses?: CannedResponseUncheckedCreateNestedManyWithoutOrganizationInput
+  }
+
+  export type OrganizationCreateOrConnectWithoutArticlesInput = {
+    where: OrganizationWhereUniqueInput
+    create: XOR<OrganizationCreateWithoutArticlesInput, OrganizationUncheckedCreateWithoutArticlesInput>
+  }
+
+  export type OrganizationUpsertWithoutArticlesInput = {
+    update: XOR<OrganizationUpdateWithoutArticlesInput, OrganizationUncheckedUpdateWithoutArticlesInput>
+    create: XOR<OrganizationCreateWithoutArticlesInput, OrganizationUncheckedCreateWithoutArticlesInput>
+    where?: OrganizationWhereInput
+  }
+
+  export type OrganizationUpdateToOneWithWhereWithoutArticlesInput = {
+    where?: OrganizationWhereInput
+    data: XOR<OrganizationUpdateWithoutArticlesInput, OrganizationUncheckedUpdateWithoutArticlesInput>
+  }
+
+  export type OrganizationUpdateWithoutArticlesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    settings?: JsonNullValueInput | InputJsonValue
+    ticketSeq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    memberships?: MembershipUpdateManyWithoutOrganizationNestedInput
+    invitations?: InvitationUpdateManyWithoutOrganizationNestedInput
+    teams?: TeamUpdateManyWithoutOrganizationNestedInput
+    customers?: CustomerCompanyUpdateManyWithoutOrganizationNestedInput
+    calendars?: WorkingCalendarUpdateManyWithoutOrganizationNestedInput
+    templates?: ProjectTemplateUpdateManyWithoutOrganizationNestedInput
+    projects?: ProjectUpdateManyWithoutOrganizationNestedInput
+    tickets?: TicketUpdateManyWithoutOrganizationNestedInput
+    ticketCategories?: TicketCategoryUpdateManyWithoutOrganizationNestedInput
+    slaPolicies?: SlaPolicyUpdateManyWithoutOrganizationNestedInput
+    notifications?: NotificationUpdateManyWithoutOrganizationNestedInput
+    auditEvents?: AuditEventUpdateManyWithoutOrganizationNestedInput
+    files?: FileObjectUpdateManyWithoutOrganizationNestedInput
+    timeEntries?: TimeEntryUpdateManyWithoutOrganizationNestedInput
+    timesheets?: TimesheetUpdateManyWithoutOrganizationNestedInput
+    comments?: CommentUpdateManyWithoutOrganizationNestedInput
+    sessions?: SessionUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUpdateManyWithoutOrganizationNestedInput
+  }
+
+  export type OrganizationUncheckedUpdateWithoutArticlesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    timezone?: StringFieldUpdateOperationsInput | string
+    settings?: JsonNullValueInput | InputJsonValue
+    ticketSeq?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    memberships?: MembershipUncheckedUpdateManyWithoutOrganizationNestedInput
+    invitations?: InvitationUncheckedUpdateManyWithoutOrganizationNestedInput
+    teams?: TeamUncheckedUpdateManyWithoutOrganizationNestedInput
+    customers?: CustomerCompanyUncheckedUpdateManyWithoutOrganizationNestedInput
+    calendars?: WorkingCalendarUncheckedUpdateManyWithoutOrganizationNestedInput
+    templates?: ProjectTemplateUncheckedUpdateManyWithoutOrganizationNestedInput
+    projects?: ProjectUncheckedUpdateManyWithoutOrganizationNestedInput
+    tickets?: TicketUncheckedUpdateManyWithoutOrganizationNestedInput
+    ticketCategories?: TicketCategoryUncheckedUpdateManyWithoutOrganizationNestedInput
+    slaPolicies?: SlaPolicyUncheckedUpdateManyWithoutOrganizationNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutOrganizationNestedInput
+    auditEvents?: AuditEventUncheckedUpdateManyWithoutOrganizationNestedInput
+    files?: FileObjectUncheckedUpdateManyWithoutOrganizationNestedInput
+    timeEntries?: TimeEntryUncheckedUpdateManyWithoutOrganizationNestedInput
+    timesheets?: TimesheetUncheckedUpdateManyWithoutOrganizationNestedInput
+    comments?: CommentUncheckedUpdateManyWithoutOrganizationNestedInput
+    sessions?: SessionUncheckedUpdateManyWithoutOrganizationNestedInput
+    cannedResponses?: CannedResponseUncheckedUpdateManyWithoutOrganizationNestedInput
+  }
+
   export type MembershipCreateManyOrganizationInput = {
     id?: string
     userId: string
@@ -80496,6 +85724,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -80607,6 +85839,30 @@ export namespace Prisma {
     createdAt?: Date | string
     ip?: string | null
     userAgent?: string | null
+  }
+
+  export type CannedResponseCreateManyOrganizationInput = {
+    id?: string
+    title: string
+    body: string
+    createdById: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type KnowledgeArticleCreateManyOrganizationInput = {
+    id?: string
+    title: string
+    body: string
+    category?: string
+    visibility?: $Enums.Visibility
+    published?: boolean
+    authorId: string
+    views?: number
+    helpfulYes?: number
+    helpfulNo?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
   }
 
   export type MembershipUpdateWithoutOrganizationInput = {
@@ -80924,6 +86180,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -80953,6 +86213,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -80980,6 +86244,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -81311,6 +86579,78 @@ export namespace Prisma {
     userAgent?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
+  export type CannedResponseUpdateWithoutOrganizationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    createdById?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CannedResponseUncheckedUpdateWithoutOrganizationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    createdById?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CannedResponseUncheckedUpdateManyWithoutOrganizationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    createdById?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KnowledgeArticleUpdateWithoutOrganizationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    visibility?: EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+    published?: BoolFieldUpdateOperationsInput | boolean
+    authorId?: StringFieldUpdateOperationsInput | string
+    views?: IntFieldUpdateOperationsInput | number
+    helpfulYes?: IntFieldUpdateOperationsInput | number
+    helpfulNo?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KnowledgeArticleUncheckedUpdateWithoutOrganizationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    visibility?: EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+    published?: BoolFieldUpdateOperationsInput | boolean
+    authorId?: StringFieldUpdateOperationsInput | string
+    views?: IntFieldUpdateOperationsInput | number
+    helpfulYes?: IntFieldUpdateOperationsInput | number
+    helpfulNo?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KnowledgeArticleUncheckedUpdateManyWithoutOrganizationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    body?: StringFieldUpdateOperationsInput | string
+    category?: StringFieldUpdateOperationsInput | string
+    visibility?: EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+    published?: BoolFieldUpdateOperationsInput | boolean
+    authorId?: StringFieldUpdateOperationsInput | string
+    views?: IntFieldUpdateOperationsInput | number
+    helpfulYes?: IntFieldUpdateOperationsInput | number
+    helpfulNo?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type MembershipCreateManyUserInput = {
     id?: string
     organizationId: string
@@ -81596,6 +86936,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -81756,6 +87100,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -81785,6 +87133,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -81812,6 +87164,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -82319,6 +87675,10 @@ export namespace Prisma {
     closedAt?: Date | string | null
     slaPausedAt?: Date | string | null
     reopenCount?: number
+    tags?: TicketCreatetagsInput | string[]
+    csatRating?: number | null
+    csatComment?: string | null
+    csatAt?: Date | string | null
     version?: number
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -82814,6 +88174,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -82843,6 +88207,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -82870,6 +88238,10 @@ export namespace Prisma {
     closedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     slaPausedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     reopenCount?: IntFieldUpdateOperationsInput | number
+    tags?: TicketUpdatetagsInput | string[]
+    csatRating?: NullableIntFieldUpdateOperationsInput | number | null
+    csatComment?: NullableStringFieldUpdateOperationsInput | string | null
+    csatAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     version?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

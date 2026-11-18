@@ -6,6 +6,8 @@ import { storage } from '../storage/index.js';
 import { notify } from '../services/notify.js';
 import { slaContext } from '../routes/tickets.js';
 import { slaStatus } from '../domain/sla.js';
+import { sendMail } from '../services/mail.js';
+import { config } from '../config.js';
 
 const JOBS = [];
 const timers = [];
@@ -71,4 +73,21 @@ defineJob('cleanup', 6 * 3600000, async (tx) => {
   for (const k of keys) if (!(await storage.stat(k))) missing++;
   if (missing) logger.warn({ missing }, 'file rows reference missing storage objects');
   return { sessions: sessions.count, resets: resets.count, purged: purge.length, orphans, missing };
+});
+
+// Email copies of notifications (only when SMTP is configured). Sent at most once; failures are recorded.
+defineJob('notification-email', 60000, async (tx) => {
+  if (!config.emailConfigured) return { skipped: true };
+  const rows = await tx.notification.findMany({ where: { emailStatus: 'PENDING' }, orderBy: { createdAt: 'asc' }, take: 40 });
+  if (!rows.length) return { sent: 0 };
+  const users = new Map((await tx.user.findMany({ where: { id: { in: [...new Set(rows.map((n) => n.userId))] } }, select: { id: true, email: true, name: true } })).map((u) => [u.id, u]));
+  let sent = 0;
+  for (const n of rows) {
+    const u = users.get(n.userId);
+    const link = n.link ? `${config.APP_ORIGIN}${n.link.replace(/\/work\/([0-9a-f-]{36})$/, '/tasks?item=$1')}` : config.APP_ORIGIN;
+    const r = u ? await sendMail({ to: u.email, subject: n.title, heading: n.title, body: n.body || '', cta: 'Open in O2 Support Hub', url: link }) : { sent: false };
+    await tx.notification.update({ where: { id: n.id }, data: { emailStatus: r.sent ? 'SENT' : 'FAILED' } });
+    if (r.sent) sent++;
+  }
+  return { sent, total: rows.length };
 });

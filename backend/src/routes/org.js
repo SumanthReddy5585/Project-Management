@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { config } from '../config.js';
+import { sendMail } from '../services/mail.js';
 import { parse, listQuery, pageArgs, paged, dateOnly, toDate, fmtDate, uuid } from '../lib/http.js';
 import { randomToken, sha256 } from '../lib/crypto.js';
 import { badRequest, notFound, conflict } from '../lib/errors.js';
@@ -111,7 +112,11 @@ r.post('/invitations', async (req, res) => {
     await audit(tx, req.auth, { action: 'invitation.created', entityType: 'Invitation', entityId: i.id, metadata: { email: body.email, role: body.role } }, req.ip);
     return i;
   });
-  res.status(201).json({ id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt, url: `${config.APP_ORIGIN}/accept-invite?token=${token}`, emailDelivery: 'NOT_CONFIGURED' });
+  const url = `${config.APP_ORIGIN}/accept-invite?token=${token}`;
+  const mail = await sendMail({ to: inv.email, subject: `You're invited to ${config.APP_NAME}`, heading: `${req.auth.user.name} invited you to ${config.APP_NAME}`,
+    body: `Hi${body.name ? ` ${body.name}` : ''},\n\nYou've been invited to join as ${body.role === 'CUSTOMER' ? 'a client' : body.role.toLowerCase()}. Click below to set your password and sign in. The invitation expires in 7 days.`,
+    cta: 'Accept invitation', url });
+  res.status(201).json({ id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt, url, emailDelivery: mail.sent ? 'SENT' : config.emailConfigured ? 'FAILED' : 'NOT_CONFIGURED' });
 });
 
 r.delete('/invitations/:id', async (req, res) => {

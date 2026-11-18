@@ -52,27 +52,62 @@ test.describe.serial('manager → client → request workflow', () => {
     await expect(page.getByText('Budget')).toHaveCount(0);
   });
 
-  test('client sends a request', async ({ page }) => {
+  test('client raises a ticket', async ({ page }) => {
     await login(page, 'customer@demo.local');
     await page.goto('/tickets');
-    await page.getByRole('button', { name: 'New request' }).first().click();
+    await page.getByRole('button', { name: 'Raise a ticket' }).first().click();
     await page.getByLabel('Subject').fill(`Login page error ${code}`);
-    await page.getByLabel('Details').fill('Error 500 after submitting the form');
-    await page.getByRole('button', { name: 'Send request' }).click();
+    await page.getByLabel('Description').fill('Error 500 after submitting the form');
+    await page.getByRole('button', { name: 'Submit ticket' }).click();
     await expect(page.getByRole('heading', { name: `Login page error ${code}` })).toBeVisible();
     ticketUrl = page.url();
   });
 
-  test('team replies to the client and adds a team-only note', async ({ page }) => {
+  test('agent picks up the ticket, replies with a canned reply and adds an internal note', async ({ page }) => {
     await login(page, 'manager@demo.local');
     await page.goto(ticketUrl);
+    await page.getByRole('button', { name: 'Assign to me' }).click();
+    await expect(page.getByLabel('Assignee')).toHaveValue(/.+/);
+    await page.getByRole('button', { name: 'Canned reply' }).click();
+    await page.getByRole('button', { name: /Need more information/ }).click();
+    await expect(page.getByLabel('Reply', { exact: true })).toHaveValue(/To move this forward/);
     await page.getByLabel('Reply', { exact: true }).fill('We are on it — can you share a screenshot?');
     await page.getByRole('button', { name: 'Send reply' }).click();
     await expect(page.getByText('can you share a screenshot')).toBeVisible();
-    await page.getByRole('button', { name: 'Team-only note' }).click();
-    await page.getByLabel('Reply', { exact: true }).fill(`SECRET-NOTE-${code}: suspect the auth proxy`);
-    await page.getByRole('button', { name: 'Save note' }).click();
+    await page.getByRole('tab', { name: 'Internal note' }).click();
+    await page.getByLabel('Internal note', { exact: true }).fill(`SECRET-NOTE-${code}: suspect the auth proxy`);
+    await page.getByRole('button', { name: 'Add note' }).click();
     await expect(page.getByText(`SECRET-NOTE-${code}`)).toBeVisible();
+  });
+
+  test('client sees the agent reply appear live, without reloading', async ({ browser }) => {
+    const client = await browser.newPage();
+    await login(client, 'customer@demo.local');
+    await client.goto(ticketUrl);
+    await expect(client.getByText('can you share a screenshot')).toBeVisible();
+    const agent = await browser.newPage();
+    await login(agent, 'manager@demo.local');
+    await agent.goto(ticketUrl);
+    await agent.getByLabel('Reply', { exact: true }).fill(`LIVE-${code} screenshot received, thanks`);
+    await agent.getByRole('button', { name: 'Send reply' }).click();
+    await expect(client.getByText(`LIVE-${code}`)).toBeVisible({ timeout: 10000 });
+    await client.close(); await agent.close();
+  });
+
+  test('agent resolves; client rates the ticket', async ({ browser }) => {
+    const agent = await browser.newPage();
+    await login(agent, 'manager@demo.local');
+    await agent.goto(ticketUrl);
+    await agent.getByRole('button', { name: 'Resolve' }).click();
+    await expect(agent.locator('.ticket-head').getByText('Resolved')).toBeVisible();
+    await agent.close();
+    const client = await browser.newPage();
+    await login(client, 'customer@demo.local');
+    await client.goto(ticketUrl);
+    await client.getByRole('radio', { name: '5 stars' }).click();
+    await client.getByRole('button', { name: 'Submit rating' }).click();
+    await expect(client.getByText('Your rating')).toBeVisible();
+    await client.close();
   });
 
   test('customer sees the public reply but not the internal note', async ({ page }) => {

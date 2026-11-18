@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Check } from 'lucide-react';
+import { ShieldCheck, Zap, BookOpen, FolderKanban } from 'lucide-react';
+import { APP_NAME, BrandMark } from '../components/Layout.jsx';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { get, post } from '../api/client.js';
@@ -9,17 +10,22 @@ function Shell({ children }) {
   return (
     <div className="auth-wrap">
       <div className="auth-art">
-        <div className="brand p-0"><span className="brand-mark">M</span>Meridian</div>
+        <div className="brand"><BrandMark /><div>{APP_NAME}<small>Customer support & delivery</small></div></div>
         <div>
-          <h1>Your projects, tasks and client requests in one calm place.</h1>
-          <p className="mt-3 mb-4" style={{ maxWidth: 440, color: 'var(--ink-soft)' }}>Plan the work, tick things off, and keep clients in the loop — they only see what you choose to share.</p>
-          <div className="demo-floats" aria-hidden="true">
-            <div className="f"><span className="check on" style={{ pointerEvents: 'none' }}><Check size={13} strokeWidth={3} /></span>Homepage design approved<span className="pill pill-ok ms-auto">Done</span></div>
-            <div className="f" style={{ marginLeft: '2rem' }}><span className="avatar sm" style={{ background: 'var(--violet-soft)', color: 'var(--violet-ink)' }}>PS</span>Write onboarding emails<span className="pill pill-warn ms-auto">Due Fri</span></div>
-            <div className="f"><span className="avatar sm" style={{ background: 'var(--blue-soft)', color: 'var(--blue-ink)' }}>#</span>Client: “Can we add a FAQ page?”<span className="pill pill-sky ms-auto">Open</span></div>
+          <h1>One hub for every client ticket, SLA and project.</h1>
+          <p className="mt-3" style={{ maxWidth: 480 }}>Your support desk, knowledge base and delivery plans in one place — with live updates and clients who only see what you share.</p>
+          <div className="auth-points">
+            <div><ShieldCheck size={17} /><span>SLA timers on every ticket, counted in working hours</span></div>
+            <div><Zap size={17} /><span>Live queue — new tickets and replies appear instantly</span></div>
+            <div><BookOpen size={17} /><span>Self-service help center for your clients</span></div>
+            <div><FolderKanban size={17} /><span>Escalate tickets into tracked project tasks</span></div>
+          </div>
+          <div className="demo-floats mt-4" aria-hidden="true">
+            <div className="f"><span className="pill pill-solid-risk">Urgent</span>Checkout fails on Safari<span className="ms-auto small" style={{ color: '#fca5a5' }}>42m to reply</span></div>
+            <div className="f"><span className="pill pill-ok">Resolved</span>Password reset email delayed<span className="ms-auto small" style={{ color: '#fcd34d' }}>★★★★★</span></div>
           </div>
         </div>
-        <div className="small text-muted">Invitation-only workspace</div>
+        <div className="small" style={{ color: '#6f819b' }}>© {new Date().getFullYear()} {APP_NAME} · Invitation-only workspace</div>
       </div>
       <div className="auth-form"><div className="box">{children}</div></div>
     </div>
@@ -40,7 +46,7 @@ export function Login() {
   };
   return (
     <Shell>
-      <h2 className="h3 fw-bold mb-1">Welcome back</h2><p className="text-muted mb-4">Sign in with the email you were invited with.</p>
+      <h2 className="h4 fw-bold mb-1">Sign in to {APP_NAME}</h2><p className="text-muted mb-4">Use the work email you were invited with.</p>
       <ErrorBox error={err} />
       <form onSubmit={submit} noValidate>
         <Field label="Email">{(id) => <input id={id} type="email" className="form-control" autoComplete="username" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />}</Field>

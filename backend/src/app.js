@@ -21,6 +21,9 @@ import timeRoutes from './routes/time.js';
 import ticketRoutes from './routes/tickets.js';
 import deliverableRoutes from './routes/deliverables.js';
 import reportRoutes from './routes/reports.js';
+import liveRoutes from './routes/live.js';
+import supportRoutes from './routes/support.js';
+import { publish } from './services/events.js';
 
 export function createApp() {
   const app = express();
@@ -50,6 +53,11 @@ export function createApp() {
   api.use(csrfGuard);
   api.use('/auth', authRoutes);
   api.use(requireAuth);
+  // Any successful change inside a project is announced live so open project screens refresh.
+  api.use('/projects/:projectId', (req, res, next) => {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) res.on('finish', () => { if (res.statusCode < 400) publish({ orgId: req.auth.orgId, type: 'work.changed', projectId: req.params.projectId, actorId: req.auth.userId }); });
+    next();
+  });
   api.use('/org', orgRoutes);
   api.use('/projects', projectRoutes);
   api.use('/projects/:projectId', workRoutes);
@@ -57,7 +65,9 @@ export function createApp() {
   api.use('/', collabRoutes);
   api.use('/files', fileRoutes);
   api.use('/time', timeRoutes);
+  api.use('/events', liveRoutes);
   api.use('/tickets', ticketRoutes);
+  api.use('/', supportRoutes);
   api.use('/', reportRoutes);
   app.use('/api', api);
 

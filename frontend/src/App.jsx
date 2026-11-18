@@ -16,6 +16,7 @@ import { Deliverables, UpdatesTab, ProjectFiles } from './pages/project/Engageme
 import { Registers, Team, ProjectSettings } from './pages/project/Manage.jsx';
 import { TicketsList, TicketDetail } from './pages/Tickets.jsx';
 import { People, NotificationsPage } from './pages/Resources.jsx';
+import { KnowledgeBase, KnowledgeArticle } from './pages/Knowledge.jsx';
 
 function Protected({ children }) {
   const { me } = useAuth();
@@ -67,6 +68,8 @@ export default function App() {
               </Route>
               <Route path="tickets" element={<TicketsList />} />
               <Route path="tickets/:ticketId" element={<TicketDetail />} />
+              <Route path="kb" element={<KnowledgeBase />} />
+              <Route path="kb/:articleId" element={<KnowledgeArticle />} />
               <Route path="time" element={<InternalOnly><TimePage /></InternalOnly>} />
               <Route path="time/approvals" element={<Navigate to="/time?tab=approvals" replace />} />
               <Route path="reports" element={<ManagerOnly><Reports /></ManagerOnly>} />

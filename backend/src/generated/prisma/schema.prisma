@@ -159,6 +159,8 @@ model Organization {
   timesheets       Timesheet[]
   comments         Comment[]
   sessions         Session[]
+  cannedResponses  CannedResponse[]
+  articles         KnowledgeArticle[]
 }
 
 model User {
@@ -786,6 +788,10 @@ model Ticket {
   closedAt          DateTime?    @db.Timestamptz(3)
   slaPausedAt       DateTime?    @db.Timestamptz(3)
   reopenCount       Int          @default(0)
+  tags              String[]     @default([])
+  csatRating        Int?
+  csatComment       String?
+  csatAt            DateTime?    @db.Timestamptz(3)
   version           Int          @default(1)
   createdAt         DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime     @updatedAt @db.Timestamptz(3)
@@ -872,4 +878,46 @@ model ChangeRequest {
   createdById        String              @db.Uuid
   createdAt          DateTime            @default(now()) @db.Timestamptz(3)
   project            Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model CannedResponse {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  title          String
+  body           String
+  createdById    String   @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model KnowledgeArticle {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @db.Uuid
+  title          String
+  body           String
+  category       String     @default("General")
+  visibility     Visibility @default(PUBLIC)
+  published      Boolean    @default(false)
+  authorId       String     @db.Uuid
+  views          Int        @default(0)
+  helpfulYes     Int        @default(0)
+  helpfulNo      Int        @default(0)
+  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, published])
+}
+
+/// File contents for the database storage driver (used on hosts without a persistent disk).
+model FileBlob {
+  key       String   @id
+  data      Bytes
+  size      Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 }

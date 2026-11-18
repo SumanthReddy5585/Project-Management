@@ -4,9 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export function useLoad(fn, deps = []) {
   const [state, setState] = useState({ data: null, error: null, loading: true });
   const seq = useRef(0);
-  const reload = useCallback(() => {
+  // reload({ silent: true }) refreshes in the background (used by live updates) without a loading flash.
+  const reload = useCallback((opts) => {
     const n = ++seq.current;
-    setState((s) => ({ ...s, loading: true, error: null }));
+    if (!opts?.silent) setState((s) => ({ ...s, loading: true, error: null }));
     return fn().then((data) => { if (n === seq.current) setState({ data, error: null, loading: false }); return data; })
       .catch((error) => { if (n === seq.current) setState({ data: null, error, loading: false }); });
     // eslint-disable-next-line react-hooks/exhaustive-deps

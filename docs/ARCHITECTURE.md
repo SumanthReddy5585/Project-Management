@@ -2,7 +2,7 @@
 
 ## 1. Product scope and key assumptions
 
-Meridian is a multi-tenant project management and service-desk application for an organization's managers and employees and for its external customers.
+O2 Support Hub is a multi-tenant customer-support and project-delivery application for an organization's managers and employees and for its external customers.
 
 **Assumptions taken (routine decisions):**
 

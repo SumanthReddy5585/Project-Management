@@ -548,6 +548,10 @@ exports.Prisma.TicketScalarFieldEnum = {
   closedAt: 'closedAt',
   slaPausedAt: 'slaPausedAt',
   reopenCount: 'reopenCount',
+  tags: 'tags',
+  csatRating: 'csatRating',
+  csatComment: 'csatComment',
+  csatAt: 'csatAt',
   version: 'version',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -612,6 +616,39 @@ exports.Prisma.ChangeRequestScalarFieldEnum = {
   ticketId: 'ticketId',
   decidedAt: 'decidedAt',
   createdById: 'createdById',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CannedResponseScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  title: 'title',
+  body: 'body',
+  createdById: 'createdById',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.KnowledgeArticleScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  title: 'title',
+  body: 'body',
+  category: 'category',
+  visibility: 'visibility',
+  published: 'published',
+  authorId: 'authorId',
+  views: 'views',
+  helpfulYes: 'helpfulYes',
+  helpfulNo: 'helpfulNo',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.FileBlobScalarFieldEnum = {
+  key: 'key',
+  data: 'data',
+  size: 'size',
   createdAt: 'createdAt'
 };
 
@@ -798,7 +835,10 @@ exports.Prisma.ModelName = {
   Risk: 'Risk',
   Issue: 'Issue',
   Decision: 'Decision',
-  ChangeRequest: 'ChangeRequest'
+  ChangeRequest: 'ChangeRequest',
+  CannedResponse: 'CannedResponse',
+  KnowledgeArticle: 'KnowledgeArticle',
+  FileBlob: 'FileBlob'
 };
 
 /**

@@ -4,12 +4,12 @@ const FRIENDLY = {
   NEW: 'New', CHANGES_REQUESTED: 'Changes requested', SERVICE_REQUEST: 'Service request', CHANGE_REQUEST: 'Change request',
   CUSTOMER: 'Client', EMPLOYEE: 'Team member', MANAGER: 'Manager', ADMIN: 'Admin', MEMBER: 'Member', VIEWER: 'Viewer (read-only)',
   MODULE: 'Group', TASK: 'Task', SUBTASK: 'Subtask', MILESTONE: 'Milestone', GREEN: 'On track', AMBER: 'At risk', RED: 'Off track',
-  ON_TRACK: 'On track', AT_RISK: 'At risk', BREACHED: 'Overdue', MET: 'Met', PAUSED: 'Paused', INTERNAL: 'Team only', PUBLIC: 'Shared with client',
+  ON_TRACK: 'On track', AT_RISK: 'At risk', BREACHED: 'Breached', CRITICAL: 'Urgent', MET: 'Met', PAUSED: 'Paused', INTERNAL: 'Team only', PUBLIC: 'Shared with client',
 };
 export const labelize = (s) => (s ? FRIENDLY[s] || s.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) : '');
 
 // Each project gets a stable color from its code.
-const PROJECT_COLORS = ['#7950f2', '#12b886', '#228be6', '#e64980', '#fd7e14', '#15aabf', '#be4bdb', '#40c057'];
+const PROJECT_COLORS = ['#2563eb', '#0d9488', '#7c3aed', '#db2777', '#ea580c', '#0891b2', '#4f46e5', '#16a34a'];
 export const projectColor = (key = '') => PROJECT_COLORS[[...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % PROJECT_COLORS.length];
 export const dueInfo = (d, done) => {
   if (!d) return null;
@@ -36,3 +36,16 @@ export const mondayOf = (d) => { const x = new Date(`${d}T00:00:00Z`); const wd 
 export const initials = (n = '') => n.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join('');
 /** Render "@[Name](id)" mention markup as plain "@Name". */
 export const renderMentions = (s = '') => s.replace(/@\[([^\]]+)\]\([0-9a-f-]{36}\)/gi, '@$1');
+
+// Stable soft avatar colours from a name.
+const AV = [['#dbe6f7', '#1e3a8a'], ['#dcf3ee', '#0f766e'], ['#ede7fd', '#5b21b6'], ['#fde7f1', '#9d174d'], ['#fdeedd', '#9a3412'], ['#ddf2f8', '#155e75'], ['#e5e7fb', '#3730a3'], ['#e1f4e6', '#166534']];
+export const avatarColors = (name = '') => AV[[...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % AV.length];
+
+/** "2h 15m", "3d 4h" — compact durations for SLA timers. */
+export function fmtDuration(ms) {
+  const neg = ms < 0; let m = Math.round(Math.abs(ms) / 60000);
+  const d = Math.floor(m / 1440); m -= d * 1440; const h = Math.floor(m / 60); m -= h * 60;
+  const s = d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+  return neg ? `-${s}` : s;
+}
+export const fmtHoursShort = (h) => (h == null ? '—' : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${h.toFixed(1)}h` : `${(h / 24).toFixed(1)}d`);

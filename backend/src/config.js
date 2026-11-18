@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './lib/dbUrl.js';
 import { z } from 'zod';
 
 const bool = z.enum(['true', 'false']).transform((v) => v === 'true');
@@ -19,6 +20,10 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   JOBS_ENABLED: bool.default('true'),
   SMTP_URL: z.string().optional(),
+  MAIL_FROM: z.string().default('O2 Support Hub <no-reply@o2support.local>'),
+  APP_NAME: z.string().default('O2 Support Hub'),
+  // 'local' keeps uploads on disk (UPLOAD_DIR); 'db' stores them in Postgres for hosts without a persistent disk.
+  STORAGE_DRIVER: z.enum(['local', 'db']).default(process.env.RENDER ? 'db' : 'local'), // Render's free disk is wiped on every deploy
   LOGIN_RATE_LIMIT: z.coerce.number().int().default(10),
   // Optional: absolute path of the built frontend (frontend/dist). When set, the API also serves the web app.
   SERVE_WEB_DIR: z.string().optional(),

@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Meridian
+title O2 Support Hub
 cd /d "%~dp0backend"
 
 where node >nul 2>nul
