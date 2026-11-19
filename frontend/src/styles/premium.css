@@ -660,3 +660,18 @@ a.r-title:hover { color: var(--brand); }
 .overdue-note { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--red-ink); background: var(--red-soft); border-radius: 7px; padding: 0.2rem 0.55rem; margin-bottom: 0.4rem; }
 @media (max-width: 600px) { .day-strip { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .ptl-axis .today-lbl { display: none; } }
+
+/* Compact hero */
+.hero { padding: 1.1rem 1.5rem; gap: 1.25rem; border-radius: 16px; }
+.hero h1 { font-size: 1.4rem; margin: 0.1rem 0 0.15rem; }
+.hero-eyebrow { font-size: 0.75rem; }
+.hero p { font-size: 0.875rem; margin: 0 0 0.7rem; }
+.hero-row { display: flex; align-items: center; gap: 0.75rem 1rem; flex-wrap: wrap; }
+.hero-chips { margin-bottom: 0; gap: 0.35rem; }
+.hero-chips span { padding: 0.2rem 0.55rem; font-size: 0.75rem; }
+.hero-actions { gap: 0.4rem; }
+.hero-r { gap: 1.25rem; }
+.hero-ring { width: 84px; }
+.hero-ring > span { margin-top: 0.35rem; font-size: 0.75rem; }
+.hero-ring .ring-c b { font-size: 1.05rem; }
+.hero-ring .ring-c b small { font-size: 0.62rem; }

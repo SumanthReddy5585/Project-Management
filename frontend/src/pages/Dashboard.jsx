@@ -93,20 +93,22 @@ function Hero({ user, ps, stats, myTasks, manager }) {
         <div className="hero-eyebrow">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div>
         <h1>{greet}, {user?.name?.split(' ')[0]}</h1>
         <p>{line}</p>
-        <div className="hero-chips">
-          <span><FolderKanban size={14} /> {active.length} projects in flight</span>
-          <span><CheckCircle2 size={14} /> {myTasks.length} open tasks for you</span>
-          {stats && <span><Inbox size={14} /> {stats.open} open tickets</span>}
-        </div>
-        <div className="hero-actions">
-          <Link to="/my-tasks" className="btn btn-hero">My tasks</Link>
-          {manager ? <Link to="/reports" className="btn btn-hero-ghost"><BarChart3 size={15} /> Open reports</Link> : <Link to="/tickets?new=1" className="btn btn-hero-ghost"><LifeBuoy size={15} /> New ticket</Link>}
+        <div className="hero-row">
+          <div className="hero-chips">
+            <span><FolderKanban size={13} /> {active.length} projects in flight</span>
+            <span><CheckCircle2 size={13} /> {myTasks.length} open tasks for you</span>
+            {stats && <span><Inbox size={13} /> {stats.open} open tickets</span>}
+          </div>
+          <div className="hero-actions">
+            <Link to="/my-tasks" className="btn btn-sm btn-hero">My tasks</Link>
+            {manager ? <Link to="/reports" className="btn btn-sm btn-hero-ghost"><BarChart3 size={14} /> Open reports</Link> : <Link to="/tickets?new=1" className="btn btn-sm btn-hero-ghost"><LifeBuoy size={14} /> New ticket</Link>}
+          </div>
         </div>
       </div>
       <div className="hero-r">
-        <div className="hero-ring"><Ring value={planned.length ? (onSched / planned.length) * 100 : 0} color="#86efac"><b>{planned.length ? Math.round((onSched / planned.length) * 100) : '—'}<small>%</small></b></Ring><span>On schedule</span><small>{onSched} of {planned.length} approved plans</small></div>
-        <div className="hero-ring"><Ring value={avg} color="#93c5fd"><b>{avg ?? '—'}<small>%</small></b></Ring><span>Work done</span><small>Average across projects</small></div>
-        <div className="hero-ring"><Ring value={sla} color="#fcd34d"><b>{sla ?? '—'}<small>{sla == null ? '' : '%'}</small></b></Ring><span>SLA met</span><small>Tickets · last 30 days</small></div>
+        <div className="hero-ring" title={`${onSched} of ${planned.length} approved plans on schedule`}><Ring size={64} stroke={6} value={planned.length ? (onSched / planned.length) * 100 : 0} color="#86efac"><b>{planned.length ? Math.round((onSched / planned.length) * 100) : '—'}<small>%</small></b></Ring><span>On schedule</span></div>
+        <div className="hero-ring" title="Average work done across active projects"><Ring size={64} stroke={6} value={avg} color="#93c5fd"><b>{avg ?? '—'}<small>%</small></b></Ring><span>Work done</span></div>
+        <div className="hero-ring" title="Tickets meeting SLA, last 30 days"><Ring size={64} stroke={6} value={sla} color="#fcd34d"><b>{sla ?? '—'}<small>{sla == null ? '' : '%'}</small></b></Ring><span>SLA met</span></div>
       </div>
     </section>
   );
