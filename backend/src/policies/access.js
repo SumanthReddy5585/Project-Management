@@ -39,7 +39,7 @@ export function visibleProjectsWhere(auth) {
   if (auth.isCustomer) {
     return { ...base, customerVisible: true, customerCompanyId: auth.customerCompanyId, members: { some: { userId: auth.userId, role: 'CUSTOMER' } } };
   }
-  return { ...base, members: { some: { userId: auth.userId, role: { in: ['MANAGER', 'MEMBER', 'VIEWER'] } } } };
+  return { ...base, members: { some: { userId: auth.userId, role: { in: ['DIRECTOR', 'MANAGER', 'MEMBER', 'VIEWER'] } } } };
 }
 
 /** Work-item visibility filter for an access object. */

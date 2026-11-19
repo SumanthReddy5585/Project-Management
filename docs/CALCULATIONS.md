@@ -146,3 +146,8 @@ Each row is *task · who · working days · starts after*. Effort defaults to da
 is still the default. "Starts after" offers: project start, after the previous task, at the same time as the previous
 task (same predecessors = parallel), or any set of tasks. Removing a task reconnects what waited for it to what it
 waited for, so a chain is never broken.
+
+**Sub-tasks.** Any task can be split into sub-tasks (`type: SUBTASK`, `parentId` = the task). A task with sub-tasks
+spans them: its dates are the earliest sub-task start to the latest sub-task finish. What the task waits for, and a
+fixed start on the task, apply to all its sub-tasks; a sub-task can also wait for its sibling sub-tasks. Sub-tasks
+take the task's owner unless another person is chosen.

@@ -1,9 +1,8 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>O2 Support Hub - Database structure</title>
-<style>body{font:14px/1.5 Segoe UI,Arial,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#0f172a}h1{border-bottom:3px solid #2563eb;padding-bottom:.4rem}h2{margin-top:2.2rem;border-bottom:1px solid #e2e8f0;padding-bottom:.3rem}h3{margin-top:1.6rem;color:#1e3a8a}
-table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #e2e8f0;padding:4px 8px;text-align:left;vertical-align:top}th{background:#f1f5f9}code{background:#f1f5f9;padding:0 3px;border-radius:3px;font-size:12px}pre.mermaid{background:#fff;border:1px solid #e2e8f0;padding:1rem;overflow:auto}</style>
-<script type="module">try{const m=await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');m.default.initialize({startOnLoad:true});}catch(e){}</script>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>O2 Support Hub - Database structure</title>
+<style>body{font:14px/1.55 "Segoe UI",Inter,Arial,sans-serif;max-width:1120px;margin:2rem auto;padding:0 1rem;color:#0f172a}h1{border-bottom:3px solid #0a3df0;padding-bottom:.4rem}h2{margin-top:2.4rem;border-bottom:1px solid #e2e8f0;padding-bottom:.3rem}h3{margin-top:1.7rem;color:#0a3df0}table{border-collapse:collapse;width:100%;font-size:13px;margin:.4rem 0}th,td{border:1px solid #e2e8f0;padding:4px 8px;text-align:left;vertical-align:top}th{background:#f6f6f7}code{background:#f1f5f9;padding:0 3px;border-radius:3px;font-size:12px}pre.mermaid{background:#fff;border:1px solid #e2e8f0;padding:1rem;overflow:auto;font-size:12px}@media print{pre.mermaid{display:none}h2{page-break-before:auto}}</style>
+<script type="module">try{const m=await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");m.default.initialize({startOnLoad:true,er:{useMaxWidth:false}});}catch(e){}</script>
 </head><body><h1 id="o2-support-hub-database-structure">O2 Support Hub - Database structure</h1>
-<p>PostgreSQL schema <code>public</code> · 45 tables · 17 enum types · 62 foreign keys · generated 2026-11-18</p>
+<p>PostgreSQL schema <code>public</code> · 45 tables · 17 enum types · 62 foreign keys · 56 indexes · 6 migrations · generated 2026-11-19</p>
 <p>All primary keys are UUIDs. Timestamps are <code>timestamptz</code> (UTC); plain dates are <code>date</code>. Every business table is scoped to an organisation, directly or through its project. The original (approved) plan is protected by the trigger <code>o2_protect_original_baseline</code> on <code>Baseline</code> and <code>BaselineItem</code>. Columns ending in <code>Id</code> without an arrow (for example <code>assigneeId</code>, <code>createdById</code>) point to a row in another table — usually <code>User</code> — and are checked by the application rather than by a database foreign key. The authoritative model definition is <code>prisma/schema.prisma</code>; the SQL history is in <code>prisma/migrations/</code>.</p>
 <h2 id="contents">Contents</h2>
 <ul>
@@ -13,70 +12,72 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <li><strong>Collaboration and governance</strong>: <a href="#comment">Comment</a>, <a href="#discussion">Discussion</a>, <a href="#statusupdate">StatusUpdate</a>, <a href="#deliverable">Deliverable</a>, <a href="#deliverableversion">DeliverableVersion</a>, <a href="#approval">Approval</a>, <a href="#risk">Risk</a>, <a href="#issue">Issue</a>, <a href="#decision">Decision</a>, <a href="#changerequest">ChangeRequest</a></li>
 <li><strong>Support desk</strong>: <a href="#ticket">Ticket</a>, <a href="#ticketcategory">TicketCategory</a>, <a href="#ticketlink">TicketLink</a>, <a href="#slapolicy">SlaPolicy</a>, <a href="#cannedresponse">CannedResponse</a>, <a href="#knowledgearticle">KnowledgeArticle</a></li>
 <li><strong>Files and system</strong>: <a href="#fileobject">FileObject</a>, <a href="#fileblob">FileBlob</a>, <a href="#prismamigrations">_prisma_migrations</a></li>
+<li><a href="#relationship-diagram">Relationship diagram</a> · <a href="#enum-types">Enum types</a> · <a href="#triggers">Triggers</a> · <a href="#migrations">Migrations</a></li>
 </ul>
 <h2 id="relationship-diagram">Relationship diagram</h2>
 <p>Main relationships (lookup links such as created-by/updated-by are omitted for readability). GitHub, VS Code and most Markdown viewers render this diagram.</p>
 <pre class="mermaid">erDiagram
-  DeliverableVersion ||--o{ Approval : "deliverableVersionId"
-  Organization ||--o{ AuditEvent : "organizationId"
-  Project ||--o{ Baseline : "projectId"
-  Baseline ||--o{ BaselineItem : "baselineId"
-  Organization ||--o{ CannedResponse : "organizationId"
-  Project ||--o{ ChangeRequest : "projectId"
-  WorkItem ||--o{ ChecklistItem : "workItemId"
-  Organization ||--o{ Comment : "organizationId"
-  Organization ||--o{ CustomerCompany : "organizationId"
-  Project ||--o{ Decision : "projectId"
-  Phase ||--o{ Deliverable : "phaseId"
-  Project ||--o{ Deliverable : "projectId"
-  Deliverable ||--o{ DeliverableVersion : "deliverableId"
-  WorkItem ||--o{ Dependency : "predecessorId"
-  Project ||--o{ Dependency : "projectId"
-  Project ||--o{ Discussion : "projectId"
-  DeliverableVersion ||--o{ FileObject : "deliverableVersionId"
-  Organization ||--o{ FileObject : "organizationId"
-  WorkingCalendar ||--o{ Holiday : "calendarId"
-  Organization ||--o{ Invitation : "organizationId"
-  Project ||--o{ Issue : "projectId"
-  Organization ||--o{ KnowledgeArticle : "organizationId"
-  CustomerCompany ||--o{ Membership : "customerCompanyId"
-  Organization ||--o{ Membership : "organizationId"
-  User ||--o{ Membership : "userId"
-  Organization ||--o{ Notification : "organizationId"
-  User ||--o{ Notification : "userId"
-  User ||--o{ PasswordResetToken : "userId"
-  Project ||--o{ Phase : "projectId"
-  WorkingCalendar ||--o{ Project : "calendarId"
-  CustomerCompany ||--o{ Project : "customerCompanyId"
-  Organization ||--o{ Project : "organizationId"
-  ProjectTemplate ||--o{ Project : "templateId"
-  Project ||--o{ ProjectMember : "projectId"
-  User ||--o{ ProjectMember : "userId"
-  Organization ||--o{ ProjectTemplate : "organizationId"
-  Project ||--o{ Risk : "projectId"
-  Organization ||--o{ Session : "organizationId"
-  User ||--o{ Session : "userId"
-  Organization ||--o{ SlaPolicy : "organizationId"
-  Project ||--o{ StatusUpdate : "projectId"
-  Organization ||--o{ Team : "organizationId"
-  Team ||--o{ TeamMember : "teamId"
-  User ||--o{ TeamMember : "userId"
-  ProjectTemplate ||--o{ TemplatePhase : "templateId"
-  CustomerCompany ||--o{ Ticket : "customerCompanyId"
-  Organization ||--o{ Ticket : "organizationId"
-  Project ||--o{ Ticket : "projectId"
-  Organization ||--o{ TicketCategory : "organizationId"
-  Ticket ||--o{ TicketLink : "ticketId"
-  WorkItem ||--o{ TicketLink : "workItemId"
-  Organization ||--o{ TimeEntry : "organizationId"
-  Project ||--o{ TimeEntry : "projectId"
-  Timesheet ||--o{ TimeEntry : "timesheetId"
-  WorkItem ||--o{ TimeEntry : "workItemId"
-  Organization ||--o{ Timesheet : "organizationId"
-  Phase ||--o{ WorkItem : "phaseId"
-  Project ||--o{ WorkItem : "projectId"
-  WorkItem ||--o{ WorkItemCollaborator : "workItemId"
-  Organization ||--o{ WorkingCalendar : "organizationId"
+  DeliverableVersion ||--o{ Approval : &quot;deliverableVersionId&quot;
+  Organization ||--o{ AuditEvent : &quot;organizationId&quot;
+  Project ||--o{ Baseline : &quot;projectId&quot;
+  Baseline ||--o{ BaselineItem : &quot;baselineId&quot;
+  Organization ||--o{ CannedResponse : &quot;organizationId&quot;
+  Project ||--o{ ChangeRequest : &quot;projectId&quot;
+  WorkItem ||--o{ ChecklistItem : &quot;workItemId&quot;
+  Organization ||--o{ Comment : &quot;organizationId&quot;
+  Organization ||--o{ CustomerCompany : &quot;organizationId&quot;
+  Project ||--o{ Decision : &quot;projectId&quot;
+  Phase ||--o{ Deliverable : &quot;phaseId&quot;
+  Project ||--o{ Deliverable : &quot;projectId&quot;
+  Deliverable ||--o{ DeliverableVersion : &quot;deliverableId&quot;
+  WorkItem ||--o{ Dependency : &quot;predecessorId&quot;
+  Project ||--o{ Dependency : &quot;projectId&quot;
+  WorkItem ||--o{ Dependency : &quot;successorId&quot;
+  Project ||--o{ Discussion : &quot;projectId&quot;
+  DeliverableVersion ||--o{ FileObject : &quot;deliverableVersionId&quot;
+  Organization ||--o{ FileObject : &quot;organizationId&quot;
+  WorkingCalendar ||--o{ Holiday : &quot;calendarId&quot;
+  Organization ||--o{ Invitation : &quot;organizationId&quot;
+  Project ||--o{ Issue : &quot;projectId&quot;
+  Organization ||--o{ KnowledgeArticle : &quot;organizationId&quot;
+  CustomerCompany ||--o{ Membership : &quot;customerCompanyId&quot;
+  Organization ||--o{ Membership : &quot;organizationId&quot;
+  User ||--o{ Membership : &quot;userId&quot;
+  Organization ||--o{ Notification : &quot;organizationId&quot;
+  User ||--o{ Notification : &quot;userId&quot;
+  User ||--o{ PasswordResetToken : &quot;userId&quot;
+  Project ||--o{ Phase : &quot;projectId&quot;
+  WorkingCalendar ||--o{ Project : &quot;calendarId&quot;
+  CustomerCompany ||--o{ Project : &quot;customerCompanyId&quot;
+  Organization ||--o{ Project : &quot;organizationId&quot;
+  ProjectTemplate ||--o{ Project : &quot;templateId&quot;
+  Project ||--o{ ProjectMember : &quot;projectId&quot;
+  User ||--o{ ProjectMember : &quot;userId&quot;
+  Organization ||--o{ ProjectTemplate : &quot;organizationId&quot;
+  Project ||--o{ Risk : &quot;projectId&quot;
+  Organization ||--o{ Session : &quot;organizationId&quot;
+  User ||--o{ Session : &quot;userId&quot;
+  Organization ||--o{ SlaPolicy : &quot;organizationId&quot;
+  Project ||--o{ StatusUpdate : &quot;projectId&quot;
+  Organization ||--o{ Team : &quot;organizationId&quot;
+  Team ||--o{ TeamMember : &quot;teamId&quot;
+  User ||--o{ TeamMember : &quot;userId&quot;
+  ProjectTemplate ||--o{ TemplatePhase : &quot;templateId&quot;
+  CustomerCompany ||--o{ Ticket : &quot;customerCompanyId&quot;
+  Organization ||--o{ Ticket : &quot;organizationId&quot;
+  Project ||--o{ Ticket : &quot;projectId&quot;
+  Organization ||--o{ TicketCategory : &quot;organizationId&quot;
+  Ticket ||--o{ TicketLink : &quot;ticketId&quot;
+  WorkItem ||--o{ TicketLink : &quot;workItemId&quot;
+  Organization ||--o{ TimeEntry : &quot;organizationId&quot;
+  Project ||--o{ TimeEntry : &quot;projectId&quot;
+  Timesheet ||--o{ TimeEntry : &quot;timesheetId&quot;
+  WorkItem ||--o{ TimeEntry : &quot;workItemId&quot;
+  Organization ||--o{ Timesheet : &quot;organizationId&quot;
+  Phase ||--o{ WorkItem : &quot;phaseId&quot;
+  Project ||--o{ WorkItem : &quot;projectId&quot;
+  WorkItem ||--o{ WorkItemCollaborator : &quot;workItemId&quot;
+  Organization ||--o{ WorkingCalendar : &quot;organizationId&quot;
 </pre>
 <h2 id="enum-types">Enum types</h2>
 <table>
@@ -121,7 +122,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 </tr>
 <tr>
 <td><code>ProjectRole</code></td>
-<td>MANAGER, MEMBER, VIEWER, CUSTOMER</td>
+<td>MANAGER, MEMBER, VIEWER, CUSTOMER, DIRECTOR</td>
 </tr>
 <tr>
 <td><code>ProjectStatus</code></td>
@@ -157,6 +158,41 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 </tr>
 </tbody>
 </table>
+<h2 id="triggers">Triggers</h2>
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>Table</th>
+<th>Function</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Baseline_protect_original</code></td>
+<td><code>Baseline</code></td>
+<td><code>o2_protect_original_baseline()</code></td>
+<td>Blocks UPDATE/DELETE of the original (first approved) baseline so the agreed plan can never be changed</td>
+</tr>
+<tr>
+<td><code>BaselineItem_protect_original</code></td>
+<td><code>BaselineItem</code></td>
+<td><code>o2_protect_original_baseline()</code></td>
+<td>Blocks UPDATE/DELETE of the original (first approved) baseline so the agreed plan can never be changed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="migrations">Migrations</h2>
+<p>Applied automatically, in order, by <code>scripts/db-migrate.js</code> on every start (already-applied ones are skipped).</p>
+<ol>
+<li><code>20261117000000_init</code></li>
+<li><code>20261118000000_support_desk</code></li>
+<li><code>20261118100000_user_profile</code></li>
+<li><code>20261118200000_original_plan</code></li>
+<li><code>20261119000000_auto_schedule</code></li>
+<li><code>20261120000000_project_director</code></li>
+</ol>
 <h2 id="organisation-users-and-security">Organisation, users and security</h2>
 <h3 id="organization">Organization</h3>
 <p>Tenant. Every business record belongs to exactly one organisation (data isolation).</p>
@@ -1194,6 +1230,41 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <td></td>
 <td></td>
 </tr>
+<tr>
+<td><code>directorId</code></td>
+<td>uuid</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>planSubmittedAt</code></td>
+<td>timestamptz</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>planSubmittedById</code></td>
+<td>uuid</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>planReturnedAt</code></td>
+<td>timestamptz</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>planReturnNote</code></td>
+<td>text</td>
+<td>yes</td>
+<td></td>
+<td></td>
+</tr>
 </tbody>
 </table>
 <p>Indexes: unique ("organizationId", code); ("organizationId", status)</p>
@@ -1597,13 +1668,6 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <td></td>
 </tr>
 <tr>
-<td><code>startConstraint</code></td>
-<td>date</td>
-<td>yes</td>
-<td></td>
-<td>Fixed start (&ldquo;not before&rdquo;); empty = starts as soon as the tasks it waits for are done</td>
-</tr>
-<tr>
 <td><code>estimateHours</code></td>
 <td>numeric(8,2)</td>
 <td>yes</td>
@@ -1663,6 +1727,13 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <td><code>updatedAt</code></td>
 <td>timestamptz</td>
 <td>no</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>startConstraint</code></td>
+<td>date</td>
+<td>yes</td>
 <td></td>
 <td></td>
 </tr>
@@ -2021,7 +2092,7 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 </tr>
 <tr>
 <td><code>workDays</code></td>
-<td>int4[]</td>
+<td>integer[]</td>
 <td>no</td>
 <td><code>ARRAY[1, 2, 3, 4, 5]</code></td>
 <td></td>
@@ -3838,4 +3909,4 @@ table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid 
 <td></td>
 </tr>
 </tbody>
-</table><p style="color:#64748b;font-size:12px">The diagram renders when this page is opened with internet access; offline it shows the relationship list.</p></body></html>
+</table></body></html>

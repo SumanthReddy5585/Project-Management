@@ -79,7 +79,7 @@ export function NewProjectDialog({ onClose }) {
   const refs = useLoad(() => Promise.all([get('/org/customers'), get('/org/members', { pageSize: 200 }), get('/org/templates'), get('/workload').catch(() => ({ data: [] }))]), []);
   const [customers, members, templates, workload] = refs.data ? refs.data.map((r) => r.data) : [[], [], [], []];
   const [step, setStep] = useState('details');
-  const [f, setF] = useState({ name: '', code: '', customerCompanyId: '', plannedStart: todayISO(), plannedFinish: addDaysISO(todayISO(), 90), share: true, templateId: 'simple', managerId: user.id, priority: 'MEDIUM', description: '', objectives: '', budgetAmount: '', budgetCurrency: 'USD', customerContactIds: null });
+  const [f, setF] = useState({ name: '', code: '', customerCompanyId: '', plannedStart: todayISO(), plannedFinish: addDaysISO(todayISO(), 90), share: true, templateId: 'simple', managerId: user.id, directorId: '', priority: 'MEDIUM', description: '', objectives: '', budgetAmount: '', budgetCurrency: 'USD', customerContactIds: null });
   const [team, setTeam] = useState({});
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -89,14 +89,15 @@ export function NewProjectDialog({ onClose }) {
   const contacts = members.filter((m) => m.role === 'CUSTOMER' && m.status === 'ACTIVE' && m.customerCompany?.id === f.customerCompanyId);
   const chosenContacts = f.customerContactIds ?? contacts.map((c) => c.userId);
   const tpl = templates.find((t) => t.id === f.templateId);
-  const detailsOk = f.name.trim().length >= 2 && f.plannedFinish >= f.plannedStart && f.managerId;
+  const directors = managers.filter((m) => m.userId !== f.managerId);
+  const detailsOk = f.name.trim().length >= 2 && f.plannedFinish >= f.plannedStart && f.managerId && (directors.length ? f.directorId && f.directorId !== f.managerId : true);
   const submit = async () => {
     setErr(null); setBusy(true);
     const base = f.code || codeFrom(f.name);
-    const body = { name: f.name.trim(), managerId: f.managerId, plannedStart: f.plannedStart, plannedFinish: f.plannedFinish, status: 'DRAFT', priority: f.priority,
+    const body = { name: f.name.trim(), managerId: f.managerId, directorId: f.directorId || null, plannedStart: f.plannedStart, plannedFinish: f.plannedFinish, status: 'DRAFT', priority: f.priority,
       description: f.description || null, objectives: f.objectives || null,
       customerCompanyId: f.customerCompanyId || null, customerVisible: Boolean(f.customerCompanyId && f.share), customerContactIds: f.customerCompanyId ? chosenContacts : [],
-      team: Object.entries(team).filter(([id]) => id !== f.managerId).map(([userId, t]) => ({ userId, ...t })), templateId: f.templateId || null,
+      team: Object.entries(team).filter(([id]) => id !== f.managerId && id !== f.directorId).map(([userId, t]) => ({ userId, ...t })), templateId: f.templateId || null,
       ...(f.budgetAmount && { budgetAmount: Number(f.budgetAmount), budgetCurrency: f.budgetCurrency }),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' };
     try {
@@ -117,6 +118,7 @@ export function NewProjectDialog({ onClose }) {
     </>
   );
   const mgrName = internal.find((m) => m.userId === f.managerId)?.name;
+  const dirName = internal.find((m) => m.userId === f.directorId)?.name;
   return (
     <Modal open size="lg" onClose={onClose} title="New project" footer={footer}>
       <Steps step={step} />
@@ -126,7 +128,8 @@ export function NewProjectDialog({ onClose }) {
           <div className="row">
             <div className="col-md-8"><Field label="Project name" error={fe.name}>{(id) => <input id={id} className="form-control" placeholder="e.g. Customer portal rollout" value={f.name} onChange={set('name')} autoFocus />}</Field></div>
             <div className="col-md-4"><Field label="Short code" hint="Used in task numbers" error={fe.code}>{(id) => <input id={id} className="form-control text-uppercase" maxLength={10} placeholder={f.name ? codeFrom(f.name) : 'CPR'} value={f.code} onChange={(e) => set('code')(e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase())} />}</Field></div>
-            <div className="col-md-6"><Field label="Project manager">{(id) => <Select id={id} value={f.managerId} onChange={set('managerId')} disabled={role !== 'ADMIN' && managers.length <= 1} options={managers.map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user.id ? ' (you)' : ''}${m.title ? ` — ${m.title}` : ''}` }))} />}</Field></div>
+            <div className="col-md-6"><Field label="Project director" hint="Approves the plan, documents and change requests" error={f.directorId && f.directorId === f.managerId ? 'Must be different from the project manager' : undefined}>{(id) => <Select id={id} value={f.directorId} onChange={set('directorId')} placeholder={directors.length ? 'Choose the director' : 'No other manager yet — add one in Settings → Users'} disabled={!directors.length} options={directors.map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user.id ? ' (you)' : ''}${m.title ? ` — ${m.title}` : ''}` }))} />}</Field></div>
+            <div className="col-md-6"><Field label="Project manager" hint="Builds the plan, runs the team and approves their time">{(id) => <Select id={id} value={f.managerId} onChange={(v) => setF((x) => ({ ...x, managerId: v, directorId: x.directorId === v ? '' : x.directorId }))} disabled={role !== 'ADMIN' && managers.length <= 1} options={managers.map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user.id ? ' (you)' : ''}${m.title ? ` — ${m.title}` : ''}` }))} />}</Field></div>
             <div className="col-md-6"><Field label="Client" hint="Leave empty for an internal project">{(id) => <Select id={id} value={f.customerCompanyId} onChange={(v) => setF((x) => ({ ...x, customerCompanyId: v || '', customerContactIds: null }))} placeholder="Internal project" options={customers.map((c) => ({ value: c.id, label: c.name }))} />}</Field></div>
             <div className="col-6 col-md-3"><Field label="Start date">{(id) => <input id={id} type="date" className="form-control" value={f.plannedStart} onChange={set('plannedStart')} />}</Field></div>
             <div className="col-6 col-md-3"><Field label="Target finish" hint="Rough guess is fine — the end date follows your tasks" error={f.plannedFinish < f.plannedStart ? 'Must be after the start' : fe.plannedFinish}>{(id) => <input id={id} type="date" className="form-control" value={f.plannedFinish} min={f.plannedStart} onChange={set('plannedFinish')} />}</Field></div>
@@ -139,22 +142,23 @@ export function NewProjectDialog({ onClose }) {
         </>
       ) : step === 'team' ? (
         <>
-          <p className="small text-muted mb-2">Pick the people who will work on <strong>{f.name}</strong>. <strong>{mgrName}</strong> is the project manager.</p>
-          <TeamPicker people={internal} team={team} setTeam={setTeam} managerId={f.managerId} workload={workload} />
+          <p className="small text-muted mb-2">Pick the resources who will work on <strong>{f.name}</strong>. <strong>{dirName}</strong> is the project director and <strong>{mgrName}</strong> is the project manager.</p>
+          <TeamPicker people={internal.filter((m) => m.userId !== f.directorId)} team={team} setTeam={setTeam} managerId={f.managerId} workload={workload} />
           {f.customerCompanyId && contacts.length > 0 && <div className="mt-3"><div className="form-label">Client contacts who can follow the project</div>
             <div className="d-flex flex-wrap gap-2">{contacts.map((c) => { const on = chosenContacts.includes(c.userId); return (
               <label key={c.userId} className={`btn btn-sm ${on ? 'btn-outline-primary' : 'btn-light'}`}><input type="checkbox" className="visually-hidden" checked={on} onChange={() => set('customerContactIds')(on ? chosenContacts.filter((x) => x !== c.userId) : [...chosenContacts, c.userId])} /><Avatar sm name={c.name} /> {c.name}</label>); })}</div></div>}
         </>
       ) : (
         <>
-          <Notice>Next: you'll add the tasks and milestones with dates, people and effort, then <b>approve and lock it as the original plan</b>. From then on the project is tracked against that original.</Notice>
+          <Notice>Next: the project manager adds the tasks, sub-tasks and milestones, then <b>sends the plan to {dirName || 'the project director'}</b>, who approves and locks it as the original plan. From then on the project is tracked against that original.</Notice>
           <dl className="props">
             <dt>Project</dt><dd className="fw-semibold">{f.name} <span className="mono">{f.code || codeFrom(f.name)}</span></dd>
             <dt>Client</dt><dd>{customers.find((c) => c.id === f.customerCompanyId)?.name || 'Internal project'}</dd>
             <dt>Dates</dt><dd>{fmtDate(f.plannedStart)} → {fmtDate(f.plannedFinish)}</dd>
             <dt>Plan</dt><dd>{f.templateId === 'simple' ? 'Simple stages: Plan → Build → Test → Close' : f.templateId === 'none' ? 'Empty plan' : tpl ? `${tpl.name}: ${tpl.phases.length} stages with milestones` : 'Simple stages'}</dd>
+            <dt>Director</dt><dd>{dirName}</dd>
             <dt>Manager</dt><dd>{mgrName}</dd>
-            <dt>Team</dt><dd>{Object.keys(team).length ? <span className="d-flex flex-wrap gap-2">{Object.entries(team).map(([id, t]) => { const p = internal.find((m) => m.userId === id); return <span key={id} className="pill pill-neutral"><Avatar sm name={p?.name} />{p?.name} · {t.role === 'MANAGER' ? 'Co-manager' : labelize(t.role)}{t.allocationPct < 100 ? ` · ${t.allocationPct}%` : ''}</span>; })}</span> : <span className="text-muted">Only the manager for now</span>}</dd>
+            <dt>Team</dt><dd>{Object.keys(team).length ? <span className="d-flex flex-wrap gap-2">{Object.entries(team).map(([id, t]) => { const p = internal.find((m) => m.userId === id); return <span key={id} className="pill pill-neutral"><Avatar sm name={p?.name} />{p?.name} · {t.role === 'MANAGER' ? 'Co-manager' : labelize(t.role)}{t.allocationPct < 100 ? ` · ${t.allocationPct}%` : ''}</span>; })}</span> : <span className="text-muted">Only the director and manager for now</span>}</dd>
             {f.budgetAmount && <><dt>Budget</dt><dd>{Number(f.budgetAmount).toLocaleString()} {f.budgetCurrency}</dd></>}
           </dl>
           {f.customerCompanyId && <div className="form-check form-switch"><input className="form-check-input" type="checkbox" role="switch" id="np-share" checked={f.share} onChange={(e) => set('share')(e.target.checked)} />

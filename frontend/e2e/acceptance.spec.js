@@ -25,10 +25,13 @@ async function login(page, email) {
 test.describe.serial('manager → client → request workflow', () => {
   let projectUrl; let ticketUrl;
 
-  test('manager creates a client project and adds tasks', async ({ page }) => {
+  test('manager creates a client project and adds tasks', async ({ page, browser }) => {
     await login(page, 'manager@demo.local');
     await page.goto('/projects?new=1');
     await page.getByLabel('Project name').fill(`E2E Portal ${code}`);
+    // every project has a project director (approves) and a project manager (builds and runs it)
+    await expect(page.getByRole('button', { name: /Next: choose team/ })).toBeDisabled();
+    await page.getByLabel('Project director').selectOption({ label: 'Vikram Rao — Delivery Director' });
     await page.getByLabel('Client', { exact: true }).selectOption({ label: 'Contoso Retail' });
     await page.getByRole('button', { name: /Next: choose team/ }).click();
     await page.getByRole('checkbox', { name: 'Add Ravi Developer' }).check();
@@ -66,8 +69,29 @@ test.describe.serial('manager → client → request workflow', () => {
     await expect.poll(() => finishOf('Shared onboarding task')).not.toBe(before);
     expect(await startOf('Onboarding finished')).toBe(await finishOf('Internal pricing review'));
     await expect(page.locator('.pb-summary')).toContainText('Plan ends');
-    await page.getByRole('button', { name: 'Approve & lock original plan' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Approve & lock' }).click();
+    // a sub-task under a task: it starts with its task and the task spans it
+    await page.getByLabel(/^Add a sub-task to .+-1$/).click();
+    await page.getByLabel('New sub-task of Shared onboarding task').fill('Welcome pack');
+    await page.getByLabel('New sub-task of Shared onboarding task').press('Enter');
+    await expect(page.locator('.pb-table input[value="Welcome pack"]')).toBeVisible();
+    await expect(page.locator('.pb-summary')).toContainText('1 sub-task');
+    await page.getByRole('button', { name: 'Done adding sub-tasks' }).click();
+    // the manager cannot approve the plan; they send it to the director
+    await expect(page.getByRole('button', { name: /Approve & lock/ })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Send for approval' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Send for approval' }).click();
+    await expect(page.locator('.ready-bar.wait')).toContainText('Waiting for Vikram Rao');
+    const planUrl = page.url();
+    // the director approves and locks it
+    const dctx = await browser.newContext(); const dir = await dctx.newPage();
+    await login(dir, 'director@demo.local');
+    await expect(dir.locator('.approvals-card')).toContainText(`E2E Portal ${code}`);
+    await dir.goto(planUrl);
+    await dir.getByRole('button', { name: 'Approve & lock plan' }).click();
+    await dir.getByRole('dialog').getByRole('button', { name: 'Approve & lock' }).click();
+    await expect(dir.locator('.locked-bar')).toContainText('Vikram Rao');
+    await dctx.close();
+    await page.reload();
     await expect(page.locator('.locked-bar')).toContainText('Plan approved on');
     await expect(page.locator('.status-banner')).toContainText('On schedule');
 

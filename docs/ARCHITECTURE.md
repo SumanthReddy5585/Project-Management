@@ -62,25 +62,32 @@ Org role capabilities (`ORG_CAPS`):
 
 Effective **project role**: org Admin → `ADMIN` on every project in the org; everyone else → their `ProjectMember.role` or **no access**. An org Manager who is not a member of a project cannot see it.
 
-| Project capability | ADMIN | MANAGER | MEMBER | VIEWER | CUSTOMER |
-|---|:-:|:-:|:-:|:-:|:-:|
-| View project (customer: shared content only) | ✔ | ✔ | ✔ | ✔ | ✔ |
-| View internal content (all items, registers, baselines, activity) | ✔ | ✔ | ✔ | ✔ | |
-| Edit project, phases, members, lifecycle | ✔ | ✔ | | | |
-| See budget, rate, billing | ✔ | ✔ | | | |
-| Create work items | ✔ | ✔ | ✔ (self-assigned) | | |
-| Edit any work item / bulk edit / delete | ✔ | ✔ | | | |
-| Edit own work (status, %, actuals, description, checklist) | ✔ | ✔ | ✔ (assignee/collaborator) | | |
-| Dependencies, schedule apply, baselines | ✔ | ✔ | | | |
-| Internal comments | ✔ | ✔ | ✔ | ✔ | |
-| Customer-visible comments | ✔ | ✔ | ✔ | | ✔ (forced public) |
-| Upload files | ✔ | ✔ | ✔ | | ✔ (forced public, shared items only) |
-| Log time | ✔ | ✔ | ✔ | | |
-| Approve timesheets | Admin, or manager of **every** project on the sheet; never your own |||||
-| Manage deliverables / publish status updates | ✔ | ✔ | | | |
-| Review deliverables | ✔ | internal reviews | | | ✔ customer reviews |
-| Risks / issues / decisions / change requests | ✔ manage | ✔ manage | view | view | |
-| CSV export | ✔ | ✔ | ✔ | ✔ | tickets only |
+Every project has a **Project Director** (`Project.directorId`, project role `DIRECTOR`) and a **Project Manager** (`Project.managerId`, role `MANAGER`); the rest of the team are **resources** (`MEMBER`). The director must be a different person from the manager, and only an administrator can change a director once set.
+
+| Project capability | ADMIN | DIRECTOR | MANAGER | MEMBER | VIEWER | CUSTOMER |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| View project (customer: shared content only) | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+| View internal content (all items, registers, baselines, activity) | ✔ | ✔ | ✔ | ✔ | ✔ | |
+| Edit project, phases, members (resources), lifecycle | ✔ | | ✔ | | | |
+| See budget, rate, billing | ✔ | ✔ | ✔ | | | |
+| Create work items | ✔ | | ✔ | ✔ (self-assigned) | | |
+| Edit any work item / bulk edit / delete | ✔ | | ✔ | | | |
+| Edit own work (status, %, actuals, description, checklist) | ✔ | | ✔ | ✔ (assignee/collaborator) | | |
+| Build the plan: tasks, sub-tasks, links, schedule, baselines | ✔ | | ✔ | | | |
+| Send the plan for approval / take it back | ✔ | | ✔ | | | |
+| **Approve the plan** (locks the original plan) or send it back | ✔ | ✔ | | | | |
+| Internal comments | ✔ | ✔ | ✔ | ✔ | ✔ | |
+| Customer-visible comments | ✔ | ✔ | ✔ | ✔ | | ✔ (forced public) |
+| Upload files | ✔ | ✔ | ✔ | ✔ | | ✔ (forced public, shared items only) |
+| Log time | ✔ | ✔ | ✔ | ✔ | | |
+| **Approve timesheets** | Admin, or manager of **every** project on the sheet; never your own ||||||
+| Manage documents (deliverables) / publish status updates | ✔ | | ✔ | | | |
+| **Approve documents** | ✔ | ✔ first | | | | ✔ shared documents, after the director |
+| Risks / issues / decisions / raise change requests | ✔ manage | view | ✔ manage | view | view | |
+| **Approve or reject change requests** | ✔ | ✔ | | | | |
+| CSV export | ✔ | ✔ | ✔ | ✔ | ✔ | tickets only |
+
+Approval rules: nobody approves their own submission (the plan they sent, the document version they uploaded, the change request they raised, their own timesheet). A document shared with the client goes to the director first; the client sees it only after the director approved it. Waiting approvals are listed on each person's dashboard (`/api/dashboard` → `approvals`).
 
 The matrix is served to the frontend in `/api/auth/me` so the UI hides controls consistently, but **every rule is enforced server-side**. Records outside the caller's scope return **404** (not 403) so identifiers cannot be probed.
 

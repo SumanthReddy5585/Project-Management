@@ -11,7 +11,7 @@
 //     waits for it moves out day by day until it is done. The overdue item itself keeps its dates, so it
 //     still shows as overdue.
 //   * A parent (module, or a task with sub-tasks) spans its children. A link to or from a parent applies
-//     to all of its children.
+//     to all of its children, and so does a parent's fixed start.
 //   * Cancelled items are ignored. Items without both dates are left alone and do not hold anything up.
 import { addWorkingDays, nextWorkingDay, workingDaysBetween, DEFAULT_CALENDAR } from './calendar.js';
 import { earliestStartAfter } from './dependencies.js';
@@ -81,7 +81,10 @@ export function autoSchedule({ items, deps, projectStart, today, useToday = fals
       continue;
     }
     const len = Math.max(1, workingDaysBetween(s0, f0, cal));
-    const floor = i.startConstraint || projectStart;
+    // a fixed start on a parent (a task with sub-tasks) holds for everything inside it
+    let fixed = i.startConstraint;
+    for (let p = byId.get(i.parentId); p; p = byId.get(p.parentId)) if (p.startConstraint && (!fixed || p.startConstraint > fixed)) fixed = p.startConstraint;
+    const floor = fixed || projectStart;
     const start = nextWorkingDay(maxKey([floor, ...preds.map((p) => earliestStartAfter(p.f, p.lag, cal))]), cal);
     // a task that does not move keeps its due date exactly as typed (even on a weekend); one that moves keeps its length
     const finish = start === s0 ? f0 : addWorkingDays(start, len - 1, cal);

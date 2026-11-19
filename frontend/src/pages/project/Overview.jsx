@@ -99,7 +99,7 @@ function NeedsAttention({ plan, openItem, people }) {
 function TeamCard({ p }) {
   return (
     <Card title={<span className="d-inline-flex align-items-center gap-2"><Users size={16} /> Team</span>} actions={<Link to="team" className="small fw-semibold">Manage</Link>}>
-      {p.members.filter((m) => m.role !== 'CUSTOMER').map((m) => <div key={m.id} className="d-flex align-items-center gap-2 py-1"><Avatar sm name={m.name} /><span className="flex-grow-1 min-w-0"><span className="small fw-semibold d-block truncate">{m.name}</span><span className="small text-muted truncate d-block">{m.title || labelize(m.role)}</span></span>{m.id === p.managerId ? <span className="pill pill-dark">Manager</span> : m.role === 'VIEWER' && <span className="pill pill-outline">Viewer</span>}</div>)}
+      {p.members.filter((m) => m.role !== 'CUSTOMER').sort((a, b) => (b.id === p.directorId) - (a.id === p.directorId) || (b.id === p.managerId) - (a.id === p.managerId)).map((m) => <div key={m.id} className="d-flex align-items-center gap-2 py-1"><Avatar sm name={m.name} /><span className="flex-grow-1 min-w-0"><span className="small fw-semibold d-block truncate">{m.name}</span><span className="small text-muted truncate d-block">{m.title || labelize(m.role)}</span></span>{m.id === p.directorId ? <span className="role-pill director">Director</span> : m.id === p.managerId ? <span className="role-pill pm">Manager</span> : m.role === 'VIEWER' && <span className="pill pill-outline">Viewer</span>}</div>)}
     </Card>
   );
 }

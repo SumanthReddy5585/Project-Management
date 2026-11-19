@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlarmClock, ArrowUpRight, BarChart3, CalendarDays, CheckCircle2, Clock, Flag, FolderKanban, Gauge, Inbox, LifeBuoy, Plus, ShieldCheck, Sparkles, Star, Target, Timer, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { AlarmClock, ArrowUpRight, FileCheck2, GitPullRequestArrow, Hourglass, Undo2, ClipboardCheck, BarChart3, CalendarDays, CheckCircle2, Clock, Flag, FolderKanban, Gauge, Inbox, LifeBuoy, Plus, ShieldCheck, Sparkles, Star, Target, Timer, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { get } from '../api/client.js';
 import { useLoad } from '../lib/hooks.js';
 import { useLive } from '../lib/live.js';
@@ -497,6 +497,29 @@ function TicketTrend({ stats }) {
   );
 }
 
+/* ---------- approvals waiting for the signed-in person ---------- */
+const APPROVAL_KIND = {
+  PLAN: [ClipboardCheck, 'Project plan', 'violet'], DOCUMENT: [FileCheck2, 'Document', 'blue'], CHANGE: [GitPullRequestArrow, 'Change request', 'amber'],
+  TIMESHEET: [Hourglass, 'Timesheet', 'green'], PLAN_RETURNED: [Undo2, 'Plan sent back', 'rose'],
+};
+function ApprovalsPanel({ items }) {
+  if (!items?.length) return null;
+  const ago = (t) => { const d = Math.max(0, Math.round((Date.now() - new Date(t)) / 864e5)); return d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`; };
+  const counts = Object.entries(items.reduce((m, x) => ({ ...m, [x.kind]: (m[x.kind] || 0) + 1 }), {}));
+  return (
+    <PanelCard title="Waiting for your approval" className="mb-3 approvals-card" count={items.length}
+      tools={<span className="legend-inline">{counts.map(([k, n]) => <span key={k}><i className={`ap-dot t-${APPROVAL_KIND[k][2]}`} />{APPROVAL_KIND[k][1]} {n}</span>)}</span>}>
+      <ul className="ap-list">{items.slice(0, 6).map((x) => { const [Icon, label, tone] = APPROVAL_KIND[x.kind]; return (
+        <li key={`${x.kind}${x.id}`}>
+          <span className={`k-ic sm tone-${tone}`}><Icon size={14} /></span>
+          <div className="ap-main"><Link to={x.link} className="ap-title truncate">{x.title}</Link><span className="ap-meta">{label}{x.code ? ` · ${x.code}` : ''} · waiting {ago(x.since)}</span></div>
+          <Link to={x.link} className="btn btn-sm btn-light">{x.kind === 'PLAN_RETURNED' ? 'Open plan' : 'Review'}</Link>
+        </li>); })}</ul>
+      {items.length > 6 && <div className="small text-muted mt-2">+ {items.length - 6} more</div>}
+    </PanelCard>
+  );
+}
+
 export default function StaffDashboard() {
   const { user, role } = useAuth();
   const manager = ['ADMIN', 'MANAGER'].includes(role);
@@ -513,6 +536,7 @@ export default function StaffDashboard() {
   return (
     <div className="dash">
       <Hero user={user} ps={ps} d={d} manager={manager} />
+      <ApprovalsPanel items={d.approvals} />
       <ProjectKpis ps={ps} d={d} time={time.data} manager={manager} />
       <div className="row g-3 mb-3">
         <div className="col-xxl-8 col-xl-7"><DeliveryPanel delivery={d.delivery} /></div>

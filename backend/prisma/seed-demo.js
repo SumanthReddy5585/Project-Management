@@ -14,7 +14,8 @@ const UPGRADE = process.argv.includes('--upgrade');
 const REGISTERS = process.argv.includes('--registers');
 const PLANS = process.argv.includes('--plans');
 const SCENARIOS = process.argv.includes('--scenarios');
-if ((await prisma.organization.count()) && !process.argv.includes('--force') && !UPGRADE && !REGISTERS && !PLANS && !SCENARIOS) { console.error('Database already has organizations. Re-run with --force to add demo orgs anyway.'); process.exit(1); }
+const DIRECTORS = process.argv.includes('--directors');
+if ((await prisma.organization.count()) && !process.argv.includes('--force') && !UPGRADE && !REGISTERS && !PLANS && !SCENARIOS && !DIRECTORS) { console.error('Database already has organizations. Re-run with --force to add demo orgs anyway.'); process.exit(1); }
 
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Demo-pass-2026';
 if (config.isProd && DEMO_PASSWORD === 'Demo-pass-2026') { console.error('Set DEMO_PASSWORD to a private value before seeding a public deployment.'); process.exit(1); }
@@ -34,6 +35,7 @@ async function ensurePeople(base, admin, contoso, fabrikam) {
   const people = [
     ['manager', 'Meera Manager', 'MANAGER', null, 'Senior Project Manager', 'Project Management', ['planning', 'stakeholders']],
     ['pm2', 'Daniel Brooks', 'MANAGER', null, 'Delivery Manager', 'Project Management', ['agile', 'budgeting']],
+    ['director', 'Vikram Rao', 'MANAGER', null, 'Delivery Director', 'PMO', ['governance', 'portfolio']],
     ['dev1', 'Ravi Developer', 'EMPLOYEE', null, 'Full-stack Engineer', 'Engineering', ['react', 'node']],
     ['dev2', 'Sara Analyst', 'EMPLOYEE', null, 'Business Analyst', 'Business Analysis', ['requirements', 'uat']],
     ['qa', 'Omar Tester', 'EMPLOYEE', null, 'QA Engineer', 'Quality Assurance', ['testing', 'automation']],
@@ -74,7 +76,7 @@ export async function seedDemo(base) {
   const finish = new Date(start); finish.setUTCDate(finish.getUTCDate() + 120);
   const project = await mgr.post('/api/projects', {
     name: 'Contoso Store Modernization', code: 'CSM', description: 'Replace the legacy order portal with a modern web storefront.', objectives: 'Launch new storefront; reduce checkout drop-off by 20%.',
-    customerCompanyId: contoso.id, customerContactIds: [ids.customer], managerId: ids.manager,
+    customerCompanyId: contoso.id, customerContactIds: [ids.customer], managerId: ids.manager, directorId: ids.director,
     team: [{ userId: ids.dev1, role: 'MEMBER', allocationPct: 100 }, { userId: ids.dev2, role: 'MEMBER', allocationPct: 50 }, { userId: ids.qa, role: 'MEMBER', allocationPct: 50 }, { userId: ids.design, role: 'MEMBER', allocationPct: 50 }],
     plannedStart: start.toISOString().slice(0, 10), plannedFinish: finish.toISOString().slice(0, 10), priority: 'HIGH', status: 'ACTIVE',
     budgetAmount: 120000, budgetCurrency: 'USD', billingEnabled: true, hourlyRate: 85, customerVisible: true,
@@ -157,11 +159,11 @@ async function seedPlans() {
         await prisma.workItem.update({ where: { id: i.id }, data: { actualFinish: D(af), plannedFinish: D(af), version: { increment: 1 } } });
       }
     }
-    const approver = project.managerId;
+    const approver = project.directorId ?? project.managerId; // the director approved the plan the manager sent
     await prisma.$transaction(async (tx) => {
       const bl = await tx.baseline.create({ data: { projectId: project.id, name: `Original plan (approved ${d(project.plannedStart)})`, note: 'Agreed with the client at kick-off', kind: 'ORIGINAL', createdById: approver } });
       await tx.baselineItem.createMany({ data: orig.map((o) => ({ baselineId: bl.id, ...o })) });
-      await tx.project.update({ where: { id: project.id }, data: { planApprovedAt: project.plannedStart, planApprovedById: approver, version: { increment: 1 } } });
+      await tx.project.update({ where: { id: project.id }, data: { planSubmittedAt: project.plannedStart, planSubmittedById: project.managerId, planApprovedAt: project.plannedStart, planApprovedById: approver, version: { increment: 1 } } });
     });
   }
 }
@@ -255,6 +257,17 @@ const SCENARIOS_SPEC = [
       ['Build page templates', 1, 'dev1', null, null, 60],
       ['SEO migration plan', 2, null, null, null, 16],
     ], deps: [] },
+  // a complete draft plan the manager has sent to the director for approval
+  { code: 'POP', name: 'Partner Onboarding Portal', mgr: 'pm2', start: 7, finish: 45, status: 'DRAFT', health: 'GREEN', priority: 'HIGH', draft: true, submitted: true,
+    description: 'Self-service onboarding for reseller partners.', objectives: 'Onboard a new partner in under two days.',
+    team: ['dev2', 'dev1', 'qa'],
+    tasks: [
+      ['Partner journey mapping', 0, 'dev2', 7, 10, 16],
+      ['Requirements sign-off', 0, 'dev2', 11, 12, 8],
+      ['Onboarding API', 1, 'dev1', 13, 22, 60],
+      ['Partner portal screens', 1, 'dev1', 23, 30, 48],
+      ['UAT with two partners', 2, 'qa', 31, 36, 24],
+    ], deps: [[0, 1], [1, 2], [2, 3], [3, 4]] },
 
   { code: 'DWH', name: 'Data Warehouse Migration', mgr: 'pm2', start: -30, finish: 30, status: 'ON_HOLD', health: 'AMBER', priority: 'MEDIUM',
     description: 'Move the on-premises data warehouse to the cloud. ON HOLD: waiting for the cloud licence purchase.', objectives: 'Retire the old warehouse servers by year end.',
@@ -330,7 +343,7 @@ async function seedScenarios(base) {
     const api = clients[sc.mgr];
     const company = sc.client ? companies.find((c) => c.name === sc.client) : null;
     const contacts = company ? (await prisma.membership.findMany({ where: { organizationId: orgId, customerCompanyId: company.id, role: 'CUSTOMER' } })).map((m) => m.userId) : [];
-    const p = await api.post('/api/projects', { name: sc.name, code: sc.code, description: sc.description, objectives: sc.objectives, managerId: ids[sc.mgr], templateId: tpl.id,
+    const p = await api.post('/api/projects', { name: sc.name, code: sc.code, description: sc.description, objectives: sc.objectives, managerId: ids[sc.mgr], directorId: ids.director, templateId: tpl.id,
       plannedStart: W(sc.start), plannedFinish: W(sc.finish), status: sc.status === 'DRAFT' ? 'DRAFT' : 'ACTIVE', priority: sc.priority, health: sc.health,
       ...(company && { customerCompanyId: company.id, customerContactIds: contacts, customerVisible: Boolean(sc.visible) }),
       ...(sc.budget && { budgetAmount: sc.budget, budgetCurrency: 'USD', billingEnabled: true, hourlyRate: sc.rate }),
@@ -357,8 +370,10 @@ async function seedScenarios(base) {
     if (!sc.draft && !sc.noPlan) {
       const bl = await prisma.baseline.create({ data: { projectId: p.id, name: `Original plan (approved ${W(sc.start)})`, note: 'Approved at kick-off', kind: 'ORIGINAL', createdById: ids[sc.mgr] } });
       await prisma.baselineItem.createMany({ data: orig.map((x) => ({ baselineId: bl.id, ...x })) });
-      await prisma.project.update({ where: { id: p.id }, data: { planApprovedAt: D(W(sc.start)), planApprovedById: ids[sc.mgr] } });
+      await prisma.project.update({ where: { id: p.id }, data: { planSubmittedAt: D(W(sc.start)), planSubmittedById: ids[sc.mgr], planApprovedAt: D(W(sc.start)), planApprovedById: ids.director } });
     }
+    // the draft plan is waiting for the director's approval
+    if (sc.submitted) await prisma.project.update({ where: { id: p.id }, data: { planSubmittedAt: new Date(Date.now() - 864e5), planSubmittedById: ids[sc.mgr] } });
     // Time logged on finished / running work (scaled for overruns), spread over working days.
     for (const [k, it] of made.entries()) {
       const o = sc.tasks[k][6] || {};
@@ -376,10 +391,17 @@ async function seedScenarios(base) {
     }
     for (const [title, probability, impact, mitigation] of sc.risks || []) await prisma.risk.create({ data: { projectId: p.id, title, probability, impact, mitigation, ownerId: ids[sc.mgr] } });
     for (const [title, severity, inDays] of sc.issues || []) await prisma.issue.create({ data: { projectId: p.id, title, severity, targetDate: D(W(inDays)), ownerId: ids[sc.mgr] } });
-    if (sc.cr) await prisma.changeRequest.create({ data: { projectId: p.id, title: sc.cr[0], scope: sc.cr[1], scheduleImpactDays: sc.cr[2], costImpact: sc.cr[3], createdById: ids[sc.mgr], status: 'SUBMITTED' } });
+    if (sc.cr) await prisma.changeRequest.create({ data: { projectId: p.id, title: sc.cr[0], scope: sc.cr[1], scheduleImpactDays: sc.cr[2], costImpact: sc.cr[3], createdById: ids[sc.mgr], reviewerId: ids.director, status: 'SUBMITTED' } });
     if (sc.deliverable) {
       const dl = await prisma.deliverable.create({ data: { projectId: p.id, phaseId: phases[1].id, name: sc.deliverable[0], customerVisible: true, status: sc.deliverable[1], dueDate: D(W(3)) } });
-      await prisma.deliverableVersion.create({ data: { deliverableId: dl.id, versionNumber: 1, note: 'Screens for dashboard, payments and settings — please review.', createdById: ids[sc.mgr] } });
+      const dv = await prisma.deliverableVersion.create({ data: { deliverableId: dl.id, versionNumber: 1, note: 'Screens for dashboard, payments and settings — please review.', createdById: ids[sc.mgr] } });
+      // the director has approved it; it is now with the client
+      if (sc.deliverable[1] === 'IN_REVIEW') await prisma.approval.create({ data: { deliverableVersionId: dv.id, reviewerId: ids.director, decision: 'APPROVED', comment: 'Looks good — send to Contoso.' } });
+    }
+    if (sc.code === 'CRM') {
+      // an internal document waiting for the director
+      const dl = await prisma.deliverable.create({ data: { projectId: p.id, phaseId: phases[1].id, name: 'Data cleansing rules', customerVisible: false, status: 'IN_REVIEW', dueDate: D(W(2)) } });
+      await prisma.deliverableVersion.create({ data: { deliverableId: dl.id, versionNumber: 1, note: 'Matching and merge rules for duplicate accounts — please approve.', createdById: ids[sc.mgr] } });
     }
     if (sc.update) await prisma.statusUpdate.create({ data: { projectId: p.id, authorId: ids[sc.mgr], title: sc.update[0], body: sc.update[1], health: sc.update[2], customerVisible: Boolean(sc.visible), createdAt: new Date(Date.now() - 2 * 864e5) } });
     if (['COMPLETED', 'ON_HOLD', 'CANCELLED'].includes(sc.status)) await prisma.project.update({ where: { id: p.id }, data: { status: sc.status, version: { increment: 1 } } });
@@ -431,7 +453,7 @@ async function seedMoreProjects(base, { mgr, ids, fabrikam }) {
     return p;
   };
   await make(pm2, { name: 'Fabrikam Patient Portal', code: 'FPP', description: 'Self-service portal for Fabrikam patients: appointments, results and billing.', objectives: 'Go live before the end of Q1 with 3 core journeys.',
-    customerCompanyId: fabrikam.id, customerContactIds: [ids.fabrikam], managerId: ids.pm2, plannedStart: day(-30), plannedFinish: day(75), status: 'ACTIVE', priority: 'HIGH', customerVisible: true,
+    customerCompanyId: fabrikam.id, customerContactIds: [ids.fabrikam], managerId: ids.pm2, directorId: ids.director, plannedStart: day(-30), plannedFinish: day(75), status: 'ACTIVE', priority: 'HIGH', customerVisible: true,
     budgetAmount: 80000, budgetCurrency: 'USD', billingEnabled: true, hourlyRate: 90,
     team: [{ userId: ids.dev1, role: 'MEMBER', allocationPct: 50 }, { userId: ids.design, role: 'MEMBER', allocationPct: 50 }, { userId: ids.ops, role: 'MEMBER', allocationPct: 50 }, { userId: ids.qa, role: 'MEMBER', allocationPct: 50 }] }, [
     ['Patient journey workshops', 1, 'design', -28, -20, 16, 'DONE'], ['Wireframes for appointments', 2, 'design', -19, -8, 24, 'DONE'],
@@ -439,7 +461,7 @@ async function seedMoreProjects(base, { mgr, ids, fabrikam }) {
     ['Accessibility audit', 4, 'qa', 20, 26, 16], ['Results viewer UI', 3, 'design', -5, 4, 24],
   ], 'AMBER');
   await make(mgr, { name: 'HR System Upgrade', code: 'HRU', description: 'Upgrade the internal HR system and migrate leave records.', objectives: 'Zero data loss; staff self-service for leave.',
-    managerId: ids.manager, plannedStart: day(-10), plannedFinish: day(50), status: 'ACTIVE', priority: 'MEDIUM',
+    managerId: ids.manager, directorId: ids.director, plannedStart: day(-10), plannedFinish: day(50), status: 'ACTIVE', priority: 'MEDIUM',
     team: [{ userId: ids.dev2, role: 'MEMBER', allocationPct: 50 }, { userId: ids.ops, role: 'MEMBER', allocationPct: 50 }] }, [
     ['Current-state process mapping', 1, 'dev2', -9, -4, 12, 'DONE'], ['Data migration plan', 2, 'dev2', -3, 3, 16, 'IN_PROGRESS'], ['Provision new servers', 3, 'ops', 4, 9, 12], ['UAT with HR team', 4, 'dev2', 30, 36, 20],
   ]);
@@ -531,6 +553,30 @@ async function upgradeDemo(base) {
   console.log('[demo-upgrade] demo data upgraded');
 }
 
+// Demo databases from before project directors: add the demo director, make them director of every demo
+// project (approved plans count as sent by the manager), route open change requests to them, and add the
+// draft plan that waits for their approval.
+async function seedDirectors(base) {
+  const mgrUser = await prisma.user.findFirst({ where: { email: mail('manager') } });
+  if (!mgrUser) return;
+  const orgId = (await prisma.membership.findFirst({ where: { userId: mgrUser.id } })).organizationId;
+  let dirId = (await prisma.user.findFirst({ where: { email: mail('director') } }))?.id;
+  if (!dirId) {
+    const admin = new ApiClient(base); await admin.login(mail('admin'), DEMO_PASSWORD);
+    const inv = await admin.post('/api/org/invitations', { email: mail('director'), name: 'Vikram Rao', role: 'MANAGER', title: 'Delivery Director', department: 'PMO' });
+    const me = await new ApiClient(base).post('/api/auth/invitations/accept', { token: new URL(inv.url).searchParams.get('token'), name: 'Vikram Rao', password: DEMO_PASSWORD });
+    dirId = me.user.id;
+    await admin.patch(`/api/org/members/${dirId}`, { title: 'Delivery Director', department: 'PMO', skills: ['governance', 'portfolio'] });
+  }
+  for (const p of await prisma.project.findMany({ where: { organizationId: orgId, directorId: null } })) {
+    if (p.managerId === dirId) continue;
+    await prisma.project.update({ where: { id: p.id }, data: { directorId: dirId, ...(p.planApprovedAt && !p.planSubmittedAt && { planSubmittedAt: p.planApprovedAt, planSubmittedById: p.managerId }) } });
+    await prisma.projectMember.upsert({ where: { projectId_userId: { projectId: p.id, userId: dirId } }, create: { projectId: p.id, userId: dirId, role: 'DIRECTOR', allocationPct: 0 }, update: { role: 'DIRECTOR' } });
+    await prisma.changeRequest.updateMany({ where: { projectId: p.id, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } }, data: { reviewerId: dirId } });
+  }
+  await seedScenarios(base); // only adds scenario projects that are missing (the plan waiting for approval)
+}
+
 // Seeding writes many dates in a row; the automatic scheduler runs once at the end instead of after every call.
 async function finishScheduling() {
   await prisma.$executeRawUnsafe(`UPDATE "WorkItem" SET "startConstraint" = "plannedStart" WHERE "startConstraint" IS NULL AND "plannedStart" IS NOT NULL AND type <> 'MODULE'
@@ -548,14 +594,15 @@ const app = createApp();
 const server = await new Promise((resolve) => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
 const base = `http://127.0.0.1:${server.address().port}`;
 try {
-  if (REGISTERS || PLANS || SCENARIOS) {
+  if (REGISTERS || PLANS || SCENARIOS || DIRECTORS) {
+    if (DIRECTORS) { await seedDirectors(base); console.log('[demo-upgrade] project directors added'); }
     if (REGISTERS) { await seedRegisters(base); console.log('[demo-upgrade] registers added'); }
     if (PLANS) { await seedPlans(); console.log('[demo-upgrade] original plans added'); }
     if (SCENARIOS) { await seedScenarios(base); console.log('[demo-upgrade] scenario projects added'); }
     process.exitCode = 0;
   } else if (UPGRADE) { await upgradeDemo(base); process.exitCode = 0; } else await seedDemo(base);
   await finishScheduling();
-  if (!UPGRADE && !REGISTERS && !PLANS && !SCENARIOS) console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
-  if (!UPGRADE && !REGISTERS && !PLANS && !SCENARIOS) for (const u of ['admin', 'manager', 'dev1', 'dev2', 'qa', 'customer', 'fabrikam', 'globex.admin']) console.log('  ' + mail(u));
+  if (!UPGRADE && !REGISTERS && !PLANS && !SCENARIOS && !DIRECTORS) console.log(`Demo data created. Sign in with any of these${config.isProd ? ' (password: the DEMO_PASSWORD you configured)' : ` (password: ${DEMO_PASSWORD})`}:`);
+  if (!UPGRADE && !REGISTERS && !PLANS && !SCENARIOS && !DIRECTORS) for (const u of ['admin', 'director', 'manager', 'dev1', 'dev2', 'qa', 'customer', 'fabrikam', 'globex.admin']) console.log('  ' + mail(u));
 } catch (e) { console.error('Seed failed:', e.message, JSON.stringify(e.data ?? {})); process.exitCode = 1; }
 finally { server.close(); await prisma.$disconnect(); }

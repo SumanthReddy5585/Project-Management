@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, Flag, Pin, PinOff, ChevronDown, CalendarDays, Check, ListTodo, Pencil } from 'lucide-react';
+import { Plus, Trash2, Flag, Pin, PinOff, ChevronDown, CalendarDays, Check, ListTodo, Pencil, CornerDownRight, ListPlus, X } from 'lucide-react';
 import { get, post, patch, del } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { useLive, emitLocal } from '../../lib/live.js';
@@ -35,6 +35,7 @@ export function PlanBuilder({ compact = false }) {
   useLive((e) => e.type === 'work.changed' && e.projectId === project.id, () => plan.reload({ silent: true }), [project.id]);
   const assignable = people.filter((m) => ['MANAGER', 'MEMBER'].includes(m.role));
   const d = plan.data;
+  const [subFor, setSubFor] = useState(null); // the task a sub-task is being added to
 
   const groups = useMemo(() => {
     if (!d) return [];
@@ -55,7 +56,7 @@ export function PlanBuilder({ compact = false }) {
   const spanDays = Math.max(1, dnum(span.to) - dnum(span.from) + 1);
 
   const after = (res, what) => {
-    const moved = (res?.rescheduled?.moved || []).filter((m) => m.type !== 'MODULE' && m.id !== res?.item?.id);
+    const moved = (res?.rescheduled?.moved || []).filter((m) => m.type !== 'MODULE' && m.id !== res?.item?.id && m.id !== res?.item?.parentId);
     const t = movedText(moved, project.code);
     if (t || what) toast([what, t].filter(Boolean).join(' · '), 'success');
     if (res?.rescheduled?.cycle) toast(res.rescheduled.cycle, 'error');
@@ -79,11 +80,12 @@ export function PlanBuilder({ compact = false }) {
     try { await patch(`/projects/${project.id}/phases/${ph.id}`, { name, version: ph.version }); plan.reload({ silent: true }); reloadProject(); } catch (e) { fail(e); }
   };
 
-  const tasks = d.rows.filter((r) => r.type !== 'MILESTONE' && r.type !== 'MODULE').length;
+  const tasks = d.rows.filter((r) => r.type === 'TASK').length;
+  const subtasks = d.rows.filter((r) => r.type === 'SUBTASK').length;
   const milestones = d.rows.filter((r) => r.type === 'MILESTONE').length;
   return (
     <div className={`pb ${compact ? 'pb-compact' : ''}`}>
-      {!compact && <div className="pb-how">
+      {!compact && d.canEdit && <div className="pb-how">
         <div><span className="n">1</span><b>List the work</b> — task name, who does it, and how many working days it takes.</div>
         <div><span className="n">2</span><b>Say what it waits for</b> — “After previous task”, or pick the tasks. Tasks that wait for nothing run <b>in parallel</b>.</div>
         <div><span className="n">3</span><b>Dates are worked out for you</b> — change a length or a link and every task after it moves.</div>
@@ -94,7 +96,7 @@ export function PlanBuilder({ compact = false }) {
         <div className="pb-sum-item"><span className="lbl">{d.approved ? 'Work now ends' : 'Plan ends'}</span><b className="big">{d.calculatedFinish ? fmtDate(d.calculatedFinish) : '—'}</b>
           {d.calculatedFinish && <span className="text-muted small">{plural(d.workingDays, 'working day')}</span>}</div>
         {d.approved && <div className="pb-sum-item"><span className="lbl">Original end</span><b>{fmtDate(d.projectFinish)}</b></div>}
-        <div className="pb-sum-item"><span className="lbl">In the plan</span><b>{plural(tasks, 'task')} · {plural(milestones, 'milestone')}</b></div>
+        <div className="pb-sum-item"><span className="lbl">In the plan</span><b>{plural(tasks, 'task')}{subtasks > 0 && <> · {plural(subtasks, 'sub-task')}</>} · {plural(milestones, 'milestone')}</b></div>
       </div>
 
       {groups.map((g, gi) => (
@@ -104,8 +106,17 @@ export function PlanBuilder({ compact = false }) {
             <table className="table pb-table align-middle mb-0">
               <thead><tr><th className="c-num">#</th><th>Task</th><th className="c-owner">Who</th><th className="c-days">Days</th><th className="c-after">Starts after</th><th className="c-date">Start</th><th className="c-date">Finish</th><th className="c-bar"><span className="visually-hidden">Timeline</span></th><th className="c-act" /></tr></thead>
               <tbody>
-                {g.rows.map((r) => <Row key={r.id} r={r} flat={flat} byId={byId} people={assignable} canEdit={canEdit} span={span} spanDays={spanDays} code={project.code}
-                  onUpdate={update} onRemove={remove} />)}
+                {g.rows.map((r, i) => {
+                  // the "add a sub-task" row goes after the last row inside the task
+                  const parent = subFor && byId.get(subFor);
+                  const inside = (x) => { for (let p = x; p; p = byId.get(p.parentId)) if (p.id === subFor) return true; return false; };
+                  const showAdd = parent && inside(r) && !(g.rows[i + 1] && inside(g.rows[i + 1]));
+                  return [
+                    <Row key={r.id} r={r} flat={flat} byId={byId} people={assignable} canEdit={canEdit} span={span} spanDays={spanDays} code={project.code}
+                      onUpdate={update} onRemove={remove} onAddSub={(row) => setSubFor(row.id)} />,
+                    showAdd && <AddRow key={`add-${subFor}`} parent={parent} group={g} flat={flat} groups={groups} people={assignable} onAdd={add} onClose={() => setSubFor(null)} />,
+                  ];
+                })}
                 {canEdit && <AddRow group={g} flat={flat} groups={groups} people={assignable} onAdd={add} />}
               </tbody>
             </table>
@@ -166,7 +177,7 @@ function EditDays({ value, onSave, disabled, label }) {
  * "Starts after" picker. Quick choices plus a checklist of the tasks it can wait for.
  * onPick({ mode, ids }) where mode is start | prev | parallel | custom.
  */
-function AfterPicker({ ids, mode, prev, options, onPick, disabled, label, code }) {
+function AfterPicker({ ids, mode, prev, options, onPick, disabled, label, code, emptyText = 'Project start' }) {
   const [open, setOpen] = useState(false);
   const [sel, setSel] = useState(ids);
   const [q, setQ] = useState('');
@@ -188,7 +199,7 @@ function AfterPicker({ ids, mode, prev, options, onPick, disabled, label, code }
     return () => { document.removeEventListener('mousedown', off); document.removeEventListener('keydown', esc); window.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', place); };
   }, [open]);
   const byId = new Map(options.map((o) => [o.id, o]));
-  const text = mode === 'start' || !ids.length ? 'Project start'
+  const text = mode === 'start' || !ids.length ? emptyText
     : mode === 'parallel' ? `With #${prev?.number} (parallel)`
       : ids.length === 1 ? `#${byId.get(ids[0])?.number ?? '?'} ${byId.get(ids[0])?.title ?? ''}` : ids.map((x) => `#${byId.get(x)?.number ?? '?'}`).join(', ');
   const pick = (m, x) => { onPick({ mode: m, ids: x }); setOpen(false); };
@@ -202,7 +213,7 @@ function AfterPicker({ ids, mode, prev, options, onPick, disabled, label, code }
       </button>
       {open && <div className="pb-pop" style={pos || { visibility: 'hidden' }} role="dialog" aria-label="What does this task wait for?">
         <div className="pb-pop-title">This task can start…</div>
-        <button type="button" className={`pb-opt ${!ids.length && mode !== 'parallel' ? 'on' : ''}`} onClick={() => pick('start', [])}><b>At the project start</b><span>Doesn’t wait for anything</span></button>
+        <button type="button" className={`pb-opt ${!ids.length && mode !== 'parallel' ? 'on' : ''}`} onClick={() => pick('start', [])}>{emptyText === 'With its task' ? <><b>When its task starts</b><span>Waits only for what its task waits for</span></> : <><b>At the project start</b><span>Doesn’t wait for anything</span></>}</button>
         {prev && <button type="button" className={`pb-opt ${mode === 'prev' || (mode !== 'parallel' && same(ids, [prev.id])) ? 'on' : ''}`} onClick={() => pick('prev', [prev.id])}><b>After the previous task</b><span>#{prev.number} {prev.title}</span></button>}
         {prev && <button type="button" className={`pb-opt ${mode === 'parallel' ? 'on' : ''}`} onClick={() => pick('parallel', prev.after || [])}><b>At the same time as the previous task</b><span>In parallel with #{prev.number} {prev.title}</span></button>}
         <div className="pb-pop-title mt-2">…or after these tasks are finished:</div>
@@ -221,10 +232,12 @@ function AfterPicker({ ids, mode, prev, options, onPick, disabled, label, code }
   );
 }
 
-/** Items a row may wait for: not itself, not its own sub-items, not work packages. */
-function waitOptions(flat, row) {
-  const isUnder = (x) => { for (let p = x.parentId; p; p = flat.find((y) => y.id === p)?.parentId) if (p === row?.id) return true; return false; };
-  return flat.filter((x) => x.id !== row?.id && x.type !== 'MODULE' && !isUnder(x));
+/** Items a row may wait for: not itself, not its own sub-items, not the task it sits in, not work packages. */
+function waitOptions(flat, row, { newChildOf = null } = {}) {
+  const byId = new Map(flat.map((y) => [y.id, y]));
+  const isUnder = (x, id) => { for (let p = x.parentId; p; p = byId.get(p)?.parentId) if (p === id) return true; return false; };
+  const ancestors = new Set(); for (let p = newChildOf ? newChildOf.id : row?.parentId; p; p = byId.get(p)?.parentId) ancestors.add(p);
+  return flat.filter((x) => x.id !== row?.id && x.type !== 'MODULE' && !ancestors.has(x.id) && !(row && isUnder(x, row.id)));
 }
 
 function Bar({ r, span, spanDays }) {
@@ -235,7 +248,7 @@ function Bar({ r, span, spanDays }) {
   return <div className="pb-bar-track"><span className={`pb-bar ${r.isParent ? 'parent' : ''} ${r.status === 'DONE' ? 'done' : ''}`} style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }} /></div>;
 }
 
-function Row({ r, flat, byId, people, canEdit, span, spanDays, code, onUpdate, onRemove }) {
+function Row({ r, flat, byId, people, canEdit, span, spanDays, code, onUpdate, onRemove, onAddSub }) {
   const [fixing, setFixing] = useState(false);
   const ms = r.type === 'MILESTONE';
   const done = r.status === 'DONE';
@@ -250,6 +263,7 @@ function Row({ r, flat, byId, people, canEdit, span, spanDays, code, onUpdate, o
       <td className="c-num mono">{code}-{r.number}</td>
       <td style={{ paddingLeft: `${0.5 + r.depth * 1.1}rem` }}>
         <div className="d-flex align-items-center gap-1">
+          {r.type === 'SUBTASK' && <CornerDownRight size={13} className="text-muted flex-shrink-0" aria-label="Sub-task" />}
           {ms && <Flag size={14} className="text-warning flex-shrink-0" aria-label="Milestone" />}
           {r.isParent && <ListTodo size={14} className="text-muted flex-shrink-0" />}
           <EditText value={r.title} disabled={!canEdit || r.type === 'MODULE'} label={`Name of ${code}-${r.number}`} className={r.isParent ? 'fw-semibold' : ''} onSave={(title) => onUpdate(r, { title })} />
@@ -262,8 +276,9 @@ function Row({ r, flat, byId, people, canEdit, span, spanDays, code, onUpdate, o
         : <span className="small">{owner?.name || '—'}</span>}</td>
       <td className="c-days">{ms ? <span className="pb-ms-tag">Milestone</span> : r.isParent ? <span className="text-muted small" title="From the items inside it">{r.durationDays ?? '—'}</span>
         : <EditDays value={r.durationDays} disabled={!editable} label={`Working days for ${code}-${r.number}`} onSave={(durationDays) => onUpdate(r, { durationDays })} />}</td>
-      <td className="c-after">{r.isParent ? <span className="text-muted small">From its sub-tasks</span>
-        : <AfterPicker ids={r.after} mode={mode} prev={prev} options={waitOptions(flat, r)} disabled={!editable || started} code={code} label={`What ${code}-${r.number} waits for`}
+      <td className="c-after">{r.isParent ? <AfterPicker ids={r.after} mode={mode} prev={prev} options={waitOptions(flat, r)} disabled={!canEdit || done || r.type === 'MODULE'} code={code}
+        label={`What ${code}-${r.number} and its sub-tasks wait for`} onPick={({ ids }) => onUpdate(r, { after: ids })} />
+        : <AfterPicker ids={r.after} mode={mode} prev={prev} options={waitOptions(flat, r)} disabled={!editable || started} code={code} label={`What ${code}-${r.number} waits for`} emptyText={r.type === 'SUBTASK' ? 'With its task' : 'Project start'}
           onPick={({ ids }) => onUpdate(r, { after: ids })} />}</td>
       <td className="c-date">
         {fixing && editable ? <DateCell value={r.start} label={`Fixed start for ${code}-${r.number}`} onCommit={async (v) => { setFixing(false); await onUpdate(r, { fixedStart: v }, `${r.title} will not start before ${fmtDate(v)}`); }} />
@@ -277,20 +292,24 @@ function Row({ r, flat, byId, people, canEdit, span, spanDays, code, onUpdate, o
       </td>
       <td className="c-date">{ms ? <span className="text-muted small">—</span> : r.finish ? fmtDate(r.finish) : '—'}</td>
       <td className="c-bar"><Bar r={r} span={span} spanDays={spanDays} /></td>
-      <td className="c-act text-nowrap">{editable && !r.isParent && <>
-        <button className="btn btn-ghost btn-icon btn-sm pb-hover" title={ms ? 'Make it a task' : 'Make it a milestone'} aria-label={ms ? `Make ${code}-${r.number} a task` : `Make ${code}-${r.number} a milestone`} onClick={() => onUpdate(r, { type: ms ? 'TASK' : 'MILESTONE' })}><Flag size={13} /></button>
+      <td className="c-act text-nowrap">
+        {canEdit && r.type === 'TASK' && !done && r.status !== 'CANCELLED' && <button className="btn btn-ghost btn-icon btn-sm pb-hover pb-sub" title="Add a sub-task" aria-label={`Add a sub-task to ${code}-${r.number}`} onClick={() => onAddSub(r)}><ListPlus size={14} /></button>}
+        {editable && !r.isParent && <>
+        {r.type !== 'SUBTASK' && <button className="btn btn-ghost btn-icon btn-sm pb-hover" title={ms ? 'Make it a task' : 'Make it a milestone'} aria-label={ms ? `Make ${code}-${r.number} a task` : `Make ${code}-${r.number} a milestone`} onClick={() => onUpdate(r, { type: ms ? 'TASK' : 'MILESTONE' })}><Flag size={13} /></button>}
         <ConfirmButton className="btn btn-ghost btn-icon btn-sm pb-hover" title={`Remove “${r.title}”?`} message="Tasks that waited for it will wait for what it waited for instead." confirmLabel="Remove" onConfirm={() => onRemove(r)}><Trash2 size={13} aria-label={`Remove ${code}-${r.number}`} /></ConfirmButton>
       </>}</td>
     </tr>
   );
 }
 
-function AddRow({ group, flat, groups, people, onAdd }) {
-  // "previous task" = the last task in this stage, or the last task of the stages before it
+function AddRow({ group, flat, groups, people, onAdd, parent = null, onClose }) {
+  // "previous task" = the last task in this stage, or the last task of the stages before it;
+  // for a sub-task: the last sub-task of the same task (the first one simply starts with its task)
   const gi = groups.indexOf(group);
-  const before = groups.slice(0, gi + 1).flatMap((g) => g.rows).filter((x) => x.type !== 'MODULE' && !x.isParent);
+  const before = parent ? flat.filter((x) => x.parentId === parent.id && !x.isParent)
+    : groups.slice(0, gi + 1).flatMap((g) => g.rows).filter((x) => x.type !== 'MODULE' && !x.isParent);
   const prev = before.at(-1) || null;
-  const [f, setF] = useState({ title: '', type: 'TASK', assigneeId: '', durationDays: '5', mode: 'prev', ids: [] });
+  const [f, setF] = useState({ title: '', type: parent ? 'SUBTASK' : 'TASK', assigneeId: parent?.assigneeId || '', durationDays: parent ? '2' : '5', mode: 'prev', ids: [] });
   const [busy, setBusy] = useState(false);
   const input = useRef(null);
   const ms = f.type === 'MILESTONE';
@@ -302,32 +321,36 @@ function AddRow({ group, flat, groups, people, onAdd }) {
     setBusy(true);
     const sent = f;
     // clear the row straight away so the next task can be typed while this one is saved
-    setF((x) => ({ ...x, title: '', type: 'TASK', mode: 'prev', ids: [] }));
-    const item = await onAdd({ title: sent.title.trim(), type: sent.type, phaseId: group.id, assigneeId: ms ? null : sent.assigneeId || null, durationDays: ms ? 1 : Math.max(1, Math.round(Number(sent.durationDays) || 1)), after: ids });
+    setF((x) => ({ ...x, title: '', type: parent ? 'SUBTASK' : 'TASK', mode: 'prev', ids: [] }));
+    const item = await onAdd({ title: sent.title.trim(), type: sent.type, ...(parent ? { parentId: parent.id } : { phaseId: group.id }), assigneeId: ms ? null : sent.assigneeId || null, durationDays: ms ? 1 : Math.max(1, Math.round(Number(sent.durationDays) || 1)), after: ids });
     setBusy(false);
     if (item) input.current?.focus();
     else setF((x) => (x.title ? x : { ...sent }));
   };
-  const onKey = (e) => { if (e.key === 'Enter') submit(e); };
+  const onKey = (e) => { if (e.key === 'Enter') submit(e); if (e.key === 'Escape' && parent) onClose?.(); };
+  useEffect(() => { if (parent) input.current?.focus(); }, [parent?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <tr className="pb-add">
-      <td className="c-num"><Plus size={14} className="text-muted" /></td>
-      <td>
+    <tr className={`pb-add ${parent ? 'pb-add-sub' : ''}`}>
+      <td className="c-num">{parent ? <CornerDownRight size={14} className="text-muted" /> : <Plus size={14} className="text-muted" />}</td>
+      <td style={parent ? { paddingLeft: `${0.5 + ((parent.depth ?? 0) + 1) * 1.1}rem` } : undefined}>
         <div className="d-flex gap-1">
-          <input ref={input} className="form-control form-control-sm" placeholder={ms ? 'Milestone, e.g. Design signed off' : `Add a task to ${group.name}…`} value={f.title} aria-label={`New task in ${group.name}`} onChange={(e) => setF({ ...f, title: e.target.value })} onKeyDown={onKey} />
-          <div className="btn-group btn-group-sm pb-type" role="group" aria-label="Task or milestone">
+          <input ref={input} className="form-control form-control-sm" placeholder={parent ? `Sub-task of ${parent.title}…` : ms ? 'Milestone, e.g. Design signed off' : `Add a task to ${group.name}…`} value={f.title}
+            aria-label={parent ? `New sub-task of ${parent.title}` : `New task in ${group.name}`} onChange={(e) => setF({ ...f, title: e.target.value })} onKeyDown={onKey} />
+          {!parent && <div className="btn-group btn-group-sm pb-type" role="group" aria-label="Task or milestone">
             <button type="button" className={`btn ${ms ? 'btn-light' : 'btn-secondary'}`} onClick={() => setF({ ...f, type: 'TASK' })}>Task</button>
             <button type="button" className={`btn ${ms ? 'btn-secondary' : 'btn-light'}`} onClick={() => setF({ ...f, type: 'MILESTONE' })} title="Milestone: a key date, e.g. sign-off or go-live" aria-label="Milestone"><Flag size={12} /></button>
-          </div>
+          </div>}
         </div>
       </td>
       <td className="c-owner">{ms ? <span className="text-muted small">—</span> : <select className="form-select form-select-sm" value={f.assigneeId} aria-label="Who does the new task" onChange={(e) => setF({ ...f, assigneeId: e.target.value })}>
         <option value="">Who?</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}</td>
       <td className="c-days">{ms ? <span className="pb-ms-tag">Milestone</span> : <input type="number" min="1" max="1000" className="form-control form-control-sm pb-days" value={f.durationDays} aria-label="Working days for the new task" onChange={(e) => setF({ ...f, durationDays: e.target.value })} onKeyDown={onKey} />}</td>
-      <td className="c-after"><AfterPicker ids={ids} mode={mode} prev={prev} options={waitOptions(flat, null)} code="" label="What the new task waits for" onPick={({ mode: m, ids: x }) => setF({ ...f, mode: m, ids: x })} /></td>
+      <td className="c-after">{parent && !prev ? <span className="small text-muted" title="A sub-task waits for whatever its task waits for">With its task</span>
+        : <AfterPicker ids={ids} mode={mode} prev={prev} options={waitOptions(flat, null, { newChildOf: parent })} code="" label="What the new task waits for" onPick={({ mode: m, ids: x }) => setF({ ...f, mode: m, ids: x })} />}</td>
       <td className="c-date" colSpan={2}><span className="small text-muted">Calculated</span></td>
       <td className="c-bar" />
-      <td className="c-act"><button className="btn btn-sm btn-primary" disabled={busy || !f.title.trim()} onClick={submit}>{busy ? 'Adding…' : 'Add'}</button></td>
+      <td className="c-act text-nowrap"><button className="btn btn-sm btn-primary" disabled={busy || !f.title.trim()} onClick={submit}>{busy ? 'Adding…' : 'Add'}</button>
+        {parent && <button className="btn btn-sm btn-ghost btn-icon ms-1" title="Done adding sub-tasks" aria-label="Done adding sub-tasks" onClick={onClose}><X size={14} /></button>}</td>
     </tr>
   );
 }

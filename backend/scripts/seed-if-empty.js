@@ -19,9 +19,13 @@ const needsPlans = n > 0 && !needsUpgrade && Number((await c.query(`SELECT count
 // Demo databases without the scenario projects (on track, at risk, delayed, completed, on hold, …) get them once.
 const needsScenarios = n > 0 && !needsUpgrade && Number((await c.query(`SELECT count(*) FROM "Organization" o
   WHERE o.slug IN ('northwind', 'o2') AND NOT EXISTS (SELECT 1 FROM "Project" p WHERE p."organizationId" = o.id AND p.code = 'NPA')`)).rows[0].count) > 0;
+// Demo databases from before project directors get the demo director and a plan waiting for approval.
+const needsDirectors = n > 0 && !needsUpgrade && Number((await c.query(`SELECT count(*) FROM "Organization" o
+  WHERE o.slug IN ('northwind', 'o2') AND NOT EXISTS (SELECT 1 FROM "User" u WHERE u.email = 'director@demo.local')
+  AND EXISTS (SELECT 1 FROM "User" u WHERE u.email = 'manager@demo.local')`)).rows[0].count) > 0;
 await c.end();
-if (needsRegisters || needsPlans || needsScenarios) {
-  const flags = [...(needsRegisters ? ['--registers'] : []), ...(needsPlans ? ['--plans'] : []), ...(needsScenarios ? ['--scenarios'] : [])];
+if (needsRegisters || needsPlans || needsScenarios || needsDirectors) {
+  const flags = [...(needsRegisters ? ['--registers'] : []), ...(needsPlans ? ['--plans'] : []), ...(needsScenarios ? ['--scenarios'] : []), ...(needsDirectors ? ['--directors'] : [])];
   await new Promise((r) => spawn(process.execPath, ['prisma/seed-demo.js', ...flags], { stdio: 'inherit', env: process.env }).on('exit', r));
   process.exit(0);
 }

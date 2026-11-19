@@ -5,12 +5,12 @@ PostgreSQL 14 or newer (16 or 17 recommended). Tested with PostgreSQL 16.
 | File | What it is | When to use it |
 |---|---|---|
 | `create-database.sql` | Creates the login `o2app` and the empty database `o2_support_hub` | First step on a new server (the Windows installer can also do this for you) |
-| `schema.sql` | Complete schema: 45 tables, 17 enum types, indexes, foreign keys, the original-plan lock trigger, plus the migration history | Start with an **empty** database for real use |
+| `schema.sql` | Complete schema: 45 tables, 17 enum types, 101 indexes, 62 foreign keys, the original-plan lock trigger, plus the migration history | Start with an **empty** database for real use |
 | `o2_support_hub_demo.sql` | Schema **and** demo data (plain SQL) | Try the app with sample projects, tickets and users |
 | `o2_support_hub_demo.backup` | Same demo database in pg_restore format | Restoring with pgAdmin (Restore…) or `pg_restore` |
 | `DATABASE-STRUCTURE.html` / `.md` | Every table, column, type, default, key, foreign key, index and enum, with a relationship diagram | Reference for reports, integrations and support |
 | `prisma/schema.prisma` | The data model as the application defines it | Developers |
-| `prisma/migrations/` | Step-by-step SQL history (4 migrations) | Upgrades are applied automatically by the app on start |
+| `prisma/migrations/` | Step-by-step SQL history (6 migrations) | Upgrades are applied automatically by the app on start |
 
 You don't have to load either SQL file by hand: the Windows installer (`scripts\install.ps1`) and every app start run
 `app\backend\scripts\db-migrate.js`, which creates/upgrades the tables in an empty database. Use the files below when you prefer
@@ -68,3 +68,5 @@ Restore into an empty database. The cloud site stores uploaded files inside the 
 - Primary keys are UUIDs; all timestamps are stored in UTC (`timestamptz`).
 - Passwords are stored as Argon2id hashes; session and reset tokens are stored hashed.
 - Back up with `scripts\backup-database.ps1` (uses `pg_dump -Fc`), restore with `pg_restore`.
+- The `.backup` file was written by PostgreSQL 16 tools, so restore it with `pg_restore` from PostgreSQL **16 or newer**. The `.sql` files load on PostgreSQL 14+.
+- `generate-structure.py` rebuilds `DATABASE-STRUCTURE.md/.html` from any live database: `python generate-structure.py "postgresql://o2app:PASS@localhost:5432/o2_support_hub"` (needs `psql` on PATH and `pip install markdown`).

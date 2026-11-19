@@ -25,6 +25,7 @@ enum MembershipStatus {
 }
 
 enum ProjectRole {
+  DIRECTOR
   MANAGER
   MEMBER
   VIEWER
@@ -367,6 +368,7 @@ model Project {
   objectives        String?
   customerCompanyId String?       @db.Uuid
   managerId         String?       @db.Uuid
+  directorId        String?       @db.Uuid
   status            ProjectStatus @default(DRAFT)
   priority          Priority      @default(MEDIUM)
   health            Health        @default(GREEN)
@@ -384,6 +386,10 @@ model Project {
   version           Int           @default(1)
   planApprovedAt    DateTime?     @db.Timestamptz(3)
   planApprovedById  String?       @db.Uuid
+  planSubmittedAt   DateTime?     @db.Timestamptz(3)
+  planSubmittedById String?       @db.Uuid
+  planReturnedAt    DateTime?     @db.Timestamptz(3)
+  planReturnNote    String?
   createdAt         DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime      @updatedAt @db.Timestamptz(3)
 

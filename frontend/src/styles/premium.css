@@ -813,3 +813,37 @@ a.r-title:hover { color: var(--brand); }
 .hbars > div { grid-template-columns: 38px minmax(0, 1fr) 18px; font-size: 0.66rem; }
 .hbars i { height: 5px; }
 .kpi2 .ring { transform: scale(0.8); transform-origin: right bottom; }
+
+/* Plan builder: sub-tasks */
+.pb-table tr .pb-hover.pb-sub { opacity: 0.55; }
+.pb-table tr:hover .pb-hover.pb-sub { opacity: 1; color: var(--brand); }
+.pb-add-sub td { background: #f5f7ff !important; }
+.pb-add-sub td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+
+/* Governance: who builds, who approves */
+.ready-bar.wait { border-left: 4px solid #7c3aed !important; background: linear-gradient(90deg, #f7f3ff, #fff 60%); }
+.ready-bar.wait > svg { color: #7c3aed; }
+.gov-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin: -0.25rem 0 0.75rem; font-size: 0.78rem; color: var(--ink-soft); }
+.gov-strip > span { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.22rem 0.6rem; border-radius: 999px; background: #f4f4f5; border: 1px solid var(--line); }
+.gov-strip > span svg { color: var(--brand); }
+.role-pill { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; font-weight: 600; padding: 0.12rem 0.5rem; border-radius: 999px; white-space: nowrap; }
+.role-pill.director { background: #f3e8ff; color: #6d28d9; }
+.role-pill.pm { background: #e0e7ff; color: #1e3a8a; }
+.role-pill.res { background: #f4f4f5; color: #52525b; }
+.gov-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; padding: 0.7rem 1rem; border-top: 1px solid var(--line); font-size: 0.75rem; color: var(--muted); }
+.gov-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+/* Dashboard: approvals waiting for me */
+.approvals-card { border-left: 3px solid #7c3aed; }
+.ap-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.15rem 1.5rem; }
+@media (max-width: 900px) { .ap-list { grid-template-columns: 1fr; } }
+.ap-list li { display: flex; align-items: center; gap: 0.65rem; padding: 0.5rem 0; border-bottom: 1px dashed var(--line); min-width: 0; }
+.ap-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ap-title { font-weight: 600; font-size: 0.86rem; color: var(--ink); text-decoration: none; }
+.ap-title:hover { color: var(--brand); }
+.ap-meta { font-size: 0.72rem; color: var(--muted); }
+.k-ic.sm { width: 28px; height: 28px; border-radius: 8px; }
+.k-ic.tone-violet { --acc: #7c3aed; --acc2: #c4b5fd; } .k-ic.tone-blue { --acc: #0a3df0; --acc2: #6d8bff; } .k-ic.tone-amber { --acc: #d97706; --acc2: #fcd34d; }
+.k-ic.tone-green { --acc: #059669; --acc2: #34d399; } .k-ic.tone-rose { --acc: #e11d48; --acc2: #fb7185; }
+.ap-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.ap-dot.t-violet { background: #7c3aed; } .ap-dot.t-blue { background: #0a3df0; } .ap-dot.t-amber { background: #d97706; } .ap-dot.t-green { background: #059669; } .ap-dot.t-rose { background: #e11d48; }

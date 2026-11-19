@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, CheckCircle2, AlertTriangle, XCircle, Plus, Flag, ClipboardCheck, GanttChart, Info, ArrowRight, ListChecks } from 'lucide-react';
+import { Lock, CheckCircle2, AlertTriangle, XCircle, Plus, Flag, ClipboardCheck, GanttChart, Info, ArrowRight, ListChecks, Send, Undo2, Hourglass, UserCheck } from 'lucide-react';
 import { get, post } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { useLive, emitLocal } from '../../lib/live.js';
@@ -21,8 +21,8 @@ export function PlanTab() {
 }
 
 // ---------------------------------------------------------------- Draft: build + approve
-function Steps({ approved }) {
-  const steps = [['Project details', true], ['Team', true], ['Build the plan', approved], ['Approve & lock original plan', approved]];
+function Steps({ approved, submitted }) {
+  const steps = [['Project details', true], ['Team', true], ['Build the plan', approved || submitted], ['Director approves & locks the plan', approved]];
   return (
     <div className="plan-steps">{steps.map(([l, done], i) => {
       const current = !done && steps.slice(0, i).every((s) => s[1]);
@@ -34,50 +34,92 @@ function Steps({ approved }) {
 function BuildPlan({ plan, reload }) {
   const { project, reload: reloadProject } = useProject();
   const toast = useToast();
-  const [confirm, setConfirm] = useState(false);
+  const [modal, setModal] = useState(null); // 'submit' | 'approve' | 'return'
   const [note, setNote] = useState('');
   const [activate, setActivate] = useState(project.status === 'DRAFT');
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   const { checks, blockers, warnings, ready } = plan.readiness;
-  const approve = async () => {
+  const open = (m) => { setNote(''); setErr(null); setModal(m); };
+  const run = async (path, body, msg) => {
     setBusy(true); setErr(null);
     try {
-      const r = await post(`/projects/${project.id}/plan/approve`, { note: note || undefined, activate });
-      toast(`Original plan locked — ${r.items} items`, 'success'); setConfirm(false);
+      const r = await post(`/projects/${project.id}/plan/${path}`, body);
+      toast(typeof msg === 'function' ? msg(r) : msg, 'success'); setModal(null);
       reloadProject(); reload(); emitLocal({ type: 'work.changed', projectId: project.id });
     } catch (x) { setErr(x); } finally { setBusy(false); }
   };
   const n = checks.tasks + checks.milestones;
+  const dirName = plan.director?.name;
+  const waiting = plan.submitted;
   return (
     <>
-      <Steps approved={false} />
-      <div className={`ready-bar ${ready ? 'ok' : ''}`}>
-        <ClipboardCheck size={18} className="flex-shrink-0" />
-        <div className="flex-grow-1">
-          <div className="fw-semibold">{ready ? 'The plan can be approved' : n ? 'Not ready to approve yet' : 'Start by adding the first task below'}</div>
-          <div className="small">
-            {[`${checks.tasks} task${checks.tasks === 1 ? '' : 's'}`, `${checks.milestones} milestone${checks.milestones === 1 ? '' : 's'}`, `${checks.team} on the team`].join(' · ')}
-            {blockers.map((b) => <span key={b} className="text-danger ms-2"><XCircle size={13} /> {b}</span>)}
-            {warnings.map((w) => <span key={w} className="text-warning-emphasis ms-2"><AlertTriangle size={13} /> {w}</span>)}
-          </div>
-        </div>
-        {plan.canApprove && <button className="btn btn-primary flex-shrink-0" disabled={!ready} onClick={() => setConfirm(true)}><Lock size={15} /> Approve &amp; lock original plan</button>}
+      <Steps approved={false} submitted={waiting} />
+      <div className="gov-strip">
+        <span><UserCheck size={14} /> Project manager builds the plan</span><ArrowRight size={13} className="text-muted" />
+        <span><Send size={14} /> Sends it to the project director</span><ArrowRight size={13} className="text-muted" />
+        <span><Lock size={14} /> {dirName || 'The director'} approves and locks it</span>
       </div>
-      {!plan.canApprove && <Notice>Only the project manager can build and approve the plan.</Notice>}
+      {waiting ? (
+        <div className="ready-bar wait">
+          <Hourglass size={18} className="flex-shrink-0" />
+          <div className="flex-grow-1">
+            <div className="fw-semibold">Waiting for {dirName || 'the project director'} to approve the plan</div>
+            <div className="small">Sent by {plan.submittedBy?.name || '—'} on {fmtDate(plan.submittedAt)} · {checks.tasks} tasks · {checks.milestones} milestones
+              {blockers.map((b) => <span key={b} className="text-danger ms-2"><XCircle size={13} /> {b}</span>)}
+              {plan.canApprove && !ready && <span className="ms-2 text-muted">— send it back so the manager can fix this.</span>}</div>
+          </div>
+          {plan.canApprove && <>
+            <button className="btn btn-light flex-shrink-0" onClick={() => open('return')}><Undo2 size={15} /> Send back</button>
+            <button className="btn btn-primary flex-shrink-0" disabled={!ready} onClick={() => open('approve')}><Lock size={15} /> Approve &amp; lock plan</button>
+          </>}
+          {plan.canWithdraw && <button className="btn btn-light flex-shrink-0" onClick={() => run('withdraw', {}, 'Plan taken back — you can change it and send it again')}><Undo2 size={15} /> Take back</button>}
+        </div>
+      ) : (
+        <div className={`ready-bar ${ready ? 'ok' : ''}`}>
+          <ClipboardCheck size={18} className="flex-shrink-0" />
+          <div className="flex-grow-1">
+            <div className="fw-semibold">{ready ? `The plan is ready to send to ${dirName || 'the project director'}` : n ? 'Not ready to send for approval yet' : 'Start by adding the first task below'}</div>
+            <div className="small">
+              {[`${checks.tasks} task${checks.tasks === 1 ? '' : 's'}`, `${checks.milestones} milestone${checks.milestones === 1 ? '' : 's'}`, `${checks.team} on the team`].join(' · ')}
+              {blockers.map((b) => <span key={b} className="text-danger ms-2"><XCircle size={13} /> {b}</span>)}
+              {warnings.map((w) => <span key={w} className="text-warning-emphasis ms-2"><AlertTriangle size={13} /> {w}</span>)}
+            </div>
+          </div>
+          {plan.canSubmit && <button className="btn btn-primary flex-shrink-0" disabled={!ready} onClick={() => open('submit')}><Send size={15} /> Send for approval</button>}
+        </div>
+      )}
+      {plan.returnNote && !waiting && <Notice tone="warn"><b>Sent back by the director{plan.returnedAt ? ` on ${fmtDate(plan.returnedAt)}` : ''}:</b> “{plan.returnNote}” Make the changes and send it again.</Notice>}
+      {!plan.canSubmit && !plan.canApprove && !waiting && <Notice>The project manager builds the plan and sends it to the project director for approval.</Notice>}
       <PlanBuilder />
-      <div className="form-text mt-3">Prefer a spreadsheet? You can also edit everything in the <Link to="../tasks">Tasks</Link> table or Gantt chart, or import a CSV there. Once approved, the plan is frozen as the <b>original plan</b> and every later change is compared with it.</div>
-      <Modal open={confirm} onClose={() => setConfirm(false)} title="Approve and lock the original plan" footer={<><button className="btn btn-light" onClick={() => setConfirm(false)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={approve}><Lock size={14} /> {busy ? 'Locking…' : 'Approve & lock'}</button></>}>
+      <div className="form-text mt-3">Prefer a spreadsheet? You can also edit everything in the <Link to="../tasks">Tasks</Link> table or Gantt chart, or import a CSV there. Once the director approves it, the plan is frozen as the <b>original plan</b> and every later change is compared with it.</div>
+
+      <Modal open={modal === 'submit'} onClose={() => setModal(null)} title={`Send the plan to ${dirName || 'the project director'}`}
+        footer={<><button className="btn btn-light" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => run('submit', { note: note || undefined }, `Plan sent to ${dirName || 'the director'} for approval`)}><Send size={14} /> {busy ? 'Sending…' : 'Send for approval'}</button></>}>
+        <ErrorBox error={err} />
+        <p className="mb-2">{dirName || 'The project director'} will be asked to approve <b>{checks.tasks} tasks and {checks.milestones} milestones</b>. You can still adjust the plan while it waits, or take it back.</p>
+        {warnings.length > 0 && <Notice tone="warn">{warnings.join(' ')}</Notice>}
+        <Field label="Note to the director (optional)">{(id) => <textarea id={id} className="form-control" rows={2} placeholder="e.g. Agreed with the client in the kick-off meeting" value={note} onChange={(e) => setNote(e.target.value)} />}</Field>
+      </Modal>
+
+      <Modal open={modal === 'approve'} onClose={() => setModal(null)} title="Approve and lock the original plan"
+        footer={<><button className="btn btn-light" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => run('approve', { note: note || undefined, activate }, (r) => `Plan approved — ${r.items} items locked as the original plan`)}><Lock size={14} /> {busy ? 'Locking…' : 'Approve & lock'}</button></>}>
         <ErrorBox error={err} />
         <p className="mb-2">This saves a permanent copy of the plan: <b>{checks.tasks} tasks and {checks.milestones} milestones</b> with their start and due dates, effort and assigned people.</p>
         <ul className="small mb-3">
           <li>The original plan <b>can never be edited or deleted</b>, not even by an administrator.</li>
-          <li>You keep updating tasks, dates and people as the project runs; that is the working plan.</li>
+          <li>The team keeps updating tasks, dates and people as the project runs; that is the working plan.</li>
           <li>The Plan tab, Gantt, project list and status report then show every task and the project as on time, ahead or delayed against the original.</li>
         </ul>
         {warnings.length > 0 && <Notice tone="warn">{warnings.join(' ')}</Notice>}
-        <Field label="Approval note (optional)">{(id) => <textarea id={id} className="form-control" rows={2} placeholder="e.g. Agreed with the client in the kick-off meeting" value={note} onChange={(e) => setNote(e.target.value)} />}</Field>
+        <Field label="Approval note (optional)">{(id) => <textarea id={id} className="form-control" rows={2} placeholder="e.g. Approved as agreed with the client" value={note} onChange={(e) => setNote(e.target.value)} />}</Field>
         {project.status === 'DRAFT' && <div className="form-check"><input className="form-check-input" type="checkbox" id="act" checked={activate} onChange={(e) => setActivate(e.target.checked)} /><label className="form-check-label" htmlFor="act">Also start the project (status Active)</label></div>}
+      </Modal>
+
+      <Modal open={modal === 'return'} onClose={() => setModal(null)} title="Send the plan back to the project manager"
+        footer={<><button className="btn btn-light" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy || !note.trim()} onClick={() => run('return', { note: note.trim() }, 'Plan sent back to the project manager')}><Undo2 size={14} /> {busy ? 'Sending…' : 'Send back'}</button></>}>
+        <ErrorBox error={err} />
+        <Field label="What needs to change?">{(id) => <textarea id={id} className="form-control" rows={3} autoFocus placeholder="e.g. Add a UAT stage and move go-live after the client's freeze" value={note} onChange={(e) => setNote(e.target.value)} />}</Field>
       </Modal>
     </>
   );

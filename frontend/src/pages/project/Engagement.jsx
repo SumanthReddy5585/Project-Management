@@ -38,18 +38,19 @@ export function Deliverables() {
   const manage = data?.canManage && !project.readOnly;
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-3"><div className="small text-muted">{isCustomer ? 'Things waiting for your sign-off.' : 'Upload a file, send it for sign-off, and see who approved what.'}</div>
+      <div className="d-flex justify-content-between align-items-center mb-3"><div className="small text-muted">{isCustomer ? 'Things waiting for your sign-off.' : <>The project manager uploads documents and sends them for approval; <b>{data?.director?.name || 'the project director'}</b> approves them{project.customerVisible ? ', and shared documents then go to the client' : ''}.</>}</div>
         {manage && <button className="btn btn-sm btn-primary" onClick={() => setCreating({ name: '', description: '', dueDate: '', customerVisible: project.customerVisible, phaseId: '' })}><Plus size={14} /> New approval</button>}</div>
       <ErrorBox error={error} onRetry={reload} />
       {loading && !data ? <Loading /> : data?.data.length === 0 ? <div className="card"><Empty icon={FileCheck2} title="Nothing to approve yet">{isCustomer ? 'When your team sends something for sign-off, it shows up here.' : 'Create one when you have a document or design for someone to sign off.'}</Empty></div> : (
         <div className="d-flex flex-column gap-3">{data.data.map((d) => {
           const cur = d.versions[0];
           return (
-            <Card key={d.id} title={<span className="d-flex align-items-center gap-2">{d.name} <StatusBadge status={d.status} />{!isCustomer && (d.customerVisible ? <span className="pill pill-sky"><Globe size={11} /> Client signs off</span> : <span className="pill pill-neutral"><Lock size={11} /> Team sign-off</span>)}</span>}
+            <Card key={d.id} title={<span className="d-flex align-items-center gap-2 flex-wrap">{d.name} <StatusBadge status={d.status} />{!isCustomer && (d.customerVisible ? <span className="pill pill-sky"><Globe size={11} /> Director, then client</span> : <span className="pill pill-neutral"><Lock size={11} /> Director signs off</span>)}
+              {d.awaiting && !isCustomer && <span className="role-pill director">{d.awaiting === 'DIRECTOR' ? `Waiting for ${data.director?.name || 'the director'}` : 'Waiting for the client'}</span>}</span>}
               actions={<div className="d-flex gap-2">
                 {manage && ['DRAFT', 'CHANGES_REQUESTED', 'APPROVED'].includes(d.status) && <button className="btn btn-sm btn-light" onClick={() => act(() => post(`/projects/${project.id}/deliverables/${d.id}/versions`, {}), `Version ${d.currentVersion + 1} created`)}>New version</button>}
                 {manage && d.status === 'DRAFT' && cur && <button className="btn btn-sm btn-outline-primary" disabled={!cur.files.length} title={!cur.files.length ? 'Attach a file first' : undefined} onClick={() => act(() => post(`/projects/${project.id}/deliverables/${d.id}/submit`), 'Sent for sign-off')}><Send size={13} /> Send for sign-off</button>}
-                {data.canReview && d.status === 'IN_REVIEW' && (isCustomer || !d.customerVisible || project.role === 'ADMIN') && <button className="btn btn-sm btn-primary" onClick={() => setReviewing(d)}>Approve or request changes</button>}
+                {d.canReviewNow && !project.readOnly && <button className="btn btn-sm btn-primary" onClick={() => setReviewing(d)}>Approve or request changes</button>}
               </div>}>
               <div className="small text-muted mb-2">{d.dueDate ? `Due ${fmtDate(d.dueDate)}` : 'No due date'}{d.description && ` · ${d.description}`}</div>
               {d.versions.length === 0 ? <div className="small text-muted">{manage ? 'Click "New version" to attach files.' : 'No versions yet.'}</div> : d.versions.map((v, i) => (
@@ -57,7 +58,7 @@ export function Deliverables() {
                   <div className="d-flex justify-content-between small mb-1"><strong>Version {v.versionNumber}{i === 0 && ' (current)'}</strong><span className="text-muted">{v.createdBy} · {fmtDateTime(v.createdAt)}</span></div>
                   {v.note && <div className="small mb-1">{v.note}</div>}
                   {i === 0 && manage && d.status === 'DRAFT' ? <FileList targetType="deliverableVersion" targetId={v.id} compact onChange={reload} /> : <FileList targetType="deliverableVersion" targetId={v.id} compact />}
-                  {v.approvals.map((a, k) => <div key={k} className={`notice ${a.decision === 'APPROVED' ? 'info' : 'warn'} mt-2`}>{a.decision === 'APPROVED' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}<div><strong>{a.reviewer}</strong> {a.decision === 'APPROVED' ? 'approved' : 'requested changes on'} v{v.versionNumber} · {fmtDateTime(a.createdAt)}{a.comment && <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{a.comment}</div>}</div></div>)}
+                  {v.approvals.map((a, k) => <div key={k} className={`notice ${a.decision === 'APPROVED' ? 'info' : 'warn'} mt-2`}>{a.decision === 'APPROVED' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}<div><strong>{a.reviewer}</strong>{!isCustomer && <span className="text-muted"> ({a.by === 'CLIENT' ? 'client' : 'director'})</span>} {a.decision === 'APPROVED' ? 'approved' : 'requested changes on'} v{v.versionNumber} · {fmtDateTime(a.createdAt)}{a.comment && <div className="mt-1" style={{ whiteSpace: 'pre-wrap' }}>{a.comment}</div>}</div></div>)}
                 </div>))}
             </Card>);
         })}</div>)}
@@ -66,7 +67,7 @@ export function Deliverables() {
         <Field label="Description">{(id) => <textarea id={id} className="form-control" value={creating.description} onChange={(e) => setCreating({ ...creating, description: e.target.value })} />}</Field>
         <div className="row"><div className="col-6"><Field label="Due date">{(id) => <input id={id} type="date" className="form-control" value={creating.dueDate} onChange={(e) => setCreating({ ...creating, dueDate: e.target.value })} />}</Field></div>
           <div className="col-6"><Field label="Phase">{(id) => <Select id={id} value={creating.phaseId} onChange={(v) => setCreating({ ...creating, phaseId: v || '' })} placeholder="None" options={project.phases.map((p) => ({ value: p.id, label: p.name }))} />}</Field></div></div>
-        <div className="form-check form-switch"><input className="form-check-input" type="checkbox" id="dcv" disabled={!project.customerVisible} checked={creating.customerVisible} onChange={(e) => setCreating({ ...creating, customerVisible: e.target.checked })} /><label className="form-check-label" htmlFor="dcv">Client signs this off</label></div>
+        <div className="form-check form-switch"><input className="form-check-input" type="checkbox" id="dcv" disabled={!project.customerVisible} checked={creating.customerVisible} onChange={(e) => setCreating({ ...creating, customerVisible: e.target.checked })} /><label className="form-check-label" htmlFor="dcv">Also needs the client's sign-off (after the director)</label></div>
       </Modal>}
       {reviewing && <ReviewModal d={reviewing} onClose={() => setReviewing(null)} onDone={() => { toast('Decision recorded', 'success'); reload(); }} />}
     </>

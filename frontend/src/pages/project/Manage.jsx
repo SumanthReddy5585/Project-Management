@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, ShieldAlert } from 'lucide-react';
 import { get, post, patch, put, del } from '../../api/client.js';
 import { useLoad } from '../../lib/hooks.js';
 import { fmtDate, labelize } from '../../lib/format.js';
 import { Card, ConfirmButton, Empty, ErrorBox, Field, Loading, Modal, Notice, Select, StatusBadge, useToast, fieldErrors, Avatar, Pagination } from '../../components/ui.jsx';
 import { TeamPicker } from '../Projects.jsx';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import { useProject } from './Workspace.jsx';
 
 const KINDS = {
@@ -14,8 +16,8 @@ const KINDS = {
     cols: (r, n) => [r.title, r.severity, n(r.ownerId), fmtDate(r.targetDate), <StatusBadge status={r.status} key="s" />], head: ['Issue', 'Severity', 'Owner', 'Target', 'Status'] },
   decisions: { label: 'Decisions', fields: [['title', 'Title'], ['context', 'Context', 'textarea'], ['decision', 'Decision', 'textarea'], ['decidedById', 'Decision maker', 'person'], ['decidedOn', 'Date', 'date']],
     cols: (r, n) => [r.title, r.decision, n(r.decidedById), fmtDate(r.decidedOn)], head: ['Decision', 'Outcome', 'By', 'Date'] },
-  'change-requests': { label: 'Change requests', fields: [['title', 'Title'], ['scope', 'Scope change', 'textarea'], ['scheduleImpactDays', 'Schedule impact (working days)', 'number'], ['costImpact', 'Cost impact', 'number'], ['reviewerId', 'Reviewer', 'person']],
-    cols: (r, n) => [r.title, `${r.scheduleImpactDays > 0 ? '+' : ''}${r.scheduleImpactDays} d`, r.costImpact ?? '—', n(r.reviewerId), <StatusBadge status={r.status} key="s" />], head: ['Change', 'Schedule', 'Cost', 'Reviewer', 'Status'] },
+  'change-requests': { label: 'Change requests', fields: [['title', 'Title'], ['scope', 'Scope change', 'textarea'], ['scheduleImpactDays', 'Schedule impact (working days)', 'number'], ['costImpact', 'Cost impact', 'number']],
+    cols: (r, n) => [r.title, `${r.scheduleImpactDays > 0 ? '+' : ''}${r.scheduleImpactDays} d`, r.costImpact ?? '—', n(r.reviewerId), <StatusBadge status={r.status} key="s" />], head: ['Change', 'Schedule', 'Cost', 'Decided by', 'Status'] },
 };
 
 const heat = (score) => (score >= 15 ? 'h4' : score >= 10 ? 'h3' : score >= 5 ? 'h2' : 'h1');
@@ -49,7 +51,10 @@ function RiskMatrix({ risks, cell, onCell }) {
 export function Registers() {
   const { project, can, people } = useProject();
   const toast = useToast();
-  const [kind, setKind] = useState('risks');
+  const [params] = useSearchParams();
+  const [kind, setKind] = useState(KINDS[params.get('tab')] ? params.get('tab') : 'risks');
+  const { user } = useAuth();
+  const decider = can('change.decide') && !project.readOnly;
   const { data, error, loading, reload } = useLoad(() => get(`/projects/${project.id}/registers/${kind}`), [project.id, kind]);
   const [f, setF] = useState(null);
   const [err, setErr] = useState(null);
@@ -70,14 +75,14 @@ export function Registers() {
     <>
       <div className="d-flex gap-2 mb-3 flex-wrap">{Object.entries(KINDS).map(([k, v]) => <button key={k} className={`btn btn-sm ${k === kind ? 'btn-primary' : 'btn-light'}`} onClick={() => setKind(k)}>{v.label}</button>)}
         {manage && <button className="btn btn-sm btn-outline-primary ms-auto" onClick={() => setF(blank())}><Plus size={14} /> Add</button>}</div>
-      {kind === 'change-requests' && <Notice icon={ShieldAlert}>Approving a change request never changes the baseline. Apply the approved changes, then save a new baseline from the Timeline (it is recorded against the change request in the audit log).</Notice>}
+      {kind === 'change-requests' && <Notice icon={ShieldAlert}>The project manager raises change requests and <b>the project director approves or rejects them</b>. Approving never changes the original plan: apply the approved changes, then save a new baseline from the Timeline (it is recorded against the change request).</Notice>}
       <ErrorBox error={error} />
       {kind === 'risks' && data?.data.length > 0 && <RiskMatrix risks={data.data} cell={cell} onCell={setCell} />}
       {kind === 'risks' && cell && <div className="small mb-1">Showing risks with probability {cell[0]} and impact {cell[1]} · <button className="btn btn-link btn-sm p-0" onClick={() => setCell(null)}>Show all</button></div>}
       <div className="card mt-2">{loading && !data ? <div className="p-3"><Loading /></div> : data?.data.length === 0 ? <Empty title={`No ${K.label.toLowerCase()} recorded`} /> : (
         <table className="table table-hover"><thead><tr>{K.head.map((h) => <th key={h}>{h}</th>)}<th /></tr></thead>
           <tbody>{rowsShown.map((r) => <tr key={r.id}>{K.cols(r, nameOf).map((c, i) => <td key={i} className={i === 0 ? 'fw-medium' : 'small'}>{c}</td>)}
-            <td className="text-end text-nowrap">{manage && kind === 'change-requests' && ['SUBMITTED', 'UNDER_REVIEW'].includes(r.status) && <><button className="btn btn-sm btn-light me-1" onClick={() => decide(r, 'APPROVED')}>Approve</button><button className="btn btn-sm btn-light me-1" onClick={() => decide(r, 'REJECTED')}>Reject</button></>}
+            <td className="text-end text-nowrap">{decider && kind === 'change-requests' && ['SUBMITTED', 'UNDER_REVIEW'].includes(r.status) && (r.createdById !== user?.id || project.role === 'ADMIN') && <><button className="btn btn-sm btn-light me-1" onClick={() => decide(r, 'APPROVED')}>Approve</button><button className="btn btn-sm btn-light me-1" onClick={() => decide(r, 'REJECTED')}>Reject</button></>}
               {manage && !(kind === 'change-requests' && ['APPROVED', 'REJECTED', 'IMPLEMENTED'].includes(r.status)) && <button className="btn btn-sm btn-ghost" onClick={() => setF({ ...Object.fromEntries(K.fields.map(([k]) => [k, r[k] ?? ''])), id: r.id })}>Edit</button>}</td></tr>)}</tbody></table>)}</div>
       {f && <Modal open size="lg" onClose={() => setF(null)} title={`${f.id ? 'Edit' : 'Add'} ${K.label.toLowerCase().replace(/s$/, '')}`} footer={<><button className="btn btn-light" onClick={() => setF(null)}>Cancel</button><button className="btn btn-primary" onClick={save}>Save</button></>}>
         <ErrorBox error={err} />
@@ -113,26 +118,31 @@ export function Team() {
     try { for (const [userId, t] of Object.entries(adding)) await put(`/projects/${project.id}/members/${userId}`, { role: t.role, allocationPct: t.allocationPct }); toast(`${Object.keys(adding).length} added to the project`, 'success'); setAdding(null); reload(); }
     catch (e) { toast(e.message, 'error'); reload(); }
   };
-  const internal = project.members.filter((m) => m.role !== 'CUSTOMER');
+  // director first, then the project manager, then the rest of the team
+  const rank = (m) => (m.id === project.directorId ? 0 : m.id === project.managerId ? 1 : m.role === 'MANAGER' ? 2 : m.role === 'MEMBER' ? 3 : 4);
+  const internal = project.members.filter((m) => m.role !== 'CUSTOMER').sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
   const clients = project.members.filter((m) => m.role === 'CUSTOMER');
   return (
     <>
       <Card bodyClass="p-0" title={<>Project team <span className="text-muted fw-normal">· {internal.length}</span></>} actions={manage && <button className="btn btn-sm btn-primary" onClick={() => setAdding({})}><Plus size={14} /> Add people</button>}>
         <div className="table-wrap"><table className="table mb-0">
           <thead><tr><th>Person</th><th>Designation</th><th>Project role</th><th>Allocation</th><th className="text-end">Open tasks</th><th className="text-end">Done</th><th className="text-end">Remaining est.</th><th>Overall load (2 wks)</th><th /></tr></thead>
-          <tbody>{internal.map((m) => { const st = stats(m.id); const w = load.get(m.id); const isPm = m.id === project.managerId; return (
+          <tbody>{internal.map((m) => { const st = stats(m.id); const w = load.get(m.id); const isPm = m.id === project.managerId; const isDir = m.id === project.directorId; const fixed = isPm || isDir; return (
             <tr key={m.id}>
-              <td><span className="d-flex align-items-center gap-2"><Avatar name={m.name} /><span><span className="fw-semibold d-block">{m.name}{isPm && <span className="pill pill-dark ms-2">PM</span>}</span><span className="small text-muted">{m.email}</span></span></span></td>
+              <td><span className="d-flex align-items-center gap-2"><Avatar name={m.name} /><span><span className="fw-semibold d-block">{m.name}</span><span className="small text-muted">{m.email}</span></span></span></td>
               <td className="small">{m.title || '—'}{m.department && <div className="text-muted">{m.department}</div>}</td>
-              <td>{manage && !isPm ? <select className="form-select form-select-sm" style={{ width: 130 }} value={m.role} onChange={(e) => setRole(m, e.target.value)} aria-label={`Role of ${m.name}`}><option value="MANAGER">Co-manager</option><option value="MEMBER">Member</option><option value="VIEWER">Viewer</option></select> : <span className="pill pill-neutral">{isPm ? 'Project manager' : labelize(m.role)}</span>}</td>
-              <td>{manage ? <select className="form-select form-select-sm" style={{ width: 82 }} value={m.allocationPct ?? 100} onChange={(e) => setRole(m, m.role, Number(e.target.value))} aria-label={`Allocation of ${m.name}`}>{[100, 75, 50, 25, 0].map((n) => <option key={n} value={n}>{n}%</option>)}</select> : `${m.allocationPct ?? 100}%`}</td>
+              <td>{isDir ? <span className="role-pill director" title="Approves the plan, documents and change requests">Project director</span>
+                : isPm ? <span className="role-pill pm" title="Builds the plan, runs the team, approves timesheets">Project manager</span>
+                : manage ? <select className="form-select form-select-sm" style={{ width: 130 }} value={m.role} onChange={(e) => setRole(m, e.target.value)} aria-label={`Role of ${m.name}`}><option value="MANAGER">Co-manager</option><option value="MEMBER">Resource</option><option value="VIEWER">Viewer</option></select> : <span className="role-pill res">{m.role === 'MEMBER' ? 'Resource' : m.role === 'MANAGER' ? 'Co-manager' : labelize(m.role)}</span>}</td>
+              <td>{isDir ? <span className="small text-muted">—</span> : manage ? <select className="form-select form-select-sm" style={{ width: 82 }} value={m.allocationPct ?? 100} onChange={(e) => setRole(m, m.role, Number(e.target.value))} aria-label={`Allocation of ${m.name}`}>{[100, 75, 50, 25, 0].map((n) => <option key={n} value={n}>{n}%</option>)}</select> : `${m.allocationPct ?? 100}%`}</td>
               <td className="text-end num">{st.open}{st.late > 0 && <span className="text-danger small fw-semibold"> ({st.late} late)</span>}</td>
               <td className="text-end num">{st.done}</td>
               <td className="text-end num small">{st.hours ? `${st.hours}h` : '—'}</td>
               <td style={{ minWidth: 140 }}>{w ? <div className="d-flex align-items-center gap-2"><div className="meter flex-grow-1"><span style={{ width: `${Math.min(100, w.pct)}%`, background: w.pct > 100 ? 'var(--red)' : w.pct > 80 ? 'var(--amber)' : 'var(--green)' }} /></div><span className="small num">{Math.round(w.pct)}%</span></div> : <span className="small text-muted">—</span>}</td>
-              <td className="text-end">{manage && !isPm && <ConfirmButton className="btn btn-sm btn-ghost btn-icon text-danger" title={`Remove ${m.name}?`} message="They lose access to this project. Their tasks stay assigned so you can reassign them." confirmLabel="Remove" onConfirm={async () => { await del(`/projects/${project.id}/members/${m.id}`); reload(); }}><Trash2 size={14} aria-label="Remove" /></ConfirmButton>}</td>
+              <td className="text-end">{manage && !fixed && <ConfirmButton className="btn btn-sm btn-ghost btn-icon text-danger" title={`Remove ${m.name}?`} message="They lose access to this project. Their tasks stay assigned so you can reassign them." confirmLabel="Remove" onConfirm={async () => { await del(`/projects/${project.id}/members/${m.id}`); reload(); }}><Trash2 size={14} aria-label="Remove" /></ConfirmButton>}</td>
             </tr>); })}</tbody>
         </table></div>
+        <div className="gov-legend"><span><b className="role-pill director">Project director</b> approves the plan, documents and change requests</span><span><b className="role-pill pm">Project manager</b> builds the plan, manages resources and approves their timesheets</span><span><b className="role-pill res">Resource</b> does the work and logs time</span></div>
       </Card>
       {project.customerCompanyId && <Card className="mt-3" title={<>Client contacts <span className="text-muted fw-normal">· {project.customerName}</span></>}>
         {clients.length ? <ul className="list-plain">{clients.map((m) => <li key={m.id}><Avatar sm name={m.name} /><span className="flex-grow-1"><span className="fw-semibold">{m.name}</span> <span className="small text-muted">{m.email}</span></span>
@@ -172,12 +182,15 @@ export function ProjectSettings() {
   const toast = useToast();
   const refs = useLoad(() => Promise.all([get('/org/calendars'), get('/org/customers'), get('/org/members', { pageSize: 200 })]), []);
   const [f, setF] = useState({ name: p.name, description: p.description || '', objectives: p.objectives || '', plannedStart: p.plannedStart, plannedFinish: p.plannedFinish, priority: p.priority, calendarId: p.calendarId || '', timezone: p.timezone,
-    customerVisible: p.customerVisible, budgetAmount: p.budgetAmount ?? '', budgetCurrency: p.budgetCurrency || 'USD', billingEnabled: Boolean(p.billingEnabled), hourlyRate: p.hourlyRate ?? '', managerId: p.managerId });
+    customerVisible: p.customerVisible, budgetAmount: p.budgetAmount ?? '', budgetCurrency: p.budgetCurrency || 'USD', billingEnabled: Boolean(p.billingEnabled), hourlyRate: p.hourlyRate ?? '', managerId: p.managerId, directorId: p.directorId || '' });
   const [err, setErr] = useState(null);
+  const { user, role: orgRole } = useAuth();
+  const canChangeDirector = orgRole === 'ADMIN' || !p.directorId;
   const [cal, customers, members] = refs.data ? refs.data.map((x) => x.data) : [[], [], []];
   const save = async (e) => {
     e.preventDefault(); setErr(null);
-    try { await patch(`/projects/${p.id}`, { ...f, version: p.version, calendarId: f.calendarId || null, budgetAmount: f.budgetAmount === '' ? null : Number(f.budgetAmount), hourlyRate: f.hourlyRate === '' ? null : Number(f.hourlyRate), description: f.description || null, objectives: f.objectives || null }); toast('Project updated', 'success'); reload(); }
+    const { directorId, ...rest } = f;
+    try { await patch(`/projects/${p.id}`, { ...rest, ...(directorId !== (p.directorId || '') && { directorId: directorId || null }), version: p.version, calendarId: f.calendarId || null, budgetAmount: f.budgetAmount === '' ? null : Number(f.budgetAmount), hourlyRate: f.hourlyRate === '' ? null : Number(f.hourlyRate), description: f.description || null, objectives: f.objectives || null }); toast('Project updated', 'success'); reload(); }
     catch (x) { setErr(x); if (x.status === 409) reload(); }
   };
   const NEXT = { DRAFT: ['ACTIVE', 'CANCELLED'], ACTIVE: ['ON_HOLD', 'COMPLETED', 'CANCELLED'], ON_HOLD: ['ACTIVE', 'CANCELLED'], COMPLETED: ['ARCHIVED', 'ACTIVE'], CANCELLED: ['ARCHIVED'], ARCHIVED: [] };
@@ -192,7 +205,8 @@ export function ProjectSettings() {
           <div className="col-md-4"><Field label="Planned start" hint="Does not move phases or tasks.">{(id) => <input id={id} type="date" className="form-control" value={f.plannedStart} onChange={(e) => setF({ ...f, plannedStart: e.target.value })} />}</Field></div>
           <div className="col-md-4"><Field label="Planned finish">{(id) => <input id={id} type="date" className="form-control" value={f.plannedFinish} onChange={(e) => setF({ ...f, plannedFinish: e.target.value })} />}</Field></div>
           <div className="col-md-4"><Field label="Priority">{(id) => <Select id={id} value={f.priority} onChange={(v) => setF({ ...f, priority: v })} options={['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((x) => ({ value: x, label: labelize(x) }))} />}</Field></div>
-          <div className="col-md-6"><Field label="Project manager">{(id) => <Select id={id} value={f.managerId} onChange={(v) => setF({ ...f, managerId: v })} options={members.filter((m) => ['ADMIN', 'MANAGER'].includes(m.role)).map((m) => ({ value: m.userId, label: m.name }))} />}</Field></div>
+          <div className="col-md-6"><Field label="Project director" hint={canChangeDirector ? 'Approves the plan, documents and change requests' : 'Only an administrator can change the director'} error={f.directorId && f.directorId === f.managerId ? 'Must be different from the project manager' : undefined}>{(id) => <Select id={id} value={f.directorId} disabled={!canChangeDirector} placeholder="No director yet" onChange={(v) => setF({ ...f, directorId: v || '' })} options={members.filter((m) => ['ADMIN', 'MANAGER'].includes(m.role) && m.status === 'ACTIVE' && m.userId !== f.managerId).map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user?.id ? ' (you)' : ''}` }))} />}</Field></div>
+          <div className="col-md-6"><Field label="Project manager">{(id) => <Select id={id} value={f.managerId} onChange={(v) => setF({ ...f, managerId: v })} options={members.filter((m) => ['ADMIN', 'MANAGER'].includes(m.role) && m.userId !== f.directorId).map((m) => ({ value: m.userId, label: m.name }))} />}</Field></div>
           <div className="col-md-6"><Field label="Working calendar">{(id) => <Select id={id} value={f.calendarId} onChange={(v) => setF({ ...f, calendarId: v || '' })} placeholder="Organization default" options={cal.map((c) => ({ value: c.id, label: c.name }))} />}</Field></div>
           {p.budgetAmount !== undefined && <><div className="col-md-4"><Field label="Budget">{(id) => <input id={id} type="number" min="0" className="form-control" value={f.budgetAmount} onChange={(e) => setF({ ...f, budgetAmount: e.target.value })} />}</Field></div>
             <div className="col-md-2"><Field label="Currency">{(id) => <input id={id} className="form-control" maxLength={3} value={f.budgetCurrency} onChange={(e) => setF({ ...f, budgetCurrency: e.target.value.toUpperCase() })} />}</Field></div>

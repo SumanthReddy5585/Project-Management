@@ -36,7 +36,7 @@ async function portfolio(auth) {
     const est = items.filter((i) => !['MODULE', 'MILESTONE'].includes(i.type) && i.status !== 'CANCELLED').reduce((a, i) => a + (i.estimateHours || 0), 0);
     const logged = await prisma.timeEntry.aggregate({ where: { projectId: p.id }, _sum: { hours: true } });
     const billable = p.billingEnabled ? await prisma.timeEntry.aggregate({ where: { projectId: p.id, billable: true }, _sum: { hours: true } }) : null;
-    const isAdminOrMgr = auth.orgRole === 'ADMIN' || (await prisma.projectMember.findFirst({ where: { projectId: p.id, userId: auth.userId, role: 'MANAGER' } }));
+    const isAdminOrMgr = auth.orgRole === 'ADMIN' || (await prisma.projectMember.findFirst({ where: { projectId: p.id, userId: auth.userId, role: { in: ['MANAGER', 'DIRECTOR'] } } }));
     const sched = await scheduleSummary(p);
     out.push({ id: p.id, code: p.code, name: p.name, status: p.status, health: p.health, customer: p.customerCompany?.name ?? null, plannedFinish: fmtDate(p.plannedFinish),
       progress: sched?.actualPct ?? roll.project.percent, milestones: roll.milestones, scheduleVarianceDays: sched ? sched.finishVariance : variance, baseline: sched ? 'Approved plan' : bl?.name ?? null, schedule: sched?.status ?? null,
@@ -152,6 +152,36 @@ async function deliveryStats(a, today) {
   return { weeks, status, overdue, onTimeRate: done ? onTime / done : null, milestones: milestones.sort((x, y) => x.date.localeCompare(y.date)) };
 }
 
+// Things waiting for the signed-in person's decision. Directors: plans, documents and change requests of the
+// projects they direct. Project managers: timesheets of their team and plans sent back to them.
+async function pendingApprovals(a) {
+  const directed = await prisma.project.findMany({ where: { organizationId: a.orgId, directorId: a.userId }, select: { id: true, code: true, name: true, planSubmittedAt: true, planApprovedAt: true } });
+  const managedIds = (await prisma.projectMember.findMany({ where: { userId: a.userId, role: 'MANAGER' }, select: { projectId: true } })).map((m) => m.projectId);
+  const dIds = directed.map((p) => p.id);
+  const pc = new Map(directed.map((p) => [p.id, p]));
+  const out = [];
+  for (const p of directed) if (p.planSubmittedAt && !p.planApprovedAt) out.push({ kind: 'PLAN', id: p.id, projectId: p.id, code: p.code, title: `${p.name} — project plan`, since: p.planSubmittedAt, link: `/projects/${p.id}/plan` });
+  if (dIds.length) {
+    const docs = await prisma.deliverable.findMany({ where: { projectId: { in: dIds }, status: 'IN_REVIEW' }, include: { versions: { orderBy: { versionNumber: 'desc' }, take: 1, include: { approvals: true } } } });
+    const clients = new Set((await prisma.projectMember.findMany({ where: { projectId: { in: dIds }, role: 'CUSTOMER' }, select: { userId: true } })).map((m) => m.userId));
+    for (const d of docs) {
+      const v = d.versions[0];
+      if (d.customerVisible && (v?.approvals || []).some((x) => x.decision === 'APPROVED' && !clients.has(x.reviewerId))) continue; // already with the client
+      out.push({ kind: 'DOCUMENT', id: d.id, projectId: d.projectId, code: pc.get(d.projectId)?.code, title: `${d.name}${v ? ` (v${v.versionNumber})` : ''}`, since: v?.createdAt ?? d.createdAt, link: `/projects/${d.projectId}/approvals` });
+    }
+    const crs = await prisma.changeRequest.findMany({ where: { projectId: { in: dIds }, status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } } });
+    for (const c of crs) out.push({ kind: 'CHANGE', id: c.id, projectId: c.projectId, code: pc.get(c.projectId)?.code, title: c.title, since: c.createdAt, link: `/projects/${c.projectId}/risks?tab=change-requests` });
+  }
+  if (managedIds.length && ['ADMIN', 'MANAGER'].includes(a.orgRole)) {
+    const sheets = await prisma.timesheet.findMany({ where: { organizationId: a.orgId, status: 'SUBMITTED', userId: { not: a.userId }, entries: { some: { projectId: { in: managedIds } } } }, take: 50 });
+    const names = new Map((await prisma.user.findMany({ where: { id: { in: sheets.map((t) => t.userId) } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));
+    for (const t of sheets) out.push({ kind: 'TIMESHEET', id: t.id, title: `${names.get(t.userId)} — week of ${fmtDate(t.weekStart)}`, since: t.submittedAt, link: '/time?tab=approvals' });
+    const returned = await prisma.project.findMany({ where: { id: { in: managedIds }, planReturnedAt: { not: null }, planSubmittedAt: null, planApprovedAt: null }, select: { id: true, code: true, name: true, planReturnedAt: true } });
+    for (const p of returned) out.push({ kind: 'PLAN_RETURNED', id: p.id, projectId: p.id, code: p.code, title: `${p.name} — plan sent back by the director`, since: p.planReturnedAt, link: `/projects/${p.id}/plan` });
+  }
+  return out.sort((x, y) => new Date(x.since) - new Date(y.since));
+}
+
 r.get('/dashboard', async (req, res) => {
   const a = req.auth;
   const today = iso(new Date());
@@ -187,6 +217,7 @@ r.get('/dashboard', async (req, res) => {
     myTickets: myTickets.map((t) => ({ id: t.id, number: t.number, subject: t.subject, status: t.status, priority: t.priority })), unreadMentions: mentions, unreadNotifications: unread,
   };
   employee.delivery = await deliveryStats(a, today);
+  employee.approvals = await pendingApprovals(a);
   if (a.orgRole === 'EMPLOYEE') return res.json({ kind: 'employee', ...employee });
   const pf = await portfolio(a);
   const wl = await workload(a, ws, addDays(ws, 13));
@@ -247,7 +278,7 @@ r.get('/reports/time-summary', async (req, res) => {
   const thisWeek = weekStartOf(iso(new Date()));
   const from = addDays(thisWeek, -(q.weeks - 1) * 7); const to = addDays(thisWeek, 6);
   const visible = await prisma.project.findMany({ where: visibleProjectsWhere(a), select: { id: true, code: true, name: true } });
-  const managed = a.orgRole === 'ADMIN' ? visible.map((p) => p.id) : (await prisma.projectMember.findMany({ where: { userId: a.userId, role: 'MANAGER' }, select: { projectId: true } })).map((m) => m.projectId);
+  const managed = a.orgRole === 'ADMIN' ? visible.map((p) => p.id) : (await prisma.projectMember.findMany({ where: { userId: a.userId, role: { in: ['MANAGER', 'DIRECTOR'] } }, select: { projectId: true } })).map((m) => m.projectId);
   const rows = await prisma.timeEntry.findMany({ where: { organizationId: a.orgId, date: { gte: toDate(from), lte: toDate(to) }, OR: [{ userId: a.userId }, { projectId: { in: managed } }] },
     select: { userId: true, projectId: true, date: true, hours: true, billable: true } });
   const weeks = [...Array(q.weeks)].map((_, i) => addDays(from, i * 7));
@@ -285,7 +316,7 @@ r.get('/reports/portfolio.csv', async (req, res) => {
 r.get('/reports/time.csv', async (req, res) => {
   const q = parse(z.object({ from: dateOnly, to: dateOnly, projectId: uuid.optional() }), req.query);
   const visible = (await prisma.project.findMany({ where: visibleProjectsWhere(req.auth), select: { id: true } })).map((p) => p.id);
-  const managed = req.auth.orgRole === 'ADMIN' ? visible : (await prisma.projectMember.findMany({ where: { userId: req.auth.userId, role: 'MANAGER' }, select: { projectId: true } })).map((m) => m.projectId);
+  const managed = req.auth.orgRole === 'ADMIN' ? visible : (await prisma.projectMember.findMany({ where: { userId: req.auth.userId, role: { in: ['MANAGER', 'DIRECTOR'] } }, select: { projectId: true } })).map((m) => m.projectId);
   if (req.auth.isCustomer) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Not available' } });
   const where = { organizationId: req.auth.orgId, date: { gte: toDate(q.from), lte: toDate(q.to) }, ...(q.projectId && { projectId: q.projectId }),
     OR: [{ userId: req.auth.userId }, { projectId: { in: managed } }] };

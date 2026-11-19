@@ -472,7 +472,7 @@ r.delete('/dependencies/:depId', async (req, res) => {
 // Dates are never typed here unless the manager wants to fix a start; the scheduler calculates them, runs
 // unlinked tasks in parallel and moves everything that waits for a task when that task moves.
 const planItemBody = z.object({
-  type: z.enum(['TASK', 'MILESTONE']).default('TASK'), title: z.string().trim().min(1).max(300), phaseId: uuid.nullable().optional(), assigneeId: uuid.nullable().optional(),
+  type: z.enum(['TASK', 'SUBTASK', 'MILESTONE']).default('TASK'), parentId: uuid.nullable().optional(), title: z.string().trim().min(1).max(300), phaseId: uuid.nullable().optional(), assigneeId: uuid.nullable().optional(),
   durationDays: z.number().int().min(1).max(1000).default(5), after: z.array(uuid).max(50).default([]), fixedStart: dateOnly.nullable().optional(),
   estimateHours: z.number().min(0).max(100000).nullable().optional(),
 });
@@ -528,7 +528,19 @@ r.post('/plan-items', async (req, res) => {
   writable(access);
   const b = parse(planItemBody, req.body);
   const p = access.project;
+  // a sub-task sits under a task, in the same stage; a task's own links then apply to all of its sub-tasks
+  let parent = null;
+  if (b.type === 'SUBTASK' || b.parentId) {
+    if (b.type !== 'SUBTASK') throw badRequest('Only sub-tasks can be added under a task');
+    if (!b.parentId) throw badRequest('Choose the task this sub-task belongs to');
+    parent = await prisma.workItem.findFirst({ where: { id: b.parentId, projectId: p.id } });
+    if (!parent || parent.type !== 'TASK') throw badRequest('Sub-tasks can only be added under a task');
+    if (['DONE', 'CANCELLED'].includes(parent.status)) throw badRequest('This task is closed; reopen it to add sub-tasks');
+    b.phaseId = parent.phaseId;
+    if (b.assigneeId === undefined) b.assigneeId = parent.assigneeId;
+  }
   const after = await checkPlanRefs(p.id, b);
+  if (parent && after.includes(parent.id)) throw badRequest('A sub-task cannot wait for its own task');
   const cal = await projectCalendar(p);
   const ms = b.type === 'MILESTONE';
   const start = nextWorkingDay(b.fixedStart || fmtDate(p.plannedStart), cal);
@@ -538,7 +550,8 @@ r.post('/plan-items', async (req, res) => {
     const seq = await tx.project.update({ where: { id: p.id }, data: { workItemSeq: { increment: 1 } }, select: { workItemSeq: true } });
     const last = await tx.workItem.aggregate({ where: { projectId: p.id }, _max: { sortOrder: true } });
     const it = await tx.workItem.create({ data: {
-      projectId: p.id, type: b.type, title: b.title, phaseId: b.phaseId ?? null, assigneeId: ms ? null : b.assigneeId ?? null, number: seq.workItemSeq,
+      projectId: p.id, type: b.type, title: b.title, phaseId: b.phaseId ?? null, parentId: parent?.id ?? null, assigneeId: ms ? null : b.assigneeId ?? null, number: seq.workItemSeq,
+      customerVisible: parent?.customerVisible ?? undefined,
       plannedStart: toDate(start), plannedFinish: toDate(finish), startConstraint: b.fixedStart ? toDate(start) : null,
       estimateHours: ms ? null : b.estimateHours !== undefined ? b.estimateHours : b.durationDays * HOURS_PER_DAY,
       sortOrder: (last._max.sortOrder ?? 0) + 1, createdById: req.auth.userId,
@@ -782,28 +795,40 @@ r.post('/registers/:kind', async (req, res) => {
   access.require('register.manage');
   const b = parse(body, req.body);
   await checkRefs(access.project.id, req.auth.orgId, b);
-  const row = await prisma[model].create({ data: { ...b, projectId: access.project.id, ...(b.targetDate !== undefined && { targetDate: toDate(b.targetDate) }), ...(b.decidedOn && { decidedOn: toDate(b.decidedOn) }), ...(model === 'changeRequest' && { createdById: req.auth.userId }) } });
+  // change requests are decided by the project director
+  const cr = model === 'changeRequest' ? { createdById: req.auth.userId, reviewerId: access.project.directorId ?? b.reviewerId ?? null } : {};
+  const row = await prisma[model].create({ data: { ...b, projectId: access.project.id, ...(b.targetDate !== undefined && { targetDate: toDate(b.targetDate) }), ...(b.decidedOn && { decidedOn: toDate(b.decidedOn) }), ...cr } });
   await audit(prisma, req.auth, { action: `${model}.created`, entityType: model, entityId: row.id, projectId: access.project.id, metadata: { title: row.title } }, req.ip);
+  if (model === 'changeRequest' && row.reviewerId) await notify(prisma, { orgId: req.auth.orgId, userIds: [row.reviewerId], exclude: req.auth.userId, type: 'change_request.submitted', title: `${access.project.code}: change request for your decision — ${row.title}`, link: `/projects/${access.project.id}/risks?tab=change-requests` });
   res.status(201).json(regOut(row));
 });
 r.patch('/registers/:kind/:id', async (req, res) => {
   const { model, body } = reg(req);
   const access = await projectAccess(req.auth, req.params.projectId);
-  access.require('register.manage');
-  const row = await prisma[model].findFirst({ where: { id: req.params.id, projectId: access.project.id } });
+  const row0 = model === 'changeRequest' ? await prisma.changeRequest.findFirst({ where: { id: req.params.id, projectId: access.project.id } }) : null;
+  // the director may decide a change request (status + outcome note) without managing the registers
+  const deciding = model === 'changeRequest' && access.can('change.decide') && Object.keys(req.body || {}).every((k) => ['status', 'outcomeNote'].includes(k));
+  if (!deciding) access.require('register.manage');
+  const row = row0 ?? await prisma[model].findFirst({ where: { id: req.params.id, projectId: access.project.id } });
   if (!row) throw notFound('Record');
   const ext = model === 'changeRequest' ? partialNoDefaults(body).extend({ status: z.enum(['SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED']).optional(), outcomeNote: z.string().max(5000).optional() }) : partialNoDefaults(body);
   const b = parse(ext, req.body);
   await checkRefs(access.project.id, req.auth.orgId, b);
   if (model === 'changeRequest' && b.status && ['APPROVED', 'REJECTED'].includes(b.status)) {
     if (['APPROVED', 'REJECTED', 'IMPLEMENTED'].includes(row.status)) throw conflict('This change request has already been decided');
-    if (row.reviewerId && row.reviewerId !== req.auth.userId && access.role !== 'ADMIN') throw forbidden('Only the assigned reviewer can decide this change request');
+    if (!access.can('change.decide')) throw forbidden('Change requests are approved or rejected by the project director');
+    if (row.reviewerId && row.reviewerId !== req.auth.userId && access.role !== 'ADMIN' && access.project.directorId !== req.auth.userId) throw forbidden('Only the assigned reviewer can decide this change request');
+    if (row.createdById === req.auth.userId && access.role !== 'ADMIN') throw forbidden('You raised this change request, so someone else has to decide it');
     b.decidedAt = new Date();
   }
   const data = { ...b, ...('targetDate' in b && { targetDate: toDate(b.targetDate) }), ...(b.decidedOn && { decidedOn: toDate(b.decidedOn) }) };
   const n = await prisma[model].updateMany({ where: { id: row.id, ...(model === 'changeRequest' && b.status && { status: row.status }) }, data });
   if (!n.count) throw conflict('This record changed meanwhile. Reload and try again.');
   await audit(prisma, req.auth, { action: `${model}.updated`, entityType: model, entityId: row.id, projectId: access.project.id, metadata: b }, req.ip);
+  if (model === 'changeRequest' && ['APPROVED', 'REJECTED'].includes(b.status)) {
+    const mgrs = await prisma.projectMember.findMany({ where: { projectId: access.project.id, role: 'MANAGER' }, select: { userId: true } });
+    await notify(prisma, { orgId: req.auth.orgId, userIds: [...new Set([...mgrs.map((m) => m.userId), row.createdById].filter(Boolean))], exclude: req.auth.userId, type: 'change_request.decided', title: `${access.project.code}: change request ${b.status.toLowerCase()} — ${row.title}`, body: b.outcomeNote, link: `/projects/${access.project.id}/risks?tab=change-requests` });
+  }
   // Approved change requests never alter the baseline automatically; re-baselining is an explicit action.
   res.json({ ...regOut(await prisma[model].findUnique({ where: { id: row.id } })), ...(b.status === 'APPROVED' && { nextStep: 'Apply the approved scope and schedule changes, then create a new baseline referencing this change request.' }) });
 });

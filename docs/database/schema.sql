@@ -1,12 +1,10 @@
--- O2 Support Hub - database schema (PostgreSQL 14+)
--- Creates every table, enum, index, trigger and foreign key on an EMPTY database, and marks the migrations as applied.
--- psql -U o2app -d o2_support_hub -f schema.sql
+-- O2 Support Hub — PostgreSQL schema (6 migrations, generated 2026-11-19)
+-- Load into an EMPTY database owned by the app login, e.g.:  psql -U o2app -h localhost -d o2_support_hub -v ON_ERROR_STOP=1 -f schema.sql
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict LEi3ztYBFoXKgXL6NNbtrovzprVfCWfmHmmCWoauhN08JOdZOJKE9OmSSGNTl3Y
 
 -- Dumped from database version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- Dumped by pg_dump version 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
@@ -122,7 +120,8 @@ CREATE TYPE public."ProjectRole" AS ENUM (
     'MANAGER',
     'MEMBER',
     'VIEWER',
-    'CUSTOMER'
+    'CUSTOMER',
+    'DIRECTOR'
 );
 
 
@@ -703,7 +702,12 @@ CREATE TABLE public."Project" (
     "createdAt" timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "updatedAt" timestamp(3) with time zone NOT NULL,
     "planApprovedAt" timestamp(3) with time zone,
-    "planApprovedById" uuid
+    "planApprovedById" uuid,
+    "directorId" uuid,
+    "planSubmittedAt" timestamp(3) with time zone,
+    "planSubmittedById" uuid,
+    "planReturnedAt" timestamp(3) with time zone,
+    "planReturnNote" text
 );
 
 
@@ -2302,21 +2306,12 @@ ALTER TABLE ONLY public."WorkingCalendar"
 -- PostgreSQL database dump complete
 --
 
-\unrestrict LEi3ztYBFoXKgXL6NNbtrovzprVfCWfmHmmCWoauhN08JOdZOJKE9OmSSGNTl3Y
 
 
--- Migration history (the app's migrator skips migrations listed here)
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
-INSERT INTO public._prisma_migrations VALUES ('e0696aa7-ba3d-4f59-93b3-96bb0cb63431', 'a6cb7fbd831a9dd8cdf604b47850d61477cb7c4f41f9e8a997aa286737f555f1', '2026-11-18 11:29:31.46207+00', '20261117000000_init', NULL, NULL, '2026-11-18 11:29:31.46207+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('acd4df3f-821c-44e8-82cd-de5c3223b822', '1ef3fbe0ad25e81e8e3dd4ff31be2426a2df16cbd5fb93fbb84e037379e7f276', '2026-11-18 11:29:31.624188+00', '20261118000000_support_desk', NULL, NULL, '2026-11-18 11:29:31.624188+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('3f933c02-3dfb-4dde-b3db-787c223e89e1', '7258804def3894affb9df192feaac9dd41c26fe3c2797411fff03cc301c97f97', '2026-11-18 11:29:31.637963+00', '20261118100000_user_profile', NULL, NULL, '2026-11-18 11:29:31.637963+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('47de30fb-cd03-449a-8b23-359902896b10', '9b20e8ddc00595c70dd40b86b4bf0a21135e0c5fbdffc60d79d4651ed8a9dd93', '2026-11-18 11:29:31.640497+00', '20261118200000_original_plan', NULL, NULL, '2026-11-18 11:29:31.640497+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('3b69c2ff-981c-4859-b7d4-30d29d931ef1', 'd458a830f5a166e095cde12990ef4257afb132214c584194453174c004117e6f', '2026-11-19 00:00:00+00', '20261119000000_auto_schedule', NULL, NULL, '2026-11-19 00:00:00+00', 1);
+-- Migration history (so the app's migrator sees the schema as up to date)
+INSERT INTO public._prisma_migrations VALUES ('81d40aff-e367-4593-8d7a-66da021de619', 'a6cb7fbd831a9dd8cdf604b47850d61477cb7c4f41f9e8a997aa286737f555f1', '2026-11-19 07:29:40.419139+00', '20261117000000_init', NULL, NULL, '2026-11-19 07:29:40.419139+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('076f41b8-5be8-4426-b84a-2bb2ff9ff160', '1ef3fbe0ad25e81e8e3dd4ff31be2426a2df16cbd5fb93fbb84e037379e7f276', '2026-11-19 07:29:40.574746+00', '20261118000000_support_desk', NULL, NULL, '2026-11-19 07:29:40.574746+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('21929e73-feee-4285-93e1-05a9e2e0657a', '7258804def3894affb9df192feaac9dd41c26fe3c2797411fff03cc301c97f97', '2026-11-19 07:29:40.585807+00', '20261118100000_user_profile', NULL, NULL, '2026-11-19 07:29:40.585807+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('ff1f1440-8028-4d2b-a81d-9c0476c8986e', '9b20e8ddc00595c70dd40b86b4bf0a21135e0c5fbdffc60d79d4651ed8a9dd93', '2026-11-19 07:29:40.58729+00', '20261118200000_original_plan', NULL, NULL, '2026-11-19 07:29:40.58729+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('ecf48199-4b58-423d-9352-1419a55a0522', 'd458a830f5a166e095cde12990ef4257afb132214c584194453174c004117e6f', '2026-11-19 07:29:40.591251+00', '20261119000000_auto_schedule', NULL, NULL, '2026-11-19 07:29:40.591251+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('9a11dcb0-2c3d-40c6-8511-890d8f353403', '5074f2b8dd6fce0477fafc7231680364355a2deb1c716ab4d89463e59215e17e', '2026-11-19 07:29:40.592549+00', '20261120000000_project_director', NULL, NULL, '2026-11-19 07:29:40.592549+00', 1);

@@ -131,33 +131,87 @@ describe('planning tools', () => {
   });
 });
 
-describe('original plan: build, approve & lock, compare', () => {
-  let P;
-  it('refuses to approve an empty or undated plan, then approves and locks it', async () => {
+describe('original plan: the manager builds it, the director approves and locks it', () => {
+  let P; let dir;
+  it('creates a project director who is not the project manager', async () => {
+    const d = await admin.post('/api/org/members', { name: 'Dina Director', email: 'dina@ppl.test', title: 'Delivery Director', role: 'MANAGER' });
+    dir = new ApiClient(base); await dir.login('dina@ppl.test', d.temporaryPassword); dir.userId = d.userId;
+    await dir.post('/api/auth/password/change', { currentPassword: d.temporaryPassword, newPassword: 'Dina-password-33' });
     const me = await pm.get('/api/auth/me');
-    P = await pm.post('/api/projects', { name: 'Orion', code: 'ORN', managerId: me.user.id, plannedStart: today, plannedFinish: plus(40), team: [{ userId: dev.userId, role: 'MEMBER' }] });
+    await expectStatus(pm.post('/api/projects', { name: 'Same', code: 'SME', managerId: me.user.id, directorId: me.user.id, plannedStart: today, plannedFinish: plus(10) }), 400);
+    await expectStatus(pm.post('/api/projects', { name: 'Dev dir', code: 'DVD', managerId: me.user.id, directorId: dev.userId, plannedStart: today, plannedFinish: plus(10) }), 400);
+  });
+  it('refuses an empty or undated plan, goes through submit / send back / approve, and locks it', async () => {
+    const me = await pm.get('/api/auth/me');
+    P = await pm.post('/api/projects', { name: 'Orion', code: 'ORN', managerId: me.user.id, directorId: dir.userId, plannedStart: today, plannedFinish: plus(40), team: [{ userId: dev.userId, role: 'MEMBER' }] });
+    expect(P.directorId).toBe(dir.userId);
+    const det = await dir.get(`/api/projects/${P.id}`);
+    expect(det.role).toBe('DIRECTOR');
+    expect(det.members.find((m) => m.id === dir.userId).role).toBe('DIRECTOR');
     let plan = await pm.get(`/api/projects/${P.id}/plan`);
-    expect(plan).toMatchObject({ approved: false, canApprove: true });
+    expect(plan).toMatchObject({ approved: false, submitted: false, canSubmit: true, canApprove: false, director: { id: dir.userId } });
     expect(plan.readiness.ready).toBe(false);
-    await expectStatus(pm.post(`/api/projects/${P.id}/plan/approve`, {}), 400);
-    const a = await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'Design', plannedStart: plus(1), plannedFinish: plus(5), assigneeId: dev.userId, estimateHours: 16 });
+    await expectStatus(pm.post(`/api/projects/${P.id}/plan/submit`, {}), 400);
+    await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'Design', plannedStart: plus(1), plannedFinish: plus(5), assigneeId: dev.userId, estimateHours: 16 });
     const undated = await pm.post(`/api/projects/${P.id}/work-items`, { type: 'TASK', title: 'Build' });
-    await expectStatus(pm.post(`/api/projects/${P.id}/plan/approve`, {}), 400);
+    await expectStatus(pm.post(`/api/projects/${P.id}/plan/submit`, {}), 400);
     await pm.patch(`/api/projects/${P.id}/work-items/${undated.id}`, { plannedStart: plus(6), plannedFinish: plus(12), estimateHours: 24, version: undated.version });
+    // only the manager sends, only the director decides, and nothing is approved before it is sent
+    await expectStatus(dev.post(`/api/projects/${P.id}/plan/submit`, {}), 403);
+    await expectStatus(dir.post(`/api/projects/${P.id}/plan/submit`, {}), 403);
+    await expectStatus(dir.post(`/api/projects/${P.id}/plan/approve`, {}), 409);
+    await pm.post(`/api/projects/${P.id}/plan/submit`, { note: 'Ready for sign-off' });
+    await expectStatus(pm.post(`/api/projects/${P.id}/plan/submit`, {}), 409);
+    await expectStatus(pm.post(`/api/projects/${P.id}/plan/approve`, {}), 403);
     await expectStatus(dev.post(`/api/projects/${P.id}/plan/approve`, {}), 403);
-    const ok = await pm.post(`/api/projects/${P.id}/plan/approve`, { note: 'Signed off with client' });
+    plan = await dir.get(`/api/projects/${P.id}/plan`);
+    expect(plan).toMatchObject({ submitted: true, canApprove: true, submittedBy: { id: me.user.id } });
+    expect((await dir.get('/api/dashboard')).approvals.some((x) => x.kind === 'PLAN' && x.projectId === P.id)).toBe(true);
+    // sent back with a note
+    await expectStatus(dir.post(`/api/projects/${P.id}/plan/return`, {}), 422);
+    await dir.post(`/api/projects/${P.id}/plan/return`, { note: 'Add a QA task' });
+    plan = await pm.get(`/api/projects/${P.id}/plan`);
+    expect(plan).toMatchObject({ submitted: false, canSubmit: true, returnNote: 'Add a QA task' });
+    expect((await pm.get('/api/dashboard')).approvals.some((x) => x.kind === 'PLAN_RETURNED' && x.projectId === P.id)).toBe(true);
+    await expectStatus(dir.post(`/api/projects/${P.id}/plan/approve`, {}), 409);
+    await pm.post(`/api/projects/${P.id}/plan/submit`, {});
+    const ok = await dir.post(`/api/projects/${P.id}/plan/approve`, { note: 'Signed off with client' });
     expect(ok.items).toBeGreaterThanOrEqual(2);
-    await expectStatus(pm.post(`/api/projects/${P.id}/plan/approve`, {}), 409);
+    await expectStatus(dir.post(`/api/projects/${P.id}/plan/approve`, {}), 409);
     const d = await pm.get(`/api/projects/${P.id}`);
     expect(d.status).toBe('ACTIVE');
     expect(d.planApprovedAt).toBeTruthy();
     expect(d.schedule).toMatchObject({ status: 'ON_TRACK', finishVariance: 0 });
+    expect((await pm.get(`/api/projects/${P.id}/plan`)).approvedBy.id).toBe(dir.userId);
     const bls = await pm.get(`/api/projects/${P.id}/baselines`);
     expect(bls.data[0]).toMatchObject({ kind: 'ORIGINAL', locked: true });
     // database refuses edits to the original plan
     await expect(prisma.baselineItem.updateMany({ where: { baselineId: ok.baselineId }, data: { title: 'hack' } })).rejects.toThrow(/locked/);
     await expect(prisma.baseline.delete({ where: { id: ok.baselineId } })).rejects.toThrow(/locked/);
-    void a;
+  });
+  it('the director decides change requests and documents; the manager runs the team', async () => {
+    // change request: raised by the manager, decided by the director only
+    const cr = await pm.post(`/api/projects/${P.id}/registers/change-requests`, { title: 'Add reporting', scope: 'Two extra reports', scheduleImpactDays: 3 });
+    expect(cr.reviewerId).toBe(dir.userId);
+    await expectStatus(pm.patch(`/api/projects/${P.id}/registers/change-requests/${cr.id}`, { status: 'APPROVED' }), 403);
+    await expectStatus(dir.patch(`/api/projects/${P.id}/registers/change-requests/${cr.id}`, { title: 'Renamed' }), 403);
+    const dec = await dir.patch(`/api/projects/${P.id}/registers/change-requests/${cr.id}`, { status: 'APPROVED', outcomeNote: 'Go ahead' });
+    expect(dec.status).toBe('APPROVED');
+    // internal document: uploaded by the manager, approved by the director
+    const doc = await pm.post(`/api/projects/${P.id}/deliverables`, { name: 'Design spec' });
+    await pm.post(`/api/projects/${P.id}/deliverables/${doc.id}/versions`, { note: 'v1' });
+    const v = await prisma.deliverableVersion.findFirst({ where: { deliverableId: doc.id } });
+    const org = (await prisma.project.findUnique({ where: { id: P.id } })).organizationId;
+    await prisma.fileObject.create({ data: { organizationId: org, projectId: P.id, deliverableVersionId: v.id, originalName: 'spec.pdf', storageKey: `test/${v.id}/spec.pdf`, mimeType: 'application/pdf', size: 10, sha256: 'a'.repeat(64), uploadedById: (await pm.get('/api/auth/me')).user.id } });
+    await pm.post(`/api/projects/${P.id}/deliverables/${doc.id}/submit`, {});
+    await expectStatus(pm.post(`/api/projects/${P.id}/deliverables/${doc.id}/review`, { versionNumber: 1, decision: 'APPROVED' }), 403);
+    expect((await dir.get('/api/dashboard')).approvals.some((x) => x.kind === 'DOCUMENT' && x.id === doc.id)).toBe(true);
+    const r = await dir.post(`/api/projects/${P.id}/deliverables/${doc.id}/review`, { versionNumber: 1, decision: 'APPROVED' });
+    expect(r.status).toBe('APPROVED');
+    // team: the director cannot change the team; the manager cannot demote the director
+    await expectStatus(dir.put(`/api/projects/${P.id}/members/${dev.userId}`, { role: 'VIEWER' }), 403);
+    await expectStatus(pm.put(`/api/projects/${P.id}/members/${dir.userId}`, { role: 'MEMBER' }), 400);
+    await expectStatus(pm.del(`/api/projects/${P.id}/members/${dir.userId}`), 400);
   });
   it('compares the working plan with the original', async () => {
     const items = (await pm.get(`/api/projects/${P.id}/work-items?all=true`)).data;
@@ -347,5 +401,29 @@ describe('dashboard activity feed and time report', () => {
     const sum = t.weeks.reduce((s, w) => s + w.billable + w.nonBillable, 0);
     expect(Math.round(sum * 10) / 10).toBe(t.totals.hours);
     expect(t.byProject.reduce((s, p) => s + p.hours, 0)).toBeCloseTo(t.totals.hours, 1);
+  });
+});
+
+describe('plan builder: sub-tasks', () => {
+  it('adds sub-tasks under a task; the task spans them and its links apply to them', async () => {
+    const me = await pm.get('/api/auth/me');
+    const Q = await pm.post('/api/projects', { name: 'Subs', code: 'SUB', managerId: me.user.id, plannedStart: plus(0), plannedFinish: plus(60), team: [{ userId: dev.userId, role: 'MEMBER' }] });
+    const url = `/api/projects/${Q.id}/plan-items`;
+    const a = (await pm.post(url, { title: 'Analysis', durationDays: 3 })).item;
+    const t = (await pm.post(url, { title: 'Build', durationDays: 5, after: [a.id], assigneeId: dev.userId })).item;
+    const s1 = (await pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'API', durationDays: 2 })).item;
+    const s2 = (await pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'UI', durationDays: 4, after: [s1.id] })).item;
+    expect(s1.assigneeId).toBe(dev.userId); // takes the task's owner unless one is chosen
+    const plan = await pm.get(url);
+    const row = (id) => plan.rows.find((r) => r.id === id);
+    expect(row(t.id).isParent).toBe(true);
+    expect(row(s1.id)).toMatchObject({ type: 'SUBTASK', parentId: t.id });
+    expect(row(s1.id).start > row(a.id).finish).toBe(true); // the task waits for Analysis, so its sub-tasks do too
+    expect(row(s2.id).start > row(s1.id).finish).toBe(true);
+    expect(row(t.id)).toMatchObject({ start: row(s1.id).start, finish: row(s2.id).finish }); // the task spans its sub-tasks
+    await expectStatus(pm.post(url, { type: 'SUBTASK', parentId: s1.id, title: 'Too deep' }), 400);
+    await expectStatus(pm.post(url, { type: 'SUBTASK', title: 'No task' }), 400);
+    await expectStatus(pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'Loop', after: [t.id] }), 400);
+    await expectStatus(dev.post(url, { type: 'SUBTASK', parentId: t.id, title: 'Not mine to plan' }), 403);
   });
 });

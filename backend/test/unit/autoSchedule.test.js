@@ -85,6 +85,13 @@ describe('autoSchedule', () => {
     expect(r.dates.get('y').start).toBe('2026-12-14');
   });
 
+  it("applies a parent's fixed start to its sub-tasks", () => {
+    const r = run([t('p', '2026-12-14', '2026-12-18', { startConstraint: '2026-12-14' }), t('s1', MON, '2026-12-08', { parentId: 'p', type: 'SUBTASK' }), t('s2', MON, MON, { parentId: 'p', type: 'SUBTASK' })], [fs('s1', 's2')]);
+    expect(r.dates.get('s1')).toEqual({ start: '2026-12-14', finish: '2026-12-15' });
+    expect(r.dates.get('s2')).toEqual({ start: '2026-12-16', finish: '2026-12-16' });
+    expect(r.dates.get('p')).toEqual({ start: '2026-12-14', finish: '2026-12-16' });
+  });
+
   it('ignores cancelled and undated items and reports only real changes', () => {
     const r = run([t('a', MON, '2026-12-08', { status: 'CANCELLED' }), t('b', null, null), t('c', MON, MON)], [fs('a', 'c'), fs('b', 'c')]);
     expect(r.changes).toEqual([]);
