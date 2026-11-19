@@ -72,7 +72,7 @@ export function Ring({ value, size = 92, stroke = 9, color = '#fff', to, track =
 }
 
 /** Small smooth area line with a highlighted last point. */
-function Spark({ data, color = '#0a3df0', to, height = 52 }) {
+function Spark({ data, color = '#0a3df0', to, height = 40 }) {
   const id = useId().replace(/:/g, '');
   const [ref, w] = useWidth();
   const max = Math.max(1, ...(data || []));
@@ -306,7 +306,7 @@ function ProjectKpis({ ps, d, time, manager }) {
       </Kpi>
       <Kpi to="/my-tasks" icon={AlarmClock} tone="rose" label="Overdue tasks" period={`${late.length} project${late.length === 1 ? '' : 's'}`}>
         <div className="k-row"><div className="k-val">{d.delivery?.overdue ?? 0}<small>late</small></div>{!late.length && <span className="delta good">All on time</span>}</div>
-        {late.length > 0 && <div className="hbars">{late.slice(0, 3).map((p) => <div key={p.id} title={`${p.name}: ${p.counts.overdue} late`}><span className="truncate">{p.code}</span><i><b style={{ width: `${(p.counts.overdue / lateMax) * 100}%` }} /></i><em>{p.counts.overdue}</em></div>)}</div>}
+        {late.length > 0 && <div className="hbars">{late.slice(0, 2).map((p) => <div key={p.id} title={`${p.name}: ${p.counts.overdue} late`}><span className="truncate">{p.code}</span><i><b style={{ width: `${(p.counts.overdue / lateMax) * 100}%` }} /></i><em>{p.counts.overdue}</em></div>)}</div>}
       </Kpi>
       {manager ? (
         <Kpi to="/time" icon={Timer} tone="amber" label="Hours logged" period="8 weeks">
