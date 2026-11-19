@@ -6,7 +6,10 @@ import { ApiClient } from '../../scripts/api-client.js';
 
 let srv, base, A, admin, created, pm, dev, project;
 const today = new Date().toISOString().slice(0, 10);
-const plus = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+// Dates are counted from the next Wednesday (today when it is one), so expectations never land on a weekend
+// that the scheduler would move to Monday, whatever day the tests run.
+const BASE = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + ((3 - d.getUTCDay() + 7) % 7)); return d; })();
+const plus = (n) => { const d = new Date(BASE); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 beforeAll(async () => {
   await resetDb();
@@ -46,7 +49,7 @@ describe('users with designation', () => {
 describe('projects', () => {
   it('creates a project with a chosen team, roles and allocation', async () => {
     const me = await pm.get('/api/auth/me');
-    project = await pm.post('/api/projects', { name: 'Apollo', code: 'APL', managerId: me.user.id, plannedStart: today, plannedFinish: plus(60), status: 'ACTIVE',
+    project = await pm.post('/api/projects', { name: 'Apollo', code: 'APL', managerId: me.user.id, plannedStart: plus(0), plannedFinish: plus(60), status: 'ACTIVE',
       team: [{ userId: dev.userId, role: 'MEMBER', allocationPct: 50 }] });
     const d = await pm.get(`/api/projects/${project.id}`);
     const devRow = d.members.find((m) => m.id === dev.userId);

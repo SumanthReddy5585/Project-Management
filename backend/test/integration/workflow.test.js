@@ -6,7 +6,10 @@ import { ApiClient } from '../../scripts/api-client.js';
 
 let srv, base, A, B, admin, mgr, dev, dev2, cust, otherCust, bAdmin, project, contoso, fabrikam, task1, task2, secretTask, ticket;
 const today = new Date().toISOString().slice(0, 10);
-const plus = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+// Dates are counted from the next Wednesday (today when it is one), so expectations never land on a weekend
+// that the scheduler would move to Monday, whatever day the tests run.
+const BASE = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + ((3 - d.getUTCDay() + 7) % 7)); return d; })();
+const plus = (n) => { const d = new Date(BASE); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
 beforeAll(async () => {
   await resetDb();

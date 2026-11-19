@@ -124,6 +124,34 @@ r.get('/workload/weeks', async (req, res) => {
     method: 'Each cell = remaining estimate of open tasks spread over their planned working days, against that week\'s capacity (weekly hours × working days). Over 100% means the person is overbooked that week.' });
 });
 
+// Project delivery for the staff dashboard, across the active projects the user can see:
+// tasks planned to finish vs actually finished per week (last 8 weeks), on-time rate, status mix, coming milestones.
+async function deliveryStats(a, today) {
+  const projects = await prisma.project.findMany({ where: { ...visibleProjectsWhere(a), status: { in: ['ACTIVE', 'ON_HOLD'] } }, select: { id: true, code: true } });
+  const pcode = new Map(projects.map((p) => [p.id, p.code]));
+  const items = projects.length ? await prisma.workItem.findMany({ where: { projectId: { in: [...pcode.keys()] }, type: { not: 'MODULE' } },
+    select: { id: true, projectId: true, title: true, type: true, status: true, plannedFinish: true, actualFinish: true } }) : [];
+  const first = addDays(weekStartOf(today), -7 * 7);
+  const weeks = [...Array(8)].map((_, i) => ({ week: addDays(first, i * 7), planned: 0, done: 0, onTime: 0 }));
+  const status = { TODO: 0, IN_PROGRESS: 0, IN_REVIEW: 0, BLOCKED: 0, DONE: 0 };
+  const milestones = [];
+  let overdue = 0;
+  for (const i of items) {
+    if (i.status === 'CANCELLED') continue;
+    if (status[i.status] != null) status[i.status] += 1;
+    const pf = fmtDate(i.plannedFinish); const af = fmtDate(i.actualFinish);
+    if (pf && pf >= first) { const w = weeks[Math.floor((Date.parse(pf) - Date.parse(first)) / 604800000)]; if (w) w.planned += 1; }
+    if (i.status === 'DONE' && af && af >= first) {
+      const w = weeks[Math.floor((Date.parse(af) - Date.parse(first)) / 604800000)];
+      if (w) { w.done += 1; if (pf && af <= pf) w.onTime += 1; }
+    }
+    if (i.status !== 'DONE' && pf && pf < today) overdue += 1;
+    if (i.type === 'MILESTONE' && i.status !== 'DONE' && pf && pf <= addDays(today, 30)) milestones.push({ id: i.id, projectId: i.projectId, projectCode: pcode.get(i.projectId), title: i.title, date: pf, overdue: pf < today });
+  }
+  const done = weeks.reduce((s, w) => s + w.done, 0); const onTime = weeks.reduce((s, w) => s + w.onTime, 0);
+  return { weeks, status, overdue, onTimeRate: done ? onTime / done : null, milestones: milestones.sort((x, y) => x.date.localeCompare(y.date)) };
+}
+
 r.get('/dashboard', async (req, res) => {
   const a = req.auth;
   const today = iso(new Date());
@@ -158,6 +186,7 @@ r.get('/dashboard', async (req, res) => {
     timesheet: { weekStart: ws, status: sheet?.status ?? 'DRAFT', hours: (sheet?.entries ?? []).reduce((s, e) => s + Number(e.hours), 0) },
     myTickets: myTickets.map((t) => ({ id: t.id, number: t.number, subject: t.subject, status: t.status, priority: t.priority })), unreadMentions: mentions, unreadNotifications: unread,
   };
+  employee.delivery = await deliveryStats(a, today);
   if (a.orgRole === 'EMPLOYEE') return res.json({ kind: 'employee', ...employee });
   const pf = await portfolio(a);
   const wl = await workload(a, ws, addDays(ws, 13));
