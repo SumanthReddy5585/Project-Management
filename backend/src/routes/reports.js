@@ -274,12 +274,16 @@ r.get('/activity/recent', async (req, res) => {
 r.get('/reports/time-summary', async (req, res) => {
   const a = req.auth;
   requireOrg(a, 'reports.portfolio');
-  const q = parse(z.object({ weeks: z.coerce.number().int().min(1).max(26).default(8) }), req.query);
+  // scope=active: only time on projects that are still running (draft, active, on hold) — what the dashboard shows
+  const q = parse(z.object({ weeks: z.coerce.number().int().min(1).max(26).default(8), scope: z.enum(['all', 'active']).default('all') }), req.query);
   const thisWeek = weekStartOf(iso(new Date()));
   const from = addDays(thisWeek, -(q.weeks - 1) * 7); const to = addDays(thisWeek, 6);
-  const visible = await prisma.project.findMany({ where: visibleProjectsWhere(a), select: { id: true, code: true, name: true } });
-  const managed = a.orgRole === 'ADMIN' ? visible.map((p) => p.id) : (await prisma.projectMember.findMany({ where: { userId: a.userId, role: { in: ['MANAGER', 'DIRECTOR'] } }, select: { projectId: true } })).map((m) => m.projectId);
-  const rows = await prisma.timeEntry.findMany({ where: { organizationId: a.orgId, date: { gte: toDate(from), lte: toDate(to) }, OR: [{ userId: a.userId }, { projectId: { in: managed } }] },
+  const visible = await prisma.project.findMany({ where: visibleProjectsWhere(a), select: { id: true, code: true, name: true, status: true } });
+  const running = new Set(visible.filter((p) => ['DRAFT', 'ACTIVE', 'ON_HOLD'].includes(p.status)).map((p) => p.id));
+  let managed = a.orgRole === 'ADMIN' ? visible.map((p) => p.id) : (await prisma.projectMember.findMany({ where: { userId: a.userId, role: { in: ['MANAGER', 'DIRECTOR'] } }, select: { projectId: true } })).map((m) => m.projectId);
+  if (q.scope === 'active') managed = managed.filter((id) => running.has(id));
+  const rows = await prisma.timeEntry.findMany({ where: { organizationId: a.orgId, date: { gte: toDate(from), lte: toDate(to) },
+    ...(q.scope === 'active' && { projectId: { in: [...running] } }), OR: [{ userId: a.userId }, { projectId: { in: managed } }] },
     select: { userId: true, projectId: true, date: true, hours: true, billable: true } });
   const weeks = [...Array(q.weeks)].map((_, i) => addDays(from, i * 7));
   const wk = Object.fromEntries(weeks.map((w) => [w, { week: w, billable: 0, nonBillable: 0 }]));

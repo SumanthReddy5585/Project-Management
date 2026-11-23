@@ -309,7 +309,7 @@ function ProjectKpis({ ps, d, time, manager }) {
         {late.length > 0 && <div className="hbars">{late.slice(0, 2).map((p) => <div key={p.id} title={`${p.name}: ${p.counts.overdue} late`}><span className="truncate">{p.code}</span><i><b style={{ width: `${(p.counts.overdue / lateMax) * 100}%` }} /></i><em>{p.counts.overdue}</em></div>)}</div>}
       </Kpi>
       {manager ? (
-        <Kpi to="/time" icon={Timer} tone="amber" label="Hours logged" period="8 weeks">
+        <Kpi to="/time" icon={Timer} tone="amber" label="Hours logged" period="8 weeks · active projects">
           <div className="k-row">{tw.length ? <><div><div className="k-val">{Math.round(time.totals.hours).toLocaleString()}<small>h</small></div><span className="delta flat">{Math.round((time.totals.billable / Math.max(1, time.totals.hours)) * 100)}% billable</span></div>
             <Bars data={tw.map((w) => fmt1(w.billable + w.nonBillable))} from="#fcd34d" to="#f59e0b" labels={tw.map((w) => `Week of ${dayLbl(w.week)}`)} unit=" h" /></> : <div className="k-val">—</div>}</div>
         </Kpi>
@@ -526,7 +526,7 @@ export default function StaffDashboard() {
   const dash = useLoad(() => get('/dashboard'), []);
   const projects = useLoad(() => get('/projects', { status: 'ACTIVE,ON_HOLD,DRAFT', pageSize: 50, sort: 'plannedFinish', dir: 'asc' }), []);
   const stats = useLoad(() => get('/tickets/stats'), []);
-  const time = useLoad(() => (manager ? get('/reports/time-summary', { weeks: 8 }) : Promise.resolve(null)), [manager]);
+  const time = useLoad(() => (manager ? get('/reports/time-summary', { weeks: 8, scope: 'active' }) : Promise.resolve(null)), [manager]);
   useLive((e) => e.type === 'work.changed', () => { dash.reload({ silent: true }); projects.reload({ silent: true }); });
   useLive((e) => e.type.startsWith('ticket'), () => stats.reload({ silent: true }));
   const ps = useMemo(() => projects.data?.data || [], [projects.data]);

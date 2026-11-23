@@ -402,6 +402,18 @@ describe('dashboard activity feed and time report', () => {
     expect(Math.round(sum * 10) / 10).toBe(t.totals.hours);
     expect(t.byProject.reduce((s, p) => s + p.hours, 0)).toBeCloseTo(t.totals.hours, 1);
   });
+  it('scope=active leaves out time on finished projects (dashboard)', async () => {
+    const all = await admin.get('/api/reports/time-summary?weeks=4');
+    const top = all.byProject[0];
+    expect(top?.hours).toBeGreaterThan(0);
+    const before = await prisma.project.findUnique({ where: { id: top.id } });
+    await prisma.project.update({ where: { id: top.id }, data: { status: 'COMPLETED' } });
+    try {
+      const act = await admin.get('/api/reports/time-summary?weeks=4&scope=active');
+      expect(act.byProject.find((p) => p.id === top.id)).toBeUndefined();
+      expect(act.totals.hours).toBeCloseTo(all.totals.hours - top.hours, 1);
+    } finally { await prisma.project.update({ where: { id: top.id }, data: { status: before.status } }); }
+  });
 });
 
 describe('plan builder: sub-tasks', () => {
