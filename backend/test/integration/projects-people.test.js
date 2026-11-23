@@ -1,15 +1,18 @@
 // People administration and project-management additions: admin-created users with designation,
 // forced first password change, project team roles at creation, duplicate, save-as-template, burn-up.
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { resetDb, startServer, makeOrg, login, expectStatus, prisma } from './helpers.js';
 import { ApiClient } from '../../scripts/api-client.js';
 
 let srv, base, A, admin, created, pm, dev, project;
-const today = new Date().toISOString().slice(0, 10);
 // Dates are counted from the next Wednesday (today when it is one), so expectations never land on a weekend
-// that the scheduler would move to Monday, whatever day the tests run.
-const BASE = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + ((3 - d.getUTCDay() + 7) % 7)); return d; })();
+// that the scheduler would move to Monday, whatever day the tests run. The clock is set to that Wednesday
+// (a project cannot start in the future, so "today" has to be the base date).
+const BASE = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + ((3 - d.getUTCDay() + 7) % 7)); d.setUTCHours(10, 0, 0, 0); return d; })();
+vi.useFakeTimers({ toFake: ['Date'], now: BASE });
 const plus = (n) => { const d = new Date(BASE); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const today = plus(0);
+const approve = (id) => prisma.project.update({ where: { id }, data: { planApprovedAt: new Date() } });
 
 beforeAll(async () => {
   await resetDb();
@@ -59,10 +62,11 @@ describe('projects', () => {
   });
   it('duplicates the plan to a new start date and saves it as a template', async () => {
     const t = await pm.post(`/api/projects/${project.id}/work-items`, { type: 'TASK', title: 'Build API', plannedStart: plus(2), plannedFinish: plus(6), assigneeId: dev.userId, estimateHours: 8 });
-    const copy = await pm.post(`/api/projects/${project.id}/clone`, { name: 'Apollo 2', code: 'APL2', plannedStart: plus(14), includeTeam: true });
+    await expectStatus(pm.post(`/api/projects/${project.id}/clone`, { name: 'Apollo 2', code: 'APL2', plannedStart: plus(14), includeTeam: true }), 400); // no future start
+    const copy = await pm.post(`/api/projects/${project.id}/clone`, { name: 'Apollo 2', code: 'APL2', plannedStart: plus(-14), includeTeam: true });
     const items = await pm.get(`/api/projects/${copy.id}/work-items?all=true`);
     const built = items.data.find((i) => i.title === 'Build API');
-    expect(built.plannedStart).toBe(plus(16));
+    expect(built.plannedStart).toBe(plus(-12));
     expect(built.assigneeId).toBeNull();
     const cd = await pm.get(`/api/projects/${copy.id}`);
     expect(cd.status).toBe('DRAFT');
@@ -110,6 +114,8 @@ describe('planning tools', () => {
   it('returns logged hours per task and a weekly resource plan', async () => {
     const items = (await pm.get(`/api/projects/${project.id}/work-items?all=true`)).data;
     const api = items.find((i) => i.title === 'Card API');
+    await expectStatus(dev.post('/api/time/entries', { projectId: project.id, workItemId: api.id, date: today, hours: 3 }), 400); // plan not approved yet
+    await approve(project.id);
     await dev.post('/api/time/entries', { projectId: project.id, workItemId: api.id, date: today, hours: 3 });
     const again = (await pm.get(`/api/projects/${project.id}/work-items?all=true`)).data.find((i) => i.id === api.id);
     expect(again.loggedHours).toBe(3);
@@ -133,13 +139,22 @@ describe('planning tools', () => {
 
 describe('original plan: the manager builds it, the director approves and locks it', () => {
   let P; let dir;
+  const dina = (d) => d.userId;
   it('creates a project director who is not the project manager', async () => {
-    const d = await admin.post('/api/org/members', { name: 'Dina Director', email: 'dina@ppl.test', title: 'Delivery Director', role: 'MANAGER' });
+    const d = await admin.post('/api/org/members', { name: 'Dina Director', email: 'dina@ppl.test', title: 'Delivery Director', role: 'MANAGER', projectDirector: true });
+    expect((await admin.get('/api/org/members?q=dina')).data[0]).toMatchObject({ projectDirector: true, projectManager: false });
+    expect((await admin.get('/api/org/members?q=paula')).data[0]).toMatchObject({ projectDirector: false, projectManager: true });
     dir = new ApiClient(base); await dir.login('dina@ppl.test', d.temporaryPassword); dir.userId = d.userId;
     await dir.post('/api/auth/password/change', { currentPassword: d.temporaryPassword, newPassword: 'Dina-password-33' });
     const me = await pm.get('/api/auth/me');
     await expectStatus(pm.post('/api/projects', { name: 'Same', code: 'SME', managerId: me.user.id, directorId: me.user.id, plannedStart: today, plannedFinish: plus(10) }), 400);
     await expectStatus(pm.post('/api/projects', { name: 'Dev dir', code: 'DVD', managerId: me.user.id, directorId: dev.userId, plannedStart: today, plannedFinish: plus(10) }), 400);
+    // only designated directors can direct, and a director is not offered as a project manager
+    const notDir = await expectStatus(admin.post('/api/projects', { name: 'PM dir', code: 'PMD', managerId: dina(d), directorId: me.user.id, plannedStart: today, plannedFinish: plus(10) }), 400);
+    expect(notDir.error.message).toMatch(/project director/i);
+    const e2 = await expectStatus(admin.post('/api/projects', { name: 'PM dir', code: 'PMD', managerId: A.adminId, directorId: me.user.id, plannedStart: today, plannedFinish: plus(10) }), 400);
+    expect(e2.error.message).toMatch(/not a project director/i);
+    await expectStatus(pm.post('/api/projects', { name: 'Later', code: 'LTR', managerId: me.user.id, directorId: d.userId, plannedStart: plus(1), plannedFinish: plus(10) }), 400); // no future start
   });
   it('refuses an empty or undated plan, goes through submit / send back / approve, and locks it', async () => {
     const me = await pm.get('/api/auth/me');
@@ -199,7 +214,6 @@ describe('original plan: the manager builds it, the director approves and locks 
     expect(dec.status).toBe('APPROVED');
     // internal document: uploaded by the manager, approved by the director
     const doc = await pm.post(`/api/projects/${P.id}/deliverables`, { name: 'Design spec' });
-    await pm.post(`/api/projects/${P.id}/deliverables/${doc.id}/versions`, { note: 'v1' });
     const v = await prisma.deliverableVersion.findFirst({ where: { deliverableId: doc.id } });
     const org = (await prisma.project.findUnique({ where: { id: P.id } })).organizationId;
     await prisma.fileObject.create({ data: { organizationId: org, projectId: P.id, deliverableVersionId: v.id, originalName: 'spec.pdf', storageKey: `test/${v.id}/spec.pdf`, mimeType: 'application/pdf', size: 10, sha256: 'a'.repeat(64), uploadedById: (await pm.get('/api/auth/me')).user.id } });
@@ -309,7 +323,7 @@ describe('plan builder: durations, "starts after", parallel work and automatic d
   let P; let ids = {};
   const isWD = (iso) => ![0, 6].includes(new Date(`${iso}T00:00:00Z`).getUTCDay());
   const addWD = (iso, n) => { const d = new Date(`${iso}T00:00:00Z`); let k = n; while (k > 0) { d.setUTCDate(d.getUTCDate() + 1); if (isWD(d.toISOString().slice(0, 10))) k--; } return d.toISOString().slice(0, 10); };
-  const start = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() + 21); while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+  const start = (() => { const d = new Date(); d.setUTCDate(d.getUTCDate() - 21); while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); })();
   const rows = async () => Object.fromEntries((await pm.get(`/api/projects/${P.id}/plan-items`)).rows.map((r) => [r.title, r]));
   it('a new project with simple stages has no preset milestones', async () => {
     const me = await pm.get('/api/auth/me');
@@ -417,25 +431,66 @@ describe('dashboard activity feed and time report', () => {
 });
 
 describe('plan builder: sub-tasks', () => {
-  it('adds sub-tasks under a task; the task spans them and its links apply to them', async () => {
+  it('adds sub-tasks inside a task: they get their own dates within the task, one after another or in parallel', async () => {
     const me = await pm.get('/api/auth/me');
     const Q = await pm.post('/api/projects', { name: 'Subs', code: 'SUB', managerId: me.user.id, plannedStart: plus(0), plannedFinish: plus(60), team: [{ userId: dev.userId, role: 'MEMBER' }] });
     const url = `/api/projects/${Q.id}/plan-items`;
     const a = (await pm.post(url, { title: 'Analysis', durationDays: 3 })).item;
     const t = (await pm.post(url, { title: 'Build', durationDays: 5, after: [a.id], assigneeId: dev.userId })).item;
     const s1 = (await pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'API', durationDays: 2 })).item;
-    const s2 = (await pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'UI', durationDays: 4, after: [s1.id] })).item;
+    const s2 = (await pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'UI', durationDays: 3, after: [s1.id] })).item;
+    const s3 = (await pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'Docs', durationDays: 1 })).item; // in parallel
     expect(s1.assigneeId).toBe(dev.userId); // takes the task's owner unless one is chosen
-    const plan = await pm.get(url);
+    let plan = await pm.get(url);
     const row = (id) => plan.rows.find((r) => r.id === id);
-    expect(row(t.id).isParent).toBe(true);
-    expect(row(s1.id)).toMatchObject({ type: 'SUBTASK', parentId: t.id });
-    expect(row(s1.id).start > row(a.id).finish).toBe(true); // the task waits for Analysis, so its sub-tasks do too
+    expect(row(t.id)).toMatchObject({ isParent: true, durationDays: 5 }); // the task keeps its own length
+    expect(row(s1.id)).toMatchObject({ type: 'SUBTASK', parentId: t.id, start: row(t.id).start, durationDays: 2 });
+    expect(row(t.id).start > row(a.id).finish).toBe(true); // the task waits for Analysis, so its sub-tasks do too
     expect(row(s2.id).start > row(s1.id).finish).toBe(true);
-    expect(row(t.id)).toMatchObject({ start: row(s1.id).start, finish: row(s2.id).finish }); // the task spans its sub-tasks
+    expect(row(s2.id).finish).toBe(row(t.id).finish); // 2 + 3 days fill the 5-day task exactly
+    expect(row(s3.id).start).toBe(row(t.id).start);
+    // sub-tasks must fit inside the task
+    const over = await expectStatus(pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'Too long', durationDays: 2, after: [s2.id] }), 400);
+    expect(over.error.message).toMatch(/sub-tasks of “Build” would need until/);
+    await expectStatus(pm.patch(`${url}/${s2.id}`, { durationDays: 4, version: row(s2.id).version }), 400);
+    await expectStatus(pm.patch(`${url}/${t.id}`, { durationDays: 4, version: row(t.id).version }), 400);
+    await pm.patch(`${url}/${t.id}`, { durationDays: 6, version: row(t.id).version });
+    plan = await pm.get(url);
+    await pm.patch(`${url}/${s2.id}`, { durationDays: 4, version: row(s2.id).version });
+    plan = await pm.get(url);
+    expect(row(s2.id).finish).toBe(row(t.id).finish);
+    // a sub-task waits only for other sub-tasks of its task; a task never waits for its own sub-tasks
+    await expectStatus(pm.patch(`${url}/${s3.id}`, { after: [a.id], version: row(s3.id).version }), 400);
+    await expectStatus(pm.patch(`${url}/${t.id}`, { after: [s1.id], version: row(t.id).version }), 400);
     await expectStatus(pm.post(url, { type: 'SUBTASK', parentId: s1.id, title: 'Too deep' }), 400);
     await expectStatus(pm.post(url, { type: 'SUBTASK', title: 'No task' }), 400);
     await expectStatus(pm.post(url, { type: 'SUBTASK', parentId: t.id, title: 'Loop', after: [t.id] }), 400);
     await expectStatus(dev.post(url, { type: 'SUBTASK', parentId: t.id, title: 'Not mine to plan' }), 403);
+  });
+});
+
+describe('until the plan is approved, and deleting a project', () => {
+  it('keeps work, time and the project start locked until the director approves the plan', async () => {
+    const me = await pm.get('/api/auth/me');
+    const L = await pm.post('/api/projects', { name: 'Locked', code: 'LCK', managerId: me.user.id, plannedStart: plus(0), plannedFinish: plus(30), team: [{ userId: dev.userId, role: 'MEMBER' }] });
+    const t = (await pm.post(`/api/projects/${L.id}/plan-items`, { title: 'Work', durationDays: 2, assigneeId: dev.userId })).item;
+    const msg = await expectStatus(dev.patch(`/api/projects/${L.id}/work-items/${t.id}`, { status: 'IN_PROGRESS', version: t.version }), 400);
+    expect(msg.error.message).toMatch(/plan is approved/);
+    await expectStatus(pm.post(`/api/projects/${L.id}/work-items/bulk`, { ids: [t.id], patch: { status: 'DONE' } }), 400);
+    await expectStatus(pm.post(`/api/projects/${L.id}/status`, { status: 'ACTIVE', version: (await pm.get(`/api/projects/${L.id}`)).version }), 400);
+    await approve(L.id);
+    await pm.post(`/api/projects/${L.id}/status`, { status: 'ACTIVE', version: (await pm.get(`/api/projects/${L.id}`)).version });
+    const cur = (await pm.get(`/api/projects/${L.id}/work-items?all=true`)).data.find((i) => i.id === t.id);
+    await dev.patch(`/api/projects/${L.id}/work-items/${t.id}`, { status: 'IN_PROGRESS', version: cur.version });
+  });
+  it('lets only an administrator delete a project, after typing its code, including its locked original plan', async () => {
+    const orion = (await admin.get('/api/projects?q=ORN')).data[0];
+    expect(orion.planApprovedAt).toBeTruthy();
+    await expectStatus(pm.del(`/api/projects/${orion.id}`, { confirmCode: 'ORN' }), 403);
+    await expectStatus(admin.del(`/api/projects/${orion.id}`, { confirmCode: 'NOPE' }), 400);
+    const r = await admin.del(`/api/projects/${orion.id}`, { confirmCode: 'orn' });
+    expect(r).toMatchObject({ deleted: true, code: 'ORN' });
+    await expectStatus(admin.get(`/api/projects/${orion.id}`), 404);
+    expect(await prisma.baseline.count({ where: { projectId: orion.id } })).toBe(0);
   });
 });

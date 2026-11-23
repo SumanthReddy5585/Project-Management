@@ -13,7 +13,7 @@ export const ORG_CAPS = {
   'directory.view': ALL_INTERNAL,
   'project.create': ['ADMIN', 'MANAGER'],
   'ticket.create': ['ADMIN', 'MANAGER', 'EMPLOYEE', 'CUSTOMER'],
-  'ticket.viewAll': ALL_INTERNAL, // every internal user works the shared support queue
+  'ticket.viewAll': ['ADMIN'], // others see tickets project by project (see ticketsWhere)
   'ticket.work': ALL_INTERNAL, // assign, internal notes, status changes
   'workload.view': ['ADMIN', 'MANAGER'],
   'reports.portfolio': ['ADMIN', 'MANAGER'], // managers: only projects they can access

@@ -12,7 +12,9 @@ r.get('/', (req, res) => {
   if (open >= MAX) return res.status(503).json({ error: { code: 'BUSY', message: 'Too many live connections' } });
   open++;
   const auth = req.auth;
-  const canViewAllTickets = orgCan(auth, 'ticket.viewAll');
+  // events carry ids only and clients re-fetch through the permission-checked APIs, so every internal user
+  // may hear that a ticket changed (lists then show only the tickets of their projects)
+  const canViewAllTickets = orgCan(auth, 'ticket.viewAll') || !auth.isCustomer;
   res.set({ 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
   res.flushHeaders?.();
   res.write('retry: 5000\n\n');

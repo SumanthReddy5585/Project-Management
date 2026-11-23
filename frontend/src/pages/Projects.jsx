@@ -85,19 +85,22 @@ export function NewProjectDialog({ onClose }) {
   const [busy, setBusy] = useState(false);
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v?.target ? v.target.value : v }));
   const internal = members.filter((m) => m.role !== 'CUSTOMER' && m.status === 'ACTIVE');
-  const managers = internal.filter((m) => ['ADMIN', 'MANAGER'].includes(m.role));
+  // only project managers in the manager list, only designated project directors in the director list
+  const managers = internal.filter((m) => m.projectManager);
+  const managerId = managers.some((m) => m.userId === f.managerId) ? f.managerId : '';
   const contacts = members.filter((m) => m.role === 'CUSTOMER' && m.status === 'ACTIVE' && m.customerCompany?.id === f.customerCompanyId);
   const chosenContacts = f.customerContactIds ?? contacts.map((c) => c.userId);
   const tpl = templates.find((t) => t.id === f.templateId);
-  const directors = managers.filter((m) => m.userId !== f.managerId);
-  const detailsOk = f.name.trim().length >= 2 && f.plannedFinish >= f.plannedStart && f.managerId && (directors.length ? f.directorId && f.directorId !== f.managerId : true);
+  const directors = internal.filter((m) => m.projectDirector && m.userId !== managerId);
+  const today = todayISO();
+  const detailsOk = f.name.trim().length >= 2 && f.plannedStart <= today && f.plannedFinish >= f.plannedStart && managerId && (directors.length ? f.directorId && f.directorId !== managerId : true);
   const submit = async () => {
     setErr(null); setBusy(true);
     const base = f.code || codeFrom(f.name);
-    const body = { name: f.name.trim(), managerId: f.managerId, directorId: f.directorId || null, plannedStart: f.plannedStart, plannedFinish: f.plannedFinish, status: 'DRAFT', priority: f.priority,
+    const body = { name: f.name.trim(), managerId, directorId: f.directorId || null, plannedStart: f.plannedStart, plannedFinish: f.plannedFinish, status: 'DRAFT', priority: f.priority,
       description: f.description || null, objectives: f.objectives || null,
       customerCompanyId: f.customerCompanyId || null, customerVisible: Boolean(f.customerCompanyId && f.share), customerContactIds: f.customerCompanyId ? chosenContacts : [],
-      team: Object.entries(team).filter(([id]) => id !== f.managerId && id !== f.directorId).map(([userId, t]) => ({ userId, ...t })), templateId: f.templateId || null,
+      team: Object.entries(team).filter(([id]) => id !== managerId && id !== f.directorId).map(([userId, t]) => ({ userId, ...t })), templateId: f.templateId || null,
       ...(f.budgetAmount && { budgetAmount: Number(f.budgetAmount), budgetCurrency: f.budgetCurrency }),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC' };
     try {
@@ -117,7 +120,7 @@ export function NewProjectDialog({ onClose }) {
       {step === 'review' && <button className="btn btn-primary" disabled={busy} onClick={submit}>{busy ? 'Creating…' : 'Create project & build plan'}</button>}
     </>
   );
-  const mgrName = internal.find((m) => m.userId === f.managerId)?.name;
+  const mgrName = internal.find((m) => m.userId === managerId)?.name;
   const dirName = internal.find((m) => m.userId === f.directorId)?.name;
   return (
     <Modal open size="lg" onClose={onClose} title="New project" footer={footer}>
@@ -128,10 +131,10 @@ export function NewProjectDialog({ onClose }) {
           <div className="row">
             <div className="col-md-8"><Field label="Project name" error={fe.name}>{(id) => <input id={id} className="form-control" placeholder="e.g. Customer portal rollout" value={f.name} onChange={set('name')} autoFocus />}</Field></div>
             <div className="col-md-4"><Field label="Short code" hint="Used in task numbers" error={fe.code}>{(id) => <input id={id} className="form-control text-uppercase" maxLength={10} placeholder={f.name ? codeFrom(f.name) : 'CPR'} value={f.code} onChange={(e) => set('code')(e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase())} />}</Field></div>
-            <div className="col-md-6"><Field label="Project director" hint="Approves the plan, documents and change requests" error={f.directorId && f.directorId === f.managerId ? 'Must be different from the project manager' : undefined}>{(id) => <Select id={id} value={f.directorId} onChange={set('directorId')} placeholder={directors.length ? 'Choose the director' : 'No other manager yet — add one in Settings → Users'} disabled={!directors.length} options={directors.map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user.id ? ' (you)' : ''}${m.title ? ` — ${m.title}` : ''}` }))} />}</Field></div>
-            <div className="col-md-6"><Field label="Project manager" hint="Builds the plan, runs the team and approves their time">{(id) => <Select id={id} value={f.managerId} onChange={(v) => setF((x) => ({ ...x, managerId: v, directorId: x.directorId === v ? '' : x.directorId }))} disabled={role !== 'ADMIN' && managers.length <= 1} options={managers.map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user.id ? ' (you)' : ''}${m.title ? ` — ${m.title}` : ''}` }))} />}</Field></div>
+            <div className="col-md-6"><Field label="Project director" hint="Approves the plan, documents and change requests" error={f.directorId && f.directorId === f.managerId ? 'Must be different from the project manager' : undefined}>{(id) => <Select id={id} value={f.directorId} onChange={set('directorId')} placeholder={directors.length ? 'Choose the director' : 'No project directors yet — an admin marks them in Settings → Users & roles'} disabled={!directors.length} options={directors.map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user.id ? ' (you)' : ''}${m.title ? ` — ${m.title}` : ''}` }))} />}</Field></div>
+            <div className="col-md-6"><Field label="Project manager" hint="Builds the plan, runs the team and approves their time">{(id) => <Select id={id} value={managerId} placeholder={managers.length ? 'Choose the project manager' : 'No project managers yet — add one in Settings → Users & roles'} onChange={(v) => setF((x) => ({ ...x, managerId: v, directorId: x.directorId === v ? '' : x.directorId }))} disabled={!managers.length || (role !== 'ADMIN' && managers.length <= 1)} options={managers.map((m) => ({ value: m.userId, label: `${m.name}${m.userId === user.id ? ' (you)' : ''}${m.title ? ` — ${m.title}` : ''}` }))} />}</Field></div>
             <div className="col-md-6"><Field label="Client" hint="Leave empty for an internal project">{(id) => <Select id={id} value={f.customerCompanyId} onChange={(v) => setF((x) => ({ ...x, customerCompanyId: v || '', customerContactIds: null }))} placeholder="Internal project" options={customers.map((c) => ({ value: c.id, label: c.name }))} />}</Field></div>
-            <div className="col-6 col-md-3"><Field label="Start date">{(id) => <input id={id} type="date" className="form-control" value={f.plannedStart} onChange={set('plannedStart')} />}</Field></div>
+            <div className="col-6 col-md-3"><Field label="Start date" hint="Today or earlier" error={f.plannedStart > today ? 'The start date cannot be in the future' : undefined}>{(id) => <input id={id} type="date" className="form-control" value={f.plannedStart} max={today} onChange={set('plannedStart')} />}</Field></div>
             <div className="col-6 col-md-3"><Field label="Target finish" hint="Rough guess is fine — the end date follows your tasks" error={f.plannedFinish < f.plannedStart ? 'Must be after the start' : fe.plannedFinish}>{(id) => <input id={id} type="date" className="form-control" value={f.plannedFinish} min={f.plannedStart} onChange={set('plannedFinish')} />}</Field></div>
             <div className="col-6 col-md-3"><Field label="Priority">{(id) => <Select id={id} value={f.priority} onChange={set('priority')} options={[['LOW', 'Low'], ['MEDIUM', 'Normal'], ['HIGH', 'High'], ['CRITICAL', 'Critical']].map(([v, l]) => ({ value: v, label: l }))} />}</Field></div>
             <div className="col-6 col-md-3"><Field label="Budget (optional)">{(id) => <div className="input-group"><input id={id} type="number" min="0" className="form-control" value={f.budgetAmount} onChange={set('budgetAmount')} /><select className="form-select" style={{ maxWidth: 82 }} value={f.budgetCurrency} onChange={set('budgetCurrency')} aria-label="Currency">{['USD', 'EUR', 'GBP', 'INR', 'AED', 'OMR', 'SAR'].map((c) => <option key={c}>{c}</option>)}</select></div>}</Field></div>
@@ -143,7 +146,7 @@ export function NewProjectDialog({ onClose }) {
       ) : step === 'team' ? (
         <>
           <p className="small text-muted mb-2">Pick the resources who will work on <strong>{f.name}</strong>. <strong>{dirName}</strong> is the project director and <strong>{mgrName}</strong> is the project manager.</p>
-          <TeamPicker people={internal.filter((m) => m.userId !== f.directorId)} team={team} setTeam={setTeam} managerId={f.managerId} workload={workload} />
+          <TeamPicker people={internal.filter((m) => m.userId !== f.directorId)} team={team} setTeam={setTeam} managerId={managerId} workload={workload} />
           {f.customerCompanyId && contacts.length > 0 && <div className="mt-3"><div className="form-label">Client contacts who can follow the project</div>
             <div className="d-flex flex-wrap gap-2">{contacts.map((c) => { const on = chosenContacts.includes(c.userId); return (
               <label key={c.userId} className={`btn btn-sm ${on ? 'btn-outline-primary' : 'btn-light'}`}><input type="checkbox" className="visually-hidden" checked={on} onChange={() => set('customerContactIds')(on ? chosenContacts.filter((x) => x !== c.userId) : [...chosenContacts, c.userId])} /><Avatar sm name={c.name} /> {c.name}</label>); })}</div></div>}

@@ -1,6 +1,6 @@
 # O2 Support Hub - Database structure
 
-PostgreSQL schema `public` · 45 tables · 17 enum types · 62 foreign keys · 56 indexes · 6 migrations · generated 2026-11-19
+PostgreSQL schema `public` · 45 tables · 17 enum types · 62 foreign keys · 56 indexes · 7 migrations · generated 2026-11-23
 
 All primary keys are UUIDs. Timestamps are `timestamptz` (UTC); plain dates are `date`. Every business table is scoped to an organisation, directly or through its project. The original (approved) plan is protected by the trigger `o2_protect_original_baseline` on `Baseline` and `BaselineItem`. Columns ending in `Id` without an arrow (for example `assigneeId`, `createdById`) point to a row in another table — usually `User` — and are checked by the application rather than by a database foreign key. The authoritative model definition is `prisma/schema.prisma`; the SQL history is in `prisma/migrations/`.
 
@@ -122,6 +122,7 @@ Applied automatically, in order, by `scripts/db-migrate.js` on every start (alre
 1. `20261118200000_original_plan`
 1. `20261119000000_auto_schedule`
 1. `20261120000000_project_director`
+1. `20261123000000_designations_project_delete`
 
 ## Organisation, users and security
 
@@ -178,6 +179,7 @@ A user's role in an organisation (ADMIN, MANAGER, EMPLOYEE, CUSTOMER) and status
 | `status` | MembershipStatus | no | `'ACTIVE'::"MembershipStatus"` |  |
 | `customerCompanyId` | uuid | yes |  | → `CustomerCompany.id` (on delete set null) |
 | `createdAt` | timestamptz | no | `CURRENT_TIMESTAMP` |  |
+| `projectDirector` | boolean | no | `false` |  |
 
 Indexes: ("organizationId", role); unique ("organizationId", "userId")
 

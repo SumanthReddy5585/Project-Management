@@ -4,10 +4,14 @@ import { test, expect } from '@playwright/test';
 const PW = process.env.E2E_PASSWORD || 'Demo-pass-2026';
 const code = `E${Date.now().toString(36).slice(-6).toUpperCase()}`;
 
-/** Open a project section: a visible tab, or an entry under "More". */
+/** Open a project section: a visible tab, a task view under "Tasks", or an entry under "More". */
 async function projectTab(page, name) {
   const nav = page.locator('nav.proj-tabs');
   await nav.getByRole('link', { name: 'Summary' }).waitFor();
+  if (['List', 'Timeline', 'Board', 'Calendar'].includes(name)) {
+    await nav.getByRole('link', { name: 'Tasks', exact: true }).click();
+    return page.locator('nav.task-views').getByRole('link', { name, exact: true }).click();
+  }
   const link = nav.getByRole('link', { name });
   if (await link.count()) return link.first().click();
   await nav.locator('.more-wrap > button').click();
@@ -45,37 +49,50 @@ test.describe.serial('manager → client → request workflow', () => {
 
     // build the plan in the simple builder: name · who · days · starts after — dates are calculated
     await expect(page.locator('.pb-stage-name').first()).toContainText('Plan');
-    const addIn = async (title, days, { parallel = false, milestone = false } = {}) => {
+    const addIn = async (title, days, { parallel = false } = {}) => {
       const row = page.locator('.pb-stage').first().locator('tr.pb-add');
-      if (milestone) await row.getByRole('button', { name: /Milestone/ }).click();
       await row.getByLabel(/^New task in/).fill(title);
-      if (!milestone) { await row.getByLabel('Who does the new task').selectOption({ index: 1 }); await row.getByLabel('Working days for the new task').fill(String(days)); }
+      await row.getByLabel('Who does the new task').selectOption({ index: 1 }); await row.getByLabel('Working days for the new task').fill(String(days));
       if (parallel) { await row.getByLabel('What the new task waits for').click(); await page.getByRole('button', { name: /At the same time as the previous task/ }).click(); }
       await row.getByRole('button', { name: 'Add', exact: true }).click();
       await expect(page.locator(`.pb-table input[value="${title}"]`)).toBeVisible();
     };
     await addIn('Shared onboarding task', 3);
     await addIn('Internal pricing review', 2, { parallel: true });
-    await addIn('Onboarding finished', 0, { milestone: true });
+    // milestones are kept apart from the task plan: a name and a date
+    await expect(page.locator('.pb-add').getByRole('button', { name: /Milestone/ })).toHaveCount(0);
+    await page.getByLabel('New milestone name').fill('Onboarding finished');
+    const projStart = await page.getByLabel(/Project start date/).inputValue();
+    const msIso = (() => { const d = new Date(`${projStart}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 21); return d.toISOString().slice(0, 10); })();
+    await page.getByLabel('New milestone date').fill(msIso);
+    await page.getByRole('button', { name: 'Add milestone' }).click();
+    await expect(page.locator('.pb-ms-list input[value="Onboarding finished"]')).toBeVisible();
+    await expect(page.locator('.pb-table input[value="Onboarding finished"]')).toHaveCount(0);
     const startOf = async (title) => page.locator('.pb-table tr', { has: page.locator(`input[value="${title}"]`) }).locator('td.c-date').first().innerText();
     expect(await startOf('Internal pricing review')).toBe(await startOf('Shared onboarding task')); // parallel: same start
     const finishOf = async (title) => page.locator('.pb-table tr', { has: page.locator(`input[value="${title}"]`) }).locator('td.c-date').nth(1).innerText();
-    // the milestone waits for the previous task, so it falls on that task's last day
-    expect(await startOf('Onboarding finished')).toBe(await finishOf('Internal pricing review'));
-    // a longer task gets a later finish; the milestone keeps waiting for the task it follows
+    // a longer task gets a later finish
     const before = await finishOf('Shared onboarding task');
     const days = page.getByLabel(/^Working days for .+-\d+$/).first();
     await days.fill('6'); await days.press('Enter');
     await expect.poll(() => finishOf('Shared onboarding task')).not.toBe(before);
-    expect(await startOf('Onboarding finished')).toBe(await finishOf('Internal pricing review'));
     await expect(page.locator('.pb-summary')).toContainText('Plan ends');
-    // a sub-task under a task: it starts with its task and the task spans it
+    // sub-tasks inside a task: they start with it, one after another, and must fit in its 6 days
     await page.getByLabel(/^Add a sub-task to .+-1$/).click();
-    await page.getByLabel('New sub-task of Shared onboarding task').fill('Welcome pack');
-    await page.getByLabel('New sub-task of Shared onboarding task').press('Enter');
+    const sub = page.getByLabel('New sub-task of Shared onboarding task');
+    await sub.fill('Welcome pack'); await sub.press('Enter');
     await expect(page.locator('.pb-table input[value="Welcome pack"]')).toBeVisible();
-    await expect(page.locator('.pb-summary')).toContainText('1 sub-task');
+    await sub.fill('Kick-off call'); await page.locator('tr.pb-add-sub').getByLabel('Working days for the new task').fill('2'); await sub.press('Enter');
+    await expect(page.locator('.pb-table input[value="Kick-off call"]')).toBeVisible();
+    expect(await startOf('Welcome pack')).toBe(await startOf('Shared onboarding task'));
+    expect(await startOf('Kick-off call') > await startOf('Welcome pack')).toBe(true);
+    await sub.fill('Too long'); await page.locator('tr.pb-add-sub').getByLabel('Working days for the new task').fill('9'); await sub.press('Enter');
+    await expect(page.getByText(/would need until .* but the task ends/)).toBeVisible();
+    await expect(page.locator('.pb-table input.pb-input[value="Too long"]')).toHaveCount(0); // not added (the text stays in the add row)
+    await expect(page.locator('.pb-summary')).toContainText('2 sub-tasks');
     await page.getByRole('button', { name: 'Done adding sub-tasks' }).click();
+    // until the plan is approved, the task views stay locked
+    await expect(page.locator('nav.proj-tabs .tab-locked', { hasText: 'Tasks' })).toBeVisible();
     // the manager cannot approve the plan; they send it to the director
     await expect(page.getByRole('button', { name: /Approve & lock/ })).toHaveCount(0);
     await page.getByRole('button', { name: 'Send for approval' }).click();
@@ -98,18 +115,19 @@ test.describe.serial('manager → client → request workflow', () => {
     // one task shared with the client and one team-only task, added with quick-add
     await projectTab(page, /^Team/);
     await expect(page.getByRole('cell', { name: /Ravi Developer/ })).toBeVisible();
-    await projectTab(page, 'Backlog');
+    await projectTab(page, 'List');
+    await expect(page.locator('nav.proj-tabs').getByRole('link', { name: 'Backlog' })).toHaveCount(0);
     for (const [title, shared] of [['Shared onboarding task', true], ['Internal pricing review', false]]) {
-      await page.getByRole('button', { name: title, exact: true }).click();
+      await page.locator('.grid-title', { hasText: title }).first().click();
       const share = page.locator('.issue').getByRole('switch');
       if (shared) await share.check(); else await expect(share).not.toBeChecked();
       await expect(share).toBeChecked({ checked: shared });
       await page.locator('.issue').getByRole('button', { name: 'Close', exact: true }).click();
     }
-    // tick one off from the list
-    await page.getByRole('button', { name: 'Mark Internal pricing review as done' }).first().click();
-    await page.getByRole('group', { name: 'Which tasks' }).getByRole('button', { name: 'Done' }).click();
-    await expect(page.getByRole('button', { name: 'Mark Internal pricing review as not done' }).first()).toBeVisible();
+    // complete one from the list
+    await page.getByLabel('Status of Internal pricing review').selectOption('DONE');
+    await page.getByLabel('Status filter').selectOption('done');
+    await expect(page.getByLabel('Status of Internal pricing review')).toHaveValue('DONE');
   });
 
   test('client sees the shared task but never the team-only one', async ({ page }) => {
@@ -216,7 +234,9 @@ test.describe('planning tools', () => {
     await expect(page.getByText('Top risks')).toBeVisible();
     await page.goto('/planner');
     await expect(page.getByRole('heading', { name: 'Resource planner' })).toBeVisible();
-    await expect(page.locator('.planner tbody tr').first()).toBeVisible();
+    await expect(page.locator('.rp-grid tbody tr').first()).toBeVisible();
+    await page.locator('.rp-cell').first().click();
+    await expect(page.getByText('Week of')).toBeVisible();
   });
 });
 

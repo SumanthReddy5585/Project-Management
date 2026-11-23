@@ -55,7 +55,7 @@ export function useDateChange({ project, onChanged }) {
  * Enter or Tab or leave the field; a date picked from the calendar pop-up is saved straight away.
  * Escape cancels. Only complete dates that differ from the current one are sent.
  */
-export function DateCell({ value, onCommit, disabled, className = '', label, min }) {
+export function DateCell({ value, onCommit, disabled, className = '', label, min, max }) {
   const [draft, setDraft] = useState(value || '');
   const [bad, setBad] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -69,6 +69,7 @@ export function DateCell({ value, onCommit, disabled, className = '', label, min
     if (incomplete.current) { incomplete.current = false; flashBad(); return; }
     if ((v || '') === (value || '') || sent.current === v) return;
     if (v && !isCompleteDate(v)) { flashBad(); return; }
+    if (v && max && v > max) { flashBad(); return; }
     sent.current = v; setSaving(true);
     const ok = await onCommit(v || null);
     setSaving(false); sent.current = null;
@@ -76,8 +77,8 @@ export function DateCell({ value, onCommit, disabled, className = '', label, min
   };
   const pending = !saving && (draft || '') !== (value || '');
   return (
-    <input type="date" className={`cell-input ${className} ${bad ? 'bad' : ''} ${pending ? 'pending' : ''}`} value={draft} min={min} disabled={disabled || saving} aria-label={label}
-      title={bad ? 'Enter a complete date' : pending ? 'Press Enter to save' : undefined}
+    <input type="date" className={`cell-input ${className} ${bad ? 'bad' : ''} ${pending ? 'pending' : ''}`} value={draft} min={min} max={max} disabled={disabled || saving} aria-label={label}
+      title={bad ? (max ? `Use a date up to ${max}` : 'Enter a complete date') : pending ? 'Press Enter to save' : undefined}
       onFocus={() => { focused.current = true; }}
       onChange={(e) => {
         incomplete.current = Boolean(e.target.validity?.badInput);

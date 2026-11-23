@@ -85,11 +85,34 @@ describe('autoSchedule', () => {
     expect(r.dates.get('y').start).toBe('2026-12-14');
   });
 
-  it("applies a parent's fixed start to its sub-tasks", () => {
+  it("schedules sub-tasks inside their task's own dates (the task is a box)", () => {
+    // p: 5 working days from Mon 14th (fixed). s1 (2 days) then s2 (1 day) inside it.
     const r = run([t('p', '2026-12-14', '2026-12-18', { startConstraint: '2026-12-14' }), t('s1', MON, '2026-12-08', { parentId: 'p', type: 'SUBTASK' }), t('s2', MON, MON, { parentId: 'p', type: 'SUBTASK' })], [fs('s1', 's2')]);
     expect(r.dates.get('s1')).toEqual({ start: '2026-12-14', finish: '2026-12-15' });
     expect(r.dates.get('s2')).toEqual({ start: '2026-12-16', finish: '2026-12-16' });
-    expect(r.dates.get('p')).toEqual({ start: '2026-12-14', finish: '2026-12-16' });
+    expect(r.dates.get('p')).toEqual({ start: '2026-12-14', finish: '2026-12-18' }); // keeps its own 5 days
+    expect(r.overflow).toEqual([]);
+  });
+
+  it('moves a box with its predecessors, its sub-tasks with it, and makes successors wait for the sub-tasks', () => {
+    const r = run([
+      t('a', MON, '2026-12-08'), // 2 days
+      t('p', MON, '2026-12-09'), // 3 days, after a
+      t('s1', MON, MON, { parentId: 'p', type: 'SUBTASK' }),
+      t('s2', MON, MON, { parentId: 'p', type: 'SUBTASK' }), // parallel with s1
+      t('y', MON, MON), // after p
+    ], [fs('a', 'p'), fs('p', 'y')]);
+    expect(r.dates.get('p')).toEqual({ start: '2026-12-09', finish: '2026-12-11' });
+    expect(r.dates.get('s1')).toEqual({ start: '2026-12-09', finish: '2026-12-09' });
+    expect(r.dates.get('s2')).toEqual({ start: '2026-12-09', finish: '2026-12-09' });
+    expect(r.dates.get('y').start).toBe('2026-12-14');
+  });
+
+  it('reports sub-tasks that run past the end of their task and stretches the task to cover them', () => {
+    const r = run([t('p', MON, '2026-12-08'), t('s1', MON, '2026-12-08', { parentId: 'p', type: 'SUBTASK' }), t('s2', MON, MON, { parentId: 'p', type: 'SUBTASK' }), t('y', MON, MON)], [fs('s1', 's2'), fs('p', 'y')]);
+    expect(r.overflow).toEqual([{ id: 'p', finish: '2026-12-08', needed: '2026-12-09' }]);
+    expect(r.dates.get('p')).toEqual({ start: MON, finish: '2026-12-09' });
+    expect(r.dates.get('y').start).toBe('2026-12-10');
   });
 
   it('ignores cancelled and undated items and reports only real changes', () => {

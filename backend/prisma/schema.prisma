@@ -196,6 +196,8 @@ model Membership {
   role              OrgRole
   status            MembershipStatus @default(ACTIVE)
   customerCompanyId String?          @db.Uuid
+  /// Can be chosen as a project director (approves plans, documents and change requests). Set by an administrator.
+  projectDirector   Boolean          @default(false)
   createdAt         DateTime         @default(now()) @db.Timestamptz(3)
 
   organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)

@@ -46,6 +46,7 @@ r.get('/members', async (req, res) => {
   ]);
   res.json(paged(rows.map((m) => ({
     userId: m.userId, name: m.user.name, email: m.user.email, title: m.user.title, department: m.user.department, phone: m.user.phone, employeeId: m.user.employeeId, role: m.role, status: m.status,
+    projectDirector: m.projectDirector, projectManager: m.role === 'MANAGER' && !m.projectDirector,
     skills: m.user.skills, weeklyCapacityHours: Number(m.user.weeklyCapacityHours), teams: m.user.teamMembers.map((t) => ({ id: t.team.id, name: t.team.name })),
     customerCompany: m.customerCompany ? { id: m.customerCompany.id, name: m.customerCompany.name } : null,
     activeProjects: m.role === 'CUSTOMER' ? undefined : m.user._count.projectMembers,
@@ -61,6 +62,7 @@ r.patch('/members/:userId', async (req, res) => {
     name: z.string().trim().min(1).max(120).optional(), department: z.string().trim().max(80).nullable().optional(),
     phone: z.string().trim().max(40).nullable().optional(), employeeId: z.string().trim().max(40).nullable().optional(),
     weeklyCapacityHours: z.number().min(0).max(80).optional(), customerCompanyId: uuid.nullable().optional(),
+    projectDirector: z.boolean().optional(),
   }), req.body);
   const m = await prisma.membership.findUnique({ where: { organizationId_userId: { organizationId: req.auth.orgId, userId: req.params.userId } } });
   if (!m) throw notFound('Member');
@@ -70,7 +72,9 @@ r.patch('/members/:userId', async (req, res) => {
   if (nextRole === 'CUSTOMER' && !nextCompany) throw badRequest('Customer users must belong to a customer company');
   if (nextCompany) await inOrg('customerCompany', nextCompany, req.auth.orgId, 'Customer company');
   await prisma.$transaction(async (tx) => {
-    await tx.membership.update({ where: { id: m.id }, data: { role: body.role, status: body.status, customerCompanyId: nextRole === 'CUSTOMER' ? nextCompany : null } });
+    // only managers and administrators can be project directors
+    const director = ['ADMIN', 'MANAGER'].includes(nextRole) ? body.projectDirector ?? m.projectDirector : false;
+    await tx.membership.update({ where: { id: m.id }, data: { role: body.role, status: body.status, customerCompanyId: nextRole === 'CUSTOMER' ? nextCompany : null, projectDirector: director } });
     const { title, skills, weeklyCapacityHours, name, department, phone, employeeId } = body;
     const profile = Object.fromEntries(Object.entries({ title, skills, weeklyCapacityHours, name, department, phone, employeeId }).filter(([, v]) => v !== undefined));
     if (Object.keys(profile).length) await tx.user.update({ where: { id: m.userId }, data: profile });
@@ -93,6 +97,7 @@ const memberBody = z.object({
   phone: z.string().trim().max(40).optional().nullable(), employeeId: z.string().trim().max(40).optional().nullable(),
   role: z.enum(['ADMIN', 'MANAGER', 'EMPLOYEE', 'CUSTOMER']), customerCompanyId: uuid.optional().nullable(),
   weeklyCapacityHours: z.number().min(0).max(80).optional(), skills: z.array(z.string().max(40)).max(30).optional(),
+  projectDirector: z.boolean().default(false),
 });
 const tempPassword = () => `O2-${randomToken(9).replace(/[-_]/g, 'x')}${Math.floor(Math.random() * 90 + 10)}`;
 r.post('/members', async (req, res) => {
@@ -108,7 +113,7 @@ r.post('/members', async (req, res) => {
     ...(b.weeklyCapacityHours != null && { weeklyCapacityHours: b.weeklyCapacityHours }), ...(b.skills && { skills: b.skills }) };
   const user = await prisma.$transaction(async (tx) => {
     const u = existing ?? await tx.user.create({ data: { email: b.email, name: b.name, passwordHash: await hashPassword(password), mustChangePassword: true, ...profile } });
-    await tx.membership.create({ data: { organizationId: req.auth.orgId, userId: u.id, role: b.role, customerCompanyId: b.customerCompanyId } });
+    await tx.membership.create({ data: { organizationId: req.auth.orgId, userId: u.id, role: b.role, customerCompanyId: b.customerCompanyId, projectDirector: b.projectDirector && ['ADMIN', 'MANAGER'].includes(b.role) } });
     await audit(tx, req.auth, { action: 'member.created', entityType: 'User', entityId: u.id, metadata: { email: b.email, role: b.role, title: b.title } }, req.ip);
     return u;
   });

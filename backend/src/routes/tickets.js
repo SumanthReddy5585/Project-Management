@@ -44,7 +44,7 @@ async function names(ids) {
 }
 
 const listSchema = listQuery.extend({ status: z.string().optional(), priority: PRIORITY.optional(), type: TYPE.optional(), assigneeId: z.union([uuid, z.literal('me'), z.literal('none')]).optional(),
-  customerCompanyId: uuid.optional(), projectId: uuid.optional(), sla: z.enum(['BREACHED', 'AT_RISK']).optional(), tag: z.string().max(40).optional(), requester: z.literal('me').optional(),
+  customerCompanyId: uuid.optional(), projectId: z.union([uuid, z.literal('none')]).optional(), sla: z.enum(['BREACHED', 'AT_RISK']).optional(), tag: z.string().max(40).optional(), requester: z.literal('me').optional(),
   view: z.enum(['mine', 'unassigned', 'open', 'overdue', 'waiting', 'new', 'resolved', 'all', 'requested']).optional() });
 
 const OPEN = ['NEW', 'OPEN', 'IN_PROGRESS', 'WAITING_ON_CUSTOMER'];
@@ -72,7 +72,7 @@ async function listWhere(req, q) {
   if (q.type) and.push({ type: q.type });
   if (q.assigneeId && !req.auth.isCustomer) and.push({ assigneeId: q.assigneeId === 'me' ? req.auth.userId : q.assigneeId === 'none' ? null : q.assigneeId });
   if (q.customerCompanyId && !req.auth.isCustomer) and.push({ customerCompanyId: q.customerCompanyId });
-  if (q.projectId) and.push({ projectId: q.projectId });
+  if (q.projectId) and.push({ projectId: q.projectId === 'none' ? null : q.projectId });
   if (q.q) and.push({ OR: [{ subject: { contains: q.q, mode: 'insensitive' } }, ...(/^#?\d+$/.test(q.q) ? [{ number: Number(q.q.replace('#', '')) }] : [])] });
   if (q.sla === 'BREACHED') and.push(breachedWhere());
   if (q.view) and.push(viewWhere(q.view, req.auth));

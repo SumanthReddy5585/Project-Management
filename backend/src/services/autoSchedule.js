@@ -12,7 +12,7 @@ const todayKey = () => new Date().toISOString().slice(0, 10);
 async function run(tx, projectId) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${projectId}))`;
   const project = await tx.project.findUnique({ where: { id: projectId } });
-  if (!project || ['COMPLETED', 'CANCELLED', 'ARCHIVED'].includes(project.status)) return { moved: [], project };
+  if (!project || ['COMPLETED', 'CANCELLED', 'ARCHIVED'].includes(project.status)) return { moved: [], overflow: [], project };
   const [rows, deps, cal] = await Promise.all([
     tx.workItem.findMany({ where: { projectId }, select: { id: true, parentId: true, type: true, status: true, number: true, title: true, plannedStart: true, plannedFinish: true, actualStart: true, actualFinish: true, startConstraint: true } }),
     tx.dependency.findMany({ where: { projectId } }),
@@ -29,7 +29,7 @@ async function run(tx, projectId) {
     projectFinish = { from: fmtDate(project.plannedFinish), to: out.finish };
   }
   return {
-    project, projectFinish,
+    project, projectFinish, overflow: out.overflow.map((o) => ({ ...o, number: byId.get(o.id).number, title: byId.get(o.id).title })),
     moved: out.changes.map((c) => ({ id: c.id, number: byId.get(c.id).number, title: byId.get(c.id).title, type: byId.get(c.id).type, from: c.from, to: c.to })),
   };
 }
@@ -39,12 +39,12 @@ async function run(tx, projectId) {
  * @returns {Promise<{moved: Array, projectFinish: {from,to}|null, cycle?: string}>}
  */
 export async function reschedule(projectId, db = null) {
-  if (process.env.AUTO_SCHEDULE === 'off') return { moved: [], projectFinish: null }; // bulk loaders (demo seed) finish with one pass
+  if (process.env.AUTO_SCHEDULE === 'off') return { moved: [], projectFinish: null, overflow: [] }; // bulk loaders (demo seed) finish with one pass
   try {
     const r = db ? await run(db, projectId) : await prisma.$transaction((tx) => run(tx, projectId), { timeout: 60000 });
-    return { moved: r.moved, projectFinish: r.projectFinish ?? null };
+    return { moved: r.moved, projectFinish: r.projectFinish ?? null, overflow: r.overflow ?? [] };
   } catch (err) {
-    if (err instanceof ScheduleCycleError) return { moved: [], projectFinish: null, cycle: err.message };
+    if (err instanceof ScheduleCycleError) return { moved: [], projectFinish: null, overflow: [], cycle: err.message };
     logger.error({ err, projectId }, 'reschedule failed');
     throw err;
   }

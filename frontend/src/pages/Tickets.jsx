@@ -6,7 +6,7 @@ import { useLoad, useDebounced } from '../lib/hooks.js';
 import { useLive } from '../lib/live.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { fmtDateTime, fmtRelative, labelize, fmtDuration } from '../lib/format.js';
-import { Avatar, Card, Empty, ErrorBox, Field, Loading, Modal, Pagination, PriorityBadge, priorityLabel, Select, SlaTimer, StatusBadge, useToast, fieldErrors, Notice, ConfirmButton, SortHeader } from '../components/ui.jsx';
+import { Avatar, Card, Empty, ErrorBox, Field, Loading, Modal, Pagination, PriorityBadge, priorityLabel, Select, SlaTimer, StatusBadge, useToast, fieldErrors, Notice, ConfirmButton, SortHeader, ProjectChip } from '../components/ui.jsx';
 import { FileList, Message, MentionTextarea } from '../components/collab.jsx';
 
 const PRIS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
@@ -87,14 +87,17 @@ export function TicketsList() {
   const [q, setQ] = useState('');
   const [prio, setPrio] = useState('');
   const [assignee, setAssignee] = useState('');
+  const projectId = params.get('project') || '';
   const [sort, setSort] = useState({ field: 'updatedAt', dir: 'desc' });
   const [page, setPage] = useState(1);
   const [sel, setSel] = useState(() => new Set());
   const dq = useDebounced(q);
   const onSort = (field) => setSort((x) => ({ field, dir: x.field === field && x.dir === 'desc' ? 'asc' : 'desc' }));
   const setParam = (k, v) => setParams((p) => { const n = new URLSearchParams(p); if (v) n.set(k, v); else n.delete(k); return n; });
-  useEffect(() => { setPage(1); setSel(new Set()); }, [view, dq, prio, assignee]);
-  const query = { view, q: dq || undefined, priority: prio || undefined, assigneeId: assignee || undefined, page, pageSize: 25, sort: sort.field, dir: sort.dir };
+  useEffect(() => { setPage(1); setSel(new Set()); }, [view, dq, prio, assignee, projectId]);
+  const query = { view, q: dq || undefined, priority: prio || undefined, assigneeId: assignee || undefined, projectId: projectId || undefined, page, pageSize: 25, sort: sort.field, dir: sort.dir };
+  // tickets are shown project by project: you see the tickets of the projects you are on
+  const myProjects = useLoad(() => get('/projects', { status: 'DRAFT,ACTIVE,ON_HOLD,COMPLETED', pageSize: 200, sort: 'name', dir: 'asc' }), []);
   const list = useLoad(() => get('/tickets', query), [JSON.stringify(query)]);
   const views = useLoad(() => get('/tickets/views'), []);
   const members = useLoad(() => (isCustomer ? Promise.resolve({ data: [] }) : get('/org/members', { pageSize: 200 })), []);
@@ -109,7 +112,7 @@ export function TicketsList() {
   return (
     <>
       <div className="page-header">
-        <div><h1 className="h-page">{isCustomer ? 'My tickets' : 'Tickets'}</h1><div className="sub">{isCustomer ? 'Everything you and your colleagues have raised with us.' : 'Work the queue: pick up, reply, resolve. Changes appear live.'}</div></div>
+        <div><h1 className="h-page">{isCustomer ? 'My tickets' : 'Tickets'}</h1><div className="sub">{isCustomer ? 'Everything you and your colleagues have raised with us.' : 'Tickets of your projects — pick up, reply, resolve. Changes appear live.'}</div></div>
         <div className="d-flex gap-2">{!isCustomer && <button className="btn btn-light" onClick={exportCsv}><Download size={15} /> Export</button>}<button className="btn btn-primary" onClick={() => setParam('new', '1')}><Plus size={15} /> {isCustomer ? 'Raise a ticket' : 'New ticket'}</button></div>
       </div>
       <div className="desk">
@@ -122,6 +125,8 @@ export function TicketsList() {
           <div className="queue-toolbar">
             <strong className="me-2 d-none d-md-inline">{current[1]}</strong>
             <div className="search-in"><Search size={15} /><input className="form-control form-control-sm" placeholder="Search subject or #number" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tickets" /></div>
+            <select className="form-select form-select-sm" style={{ width: 'auto', maxWidth: 220 }} value={projectId} onChange={(e) => setParam('project', e.target.value)} aria-label="Filter by project">
+              <option value="">All my projects</option>{(myProjects.data?.data || []).map((p) => <option key={p.id} value={p.id}>{p.code} · {p.name}</option>)}<option value="none">No project</option></select>
             <select className="form-select form-select-sm" style={{ width: 'auto' }} value={prio} onChange={(e) => setPrio(e.target.value)} aria-label="Filter by priority"><option value="">Any priority</option>{PRIS.map((p) => <option key={p} value={p}>{priorityLabel(p)}</option>)}</select>
             {!isCustomer && !['mine', 'unassigned'].includes(view) && <select className="form-select form-select-sm" style={{ width: 'auto' }} value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label="Filter by assignee"><option value="">Anyone</option><option value="me">Me</option><option value="none">Unassigned</option>{agents.map((a) => <option key={a.userId} value={a.userId}>{a.name}</option>)}</select>}
             <span className="ms-auto small text-muted">{list.data?.meta?.total ?? '…'} tickets</span>
@@ -147,7 +152,7 @@ export function TicketsList() {
                   {!isCustomer && <td onClick={(e) => e.stopPropagation()}><input type="checkbox" className="form-check-input" checked={sel.has(t.id)} onChange={() => toggle(t.id)} aria-label={`Select ticket ${t.number}`} /></td>}
                   <td style={{ maxWidth: 380 }}>
                     <Link to={`/tickets/${t.id}`} className="tk-subject" onClick={(e) => e.stopPropagation()}>{t.subject}</Link>
-                    <div className="tk-meta"><span className="mono">#{t.number}</span>{!isCustomer && <> · <strong className="fw-semibold" style={{ color: 'var(--ink-soft)' }}>{t.customerName || 'Internal'}</strong></>} · {labelize(t.type)}{t.category ? ` · ${t.category}` : ''}{!isCustomer && t.tags?.length ? ` · ${t.tags.map((x) => `#${x}`).join(' ')}` : ''}</div>
+                    <div className="tk-meta"><span className="mono">#{t.number}</span>{t.project ? <> · <span className="tk-proj" title={t.project.name}><ProjectChip code={t.project.code} size={15} />{t.project.code}</span></> : !isCustomer ? <> · <span className="text-muted">No project</span></> : null}{!isCustomer && <> · <strong className="fw-semibold" style={{ color: 'var(--ink-soft)' }}>{t.customerName || 'Internal'}</strong></>} · {labelize(t.type)}{t.category ? ` · ${t.category}` : ''}{!isCustomer && t.tags?.length ? ` · ${t.tags.map((x) => `#${x}`).join(' ')}` : ''}</div>
                   </td>
                   <td><PriorityBadge priority={t.priority} /></td>
                   <td><StatusBadge status={t.status} /></td>

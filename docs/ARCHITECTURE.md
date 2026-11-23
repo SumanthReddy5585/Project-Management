@@ -64,6 +64,12 @@ Effective **project role**: org Admin → `ADMIN` on every project in the org; e
 
 Every project has a **Project Director** (`Project.directorId`, project role `DIRECTOR`) and a **Project Manager** (`Project.managerId`, role `MANAGER`); the rest of the team are **resources** (`MEMBER`). The director must be a different person from the manager, and only an administrator can change a director once set.
 
+Who can fill these roles is an administrator's decision in *Settings → Users & roles*: a **project director** is a manager (or administrator) with the director designation (`Membership.projectDirector`); a **project manager** is a manager without it. The project director list shows only directors and the project manager list only project managers; the API enforces the same.
+
+Only an **administrator** can delete a project (*Settings → Projects*, typing the project code to confirm). It removes the project with its plan — including the locked original plan — tasks, time, documents and registers; tickets stay, without a project.
+
+**Tickets are visible project by project:** administrators see all; others see the tickets of projects they are on, tickets they raised or are assigned to, and — for managers — tickets not yet tied to a project (triage). Clients see their company's tickets.
+
 | Project capability | ADMIN | DIRECTOR | MANAGER | MEMBER | VIEWER | CUSTOMER |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
 | View project (customer: shared content only) | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |

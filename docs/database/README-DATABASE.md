@@ -10,7 +10,7 @@ PostgreSQL 14 or newer (16 or 17 recommended). Tested with PostgreSQL 16.
 | `o2_support_hub_demo.backup` | Same demo database in pg_restore format | Restoring with pgAdmin (Restore…) or `pg_restore` |
 | `DATABASE-STRUCTURE.html` / `.md` | Every table, column, type, default, key, foreign key, index and enum, with a relationship diagram | Reference for reports, integrations and support |
 | `prisma/schema.prisma` | The data model as the application defines it | Developers |
-| `prisma/migrations/` | Step-by-step SQL history (6 migrations) | Upgrades are applied automatically by the app on start |
+| `prisma/migrations/` | Step-by-step SQL history (7 migrations) | Upgrades are applied automatically by the app on start |
 
 You don't have to load either SQL file by hand: the Windows installer (`scripts\install.ps1`) and every app start run
 `app\backend\scripts\db-migrate.js`, which creates/upgrades the tables in an empty database. Use the files below when you prefer
@@ -46,7 +46,7 @@ node --env-file=..\..\config\o2.env prisma\init-org.js --org "O2 Digital Service
 or `pg_restore -U o2app -h localhost -d o2_support_hub --no-owner o2_support_hub_demo.backup`.
 
 Demo sign-ins (all with password **Demo-pass-2026**; change them or don't use the demo database in production):
-`admin@demo.local`, `manager@demo.local`, `pm2@demo.local`, `dev1@demo.local`, `dev2@demo.local`, `qa@demo.local`, `design@demo.local`,
+`admin@demo.local`, `director@demo.local` (project director), `manager@demo.local`, `pm2@demo.local`, `dev1@demo.local`, `dev2@demo.local`, `qa@demo.local`, `design@demo.local`,
 `ops@demo.local`, `customer@demo.local` (client: Contoso Retail), `fabrikam@demo.local` (client: Fabrikam Health), `globex.admin@demo.local` (a second, separate organisation).
 
 ## 3. Moving your existing cloud data (optional)

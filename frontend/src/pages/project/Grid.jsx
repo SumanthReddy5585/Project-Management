@@ -41,7 +41,7 @@ export function TaskGrid() {
   const all = data?.data || [];
   const keyOf = new Map(all.map((i) => [i.id, i.key]));
   const rows = useMemo(() => {
-    let r = all.filter((i) => i.type !== 'MODULE');
+    let r = all.filter((i) => i.type !== 'MODULE' && i.type !== 'MILESTONE'); // milestones are key dates (Timeline, Calendar, Plan), not tasks
     if (show === 'open') r = r.filter((i) => !['DONE', 'CANCELLED'].includes(i.status));
     if (show === 'done') r = r.filter((i) => i.status === 'DONE');
     if (who) r = r.filter((i) => (who === 'none' ? !i.assigneeId : i.assigneeId === who));

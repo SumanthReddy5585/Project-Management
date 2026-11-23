@@ -5,7 +5,7 @@ import { resetDb, startServer, makeOrg, invite, login, expectStatus, prisma } fr
 import { visibleTo } from '../../src/services/events.js';
 import { DbStorage } from '../../src/storage/dbStorage.js';
 
-let srv, base, A, admin, agent, cust, otherCust, contoso, fabrikam, t1, t2;
+let srv, base, A, admin, agent, cust, otherCust, contoso, fabrikam, t1, t2, member;
 
 beforeAll(async () => {
   await resetDb();
@@ -14,7 +14,8 @@ beforeAll(async () => {
   admin = await login(base, A.adminEmail);
   contoso = await admin.post('/api/org/customers', { name: 'Contoso' });
   fabrikam = await admin.post('/api/org/customers', { name: 'Fabrikam' });
-  agent = await invite(base, admin, { email: 'agent@sup.test', name: 'Ann Agent', role: 'EMPLOYEE' });
+  agent = await invite(base, admin, { email: 'agent@sup.test', name: 'Ann Agent', role: 'MANAGER' }); // support lead: triages tickets not yet on a project
+  member = await invite(base, admin, { email: 'tm@sup.test', name: 'Tim Member', role: 'EMPLOYEE' });
   cust = await invite(base, admin, { email: 'c@contoso.test', name: 'Cora Client', role: 'CUSTOMER', customerCompanyId: contoso.id });
   otherCust = await invite(base, admin, { email: 'f@fabrikam.test', name: 'Fred Other', role: 'CUSTOMER', customerCompanyId: fabrikam.id });
   t1 = await cust.post('/api/tickets', { subject: 'Login is broken', description: 'Cannot sign in', priority: 'HIGH', type: 'BUG' });
@@ -23,11 +24,13 @@ beforeAll(async () => {
 afterAll(async () => { srv?.close(); await prisma.$disconnect(); });
 
 describe('queue', () => {
-  it('lets every agent see the shared queue and counts saved views', async () => {
+  it('shows tickets project by project: managers triage tickets not on a project, team members see only their projects', async () => {
     const v = await agent.get('/api/tickets/views');
     expect(v).toMatchObject({ unassigned: 2, open: 2, mine: 0, new: 2 });
     const list = await agent.get('/api/tickets?view=unassigned');
     expect(list.data.map((t) => t.number).sort()).toEqual([t1.number, t2.number].sort());
+    expect((await member.get('/api/tickets/views')).all).toBe(0);
+    await expectStatus(member.get(`/api/tickets/${t1.id}`), 404);
   });
   it('bulk-assigns, tags and re-prioritises; skips illegal status moves', async () => {
     const r = await agent.post('/api/tickets/bulk', { ids: [t1.id, t2.id], assigneeId: agent.userId, addTag: 'triaged', priority: 'MEDIUM' });
@@ -88,7 +91,7 @@ describe('knowledge base', () => {
     expect((await cust.get('/api/kb/articles?q=password%20reset')).data).toHaveLength(1);
     expect((await agent.get('/api/kb/articles')).data).toHaveLength(3);
     await expectStatus(cust.post('/api/kb/articles', { title: 'Mine', body: 'x' }), 403);
-    await expectStatus(agent.del(`/api/kb/articles/${draft.id}`), 403);
+    await expectStatus(member.del(`/api/kb/articles/${draft.id}`), 403);
     await admin.del(`/api/kb/articles/${draft.id}`);
   });
 });

@@ -167,7 +167,7 @@ function SideProjects() {
 }
 
 const PAGES = [
-  [/^\/$/, 'Dashboard', LayoutDashboard], [/^\/my-tasks/, 'My tasks', CheckSquare], [/^\/projects\/[^/]+/, 'Projects', FolderKanban], [/^\/projects/, 'Projects', FolderKanban],
+  [/^\/$/, 'Dashboard', LayoutDashboard], [/^\/my-tasks/, 'Assigned to me', CheckSquare], [/^\/projects\/[^/]+/, 'Projects', FolderKanban], [/^\/projects/, 'Projects', FolderKanban],
   [/^\/tickets/, 'Queues', Inbox], [/^\/kb/, 'Knowledge base', BookOpen], [/^\/time/, 'Timesheets', Clock], [/^\/reports/, 'Reports', BarChart3],
   [/^\/planner/, 'Resource planner', CalendarRange], [/^\/people/, 'Teams', Users], [/^\/notifications/, 'Notifications', Bell], [/^\/profile/, 'Profile', UserRound], [/^\/settings/, 'Settings', Settings],
 ];

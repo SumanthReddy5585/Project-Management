@@ -16,6 +16,6 @@ export class ApiClient {
     return data;
   }
   get(p) { return this.req('GET', p); } post(p, b) { return this.req('POST', p, b ?? {}); } patch(p, b) { return this.req('PATCH', p, b); }
-  put(p, b) { return this.req('PUT', p, b); } del(p) { return this.req('DELETE', p); }
+  put(p, b) { return this.req('PUT', p, b); } del(p, b) { return this.req('DELETE', p, b); }
   login(email, password) { return this.post('/api/auth/login', { email, password }); }
 }

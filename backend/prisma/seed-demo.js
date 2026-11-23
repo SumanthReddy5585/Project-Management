@@ -58,8 +58,15 @@ async function ensurePeople(base, admin, contoso, fabrikam) {
     ids[u] = me.user.id;
     if (title) await admin.patch(`/api/org/members/${me.user.id}`, { title, department, skills, employeeId: `O2-${100 + Object.keys(ids).length}` });
   }
+  await admin.patch(`/api/org/members/${ids.director}`, { projectDirector: true }); // only designated directors can direct projects
   return ids;
 }
+
+// The demo writes some history (work started, time logged) through the API, which only allows that on an
+// approved plan. While that history is written the plan counts as approved; the real approval (with its
+// locked original plan) is recorded afterwards by seedPlans().
+const historyOpen = (id) => prisma.project.update({ where: { id }, data: { planApprovedAt: new Date() } });
+const historyClosed = (id) => prisma.project.update({ where: { id }, data: { planApprovedAt: null } });
 
 export async function seedDemo(base) {
   await bootstrapOrg('O2 Digital Services', 'o2', mail('admin'), 'Asha Admin', 'Asia/Kolkata');
@@ -95,6 +102,7 @@ export async function seedDemo(base) {
   for (const [p, s] of [[req1, req2], [t1, t2], [t2, t3]]) await mgr.post(`/api/projects/${project.id}/dependencies`, { predecessorId: p.id, successorId: s.id });
   await mgr.post(`/api/projects/${project.id}/baselines`, { name: 'Initial plan' });
   const dev = new ApiClient(base); await dev.login(mail('dev2'), DEMO_PASSWORD);
+  await historyOpen(project.id);
   const r1 = await dev.get(`/api/projects/${project.id}/work-items/${req1.id}`);
   await dev.patch(`/api/projects/${project.id}/work-items/${req1.id}`, { status: 'DONE', version: r1.version });
   const r2 = await dev.get(`/api/projects/${project.id}/work-items/${req2.id}`);
@@ -112,6 +120,7 @@ export async function seedDemo(base) {
   await seedMoreProjects(base, { mgr, ids, fabrikam });
   await seedSupportDesk(base, { mgr, cust, ids, project });
   await seedRegisters(base);
+  await historyClosed(project.id);
   await seedPlans();
   await seedScenarios(base);
   return { project, ids };
@@ -247,7 +256,7 @@ const SCENARIOS_SPEC = [
     ], deps: [[0, 1], [1, 2], [2, 3], [3, 4]],
     update: ['Closed 6 working days late', 'All findings fixed. Remediation of the firewall rules took longer than planned, so sign-off slipped by 6 working days.', 'AMBER'] },
 
-  { code: 'MKT', name: 'Marketing Website Refresh', mgr: 'manager', start: 5, finish: 50, status: 'DRAFT', health: 'GREEN', priority: 'MEDIUM', draft: true,
+  { code: 'MKT', name: 'Marketing Website Refresh', mgr: 'manager', start: 0, finish: 50, status: 'DRAFT', health: 'GREEN', priority: 'MEDIUM', draft: true,
     description: 'Refresh the public website with the new brand and a faster CMS.', objectives: 'Page speed under 2 seconds; leads +20%.',
     team: ['design', 'dev1'],
     tasks: [
@@ -258,7 +267,7 @@ const SCENARIOS_SPEC = [
       ['SEO migration plan', 2, null, null, null, 16],
     ], deps: [] },
   // a complete draft plan the manager has sent to the director for approval
-  { code: 'POP', name: 'Partner Onboarding Portal', mgr: 'pm2', start: 7, finish: 45, status: 'DRAFT', health: 'GREEN', priority: 'HIGH', draft: true, submitted: true,
+  { code: 'POP', name: 'Partner Onboarding Portal', mgr: 'pm2', start: 0, finish: 45, status: 'DRAFT', health: 'GREEN', priority: 'HIGH', draft: true, submitted: true,
     description: 'Self-service onboarding for reseller partners.', objectives: 'Onboard a new partner in under two days.',
     team: ['dev2', 'dev1', 'qa'],
     tasks: [
@@ -444,12 +453,14 @@ async function seedMoreProjects(base, { mgr, ids, fabrikam }) {
   const day = (off) => { const x = new Date(); x.setUTCDate(x.getUTCDate() + off); while ([0, 6].includes(x.getUTCDay())) x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
   const make = async (client, body, tasks, health) => {
     const p = await client.post('/api/projects', body);
+    await historyOpen(p.id);
     const det = await client.get(`/api/projects/${p.id}`);
     for (const [title, phaseIdx, who, s, f, est, status] of tasks) {
       const t = await client.post(`/api/projects/${p.id}/work-items`, { type: 'TASK', title, phaseId: det.phases[Math.min(phaseIdx, det.phases.length - 1)].id, assigneeId: ids[who], plannedStart: day(s), plannedFinish: day(f), estimateHours: est });
       if (status) { const cur = await client.get(`/api/projects/${p.id}/work-items/${t.id}`); await client.patch(`/api/projects/${p.id}/work-items/${t.id}`, { status, version: cur.version }); }
     }
     if (health) { const cur = await client.get(`/api/projects/${p.id}`); await client.patch(`/api/projects/${p.id}`, { health, version: cur.version }); }
+    await historyClosed(p.id);
     return p;
   };
   await make(pm2, { name: 'Fabrikam Patient Portal', code: 'FPP', description: 'Self-service portal for Fabrikam patients: appointments, results and billing.', objectives: 'Go live before the end of Q1 with 3 core journeys.',
@@ -494,8 +505,14 @@ async function seedSupportDesk(base, { mgr, cust, ids, project }) {
     [fab, 'SSL certificate warning on staging site', 'Our testers see a certificate warning on the staging URL.', 'BUG', 'CRITICAL', 'Defect', ['security'], 'dev1', 'RESOLVED', 30, 3, 'Took longer than expected.'],
   ];
   const agents = await prisma.user.findMany({ where: { id: { in: Object.values(ids) } }, select: { id: true } });
+  // tickets belong to the client's project (the team of that project sees them); account requests wait for triage
+  const orgOf = (await prisma.project.findUnique({ where: { id: project.id } })).organizationId;
+  const desk = mgr; const pm2 = new ApiClient(base); await pm2.login(mail('pm2'), DEMO_PASSWORD);
+  const fpp = await prisma.project.findFirst({ where: { code: 'FPP', organizationId: orgOf } });
   for (const [client, subject, description, type, priority, category, tags, who, status, ageH, rating, comment] of rows) {
-    const t = await client.post('/api/tickets', { subject, description, type, priority, category, ...(client === cust && subject.length % 2 === 0 && { projectId: project.id }) });
+    const projectId = category === 'Access & accounts' && status === 'NEW' ? null : client === cust ? project.id : fpp?.id;
+    const t = await client.post('/api/tickets', { subject, description, type, priority, category, ...(projectId && { projectId }) });
+    const mgr = projectId === fpp?.id ? pm2 : desk; // the project's manager works its tickets
     let cur = await mgr.get(`/api/tickets/${t.id}`);
     if (who) cur = { ...cur, ...(await mgr.patch(`/api/tickets/${t.id}`, { assigneeId: ids[who], tags, version: cur.version })) };
     else cur = { ...cur, ...(await mgr.patch(`/api/tickets/${t.id}`, { tags, version: cur.version })) };
@@ -566,8 +583,9 @@ async function seedDirectors(base) {
     const inv = await admin.post('/api/org/invitations', { email: mail('director'), name: 'Vikram Rao', role: 'MANAGER', title: 'Delivery Director', department: 'PMO' });
     const me = await new ApiClient(base).post('/api/auth/invitations/accept', { token: new URL(inv.url).searchParams.get('token'), name: 'Vikram Rao', password: DEMO_PASSWORD });
     dirId = me.user.id;
-    await admin.patch(`/api/org/members/${dirId}`, { title: 'Delivery Director', department: 'PMO', skills: ['governance', 'portfolio'] });
+    await admin.patch(`/api/org/members/${dirId}`, { title: 'Delivery Director', department: 'PMO', skills: ['governance', 'portfolio'], projectDirector: true });
   }
+  await prisma.membership.updateMany({ where: { organizationId: orgId, userId: dirId }, data: { projectDirector: true } });
   for (const p of await prisma.project.findMany({ where: { organizationId: orgId, directorId: null } })) {
     if (p.managerId === dirId) continue;
     await prisma.project.update({ where: { id: p.id }, data: { directorId: dirId, ...(p.planApprovedAt && !p.planSubmittedAt && { planSubmittedAt: p.planApprovedAt, planSubmittedById: p.managerId }) } });

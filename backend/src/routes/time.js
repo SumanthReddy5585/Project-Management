@@ -46,6 +46,7 @@ async function validateEntry(auth, b, excludeId) {
   a.require('time.log');
   if (a.isCustomer) throw forbidden();
   if (['DRAFT', 'CANCELLED', 'ARCHIVED'].includes(a.project.status)) throw badRequest(`Time cannot be logged on a ${a.project.status.toLowerCase()} project`);
+  if (!a.project.planApprovedAt) throw badRequest('Time can be logged once the project plan is approved');
   if (b.workItemId && !(await prisma.workItem.findFirst({ where: { id: b.workItemId, projectId: b.projectId, type: { not: 'MODULE' } } }))) throw badRequest('Work item not found in this project');
   if (b.billable && !a.project.billingEnabled) throw badRequest('Billing is not enabled for this project');
   if (b.date > new Date(Date.now() + 86400000).toISOString().slice(0, 10)) throw badRequest('Time cannot be logged in the future');

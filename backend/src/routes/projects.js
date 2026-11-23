@@ -33,7 +33,7 @@ r.get('/', async (req, res) => {
     prisma.project.findMany({ where, include: { customerCompany: true, _count: { select: { members: { where: { role: { not: 'CUSTOMER' } } } } } }, orderBy: orderBy(q.sort, q.dir, ['name', 'code', 'plannedFinish', 'updatedAt', 'status'], 'updatedAt'), ...pageArgs(q) }),
     prisma.project.count({ where }),
   ]);
-  const managers = await prisma.user.findMany({ where: { id: { in: rows.map((p) => p.managerId).filter(Boolean) } }, select: { id: true, name: true } });
+  const managers = await prisma.user.findMany({ where: { id: { in: rows.flatMap((p) => [p.managerId, p.directorId]).filter(Boolean) } }, select: { id: true, name: true } });
   const mgr = new Map(managers.map((m) => [m.id, m.name]));
   const out = [];
   const today = new Date().toISOString().slice(0, 10);
@@ -45,7 +45,7 @@ r.get('/', async (req, res) => {
     // Once the plan is approved, "progress" means work done on the approved plan (the same number the schedule status uses).
     const sched = await scheduleSummary(p);
     out.push(S.project(p, access, { progress: sched?.actualPct ?? roll.project.percent, milestones: roll.milestones, customerName: p.customerCompany?.name ?? null, managerName: mgr.get(p.managerId) ?? null,
-      ...(!req.auth.isCustomer && { teamSize: p._count.members, planApprovedAt: p.planApprovedAt, schedule: sched }), counts: { total: vis.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length } }));
+      ...(!req.auth.isCustomer && { teamSize: p._count.members, planApprovedAt: p.planApprovedAt, planSubmittedAt: p.planSubmittedAt, directorName: mgr.get(p.directorId) ?? null, createdAt: p.createdAt, schedule: sched }), counts: { total: vis.length, open: open.length, overdue: open.filter((i) => i.plannedFinish && i.plannedFinish < today).length } }));
   }
   res.json(paged(out, total, q));
 });
@@ -64,21 +64,33 @@ const createBody = z.object({
   templateId: z.union([uuid, z.literal('simple'), z.literal('none')]).optional().nullable(), customerVisible: z.boolean().default(false),
 });
 
-/** A project director is an active manager or administrator, and not the project manager (approvals need a second person). */
+/** A project director is someone an administrator has designated as one, and not the project manager (approvals need a second person). */
 async function checkDirector(orgId, directorId, managerId) {
   if (directorId === managerId) throw badRequest('The project manager and the project director must be different people');
   const m = await prisma.membership.findFirst({ where: { organizationId: orgId, userId: directorId, status: 'ACTIVE', role: { in: ['ADMIN', 'MANAGER'] } } });
   if (!m) throw badRequest('The project director must be an active manager or administrator');
+  if (!m.projectDirector) throw badRequest('This person is not a project director. An administrator can mark them as one in Settings → Users & roles.');
 }
+
+/** A project manager is an active manager (or administrator) who is not designated as a project director. */
+async function checkManager(orgId, managerId) {
+  const m = await prisma.membership.findFirst({ where: { organizationId: orgId, userId: managerId, status: 'ACTIVE', role: { in: ['ADMIN', 'MANAGER'] } } });
+  if (!m) throw badRequest('Project manager must be an active manager or administrator');
+  if (m.projectDirector) throw badRequest('This person is a project director. Choose a project manager.');
+}
+
+/** Today's date where the project is run (a project cannot start in the future). */
+const todayIn = (tz) => { try { return new Intl.DateTimeFormat('en-CA', { timeZone: tz || 'UTC', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); } catch { return new Date().toISOString().slice(0, 10); } };
+const noFutureStart = (date, tz) => { if (date > todayIn(tz)) throw badRequest('The project start date cannot be in the future. Use today or an earlier date.'); };
 
 r.post('/', async (req, res) => {
   requireOrg(req.auth, 'project.create');
   const b = parse(createBody, req.body);
   if (b.plannedFinish < b.plannedStart) throw badRequest('Planned finish must be on or after the planned start');
   if (b.timezone !== 'UTC' && !Intl.supportedValuesOf('timeZone').includes(b.timezone)) throw badRequest('Unknown timezone');
+  noFutureStart(b.plannedStart, b.timezone);
   const orgId = req.auth.orgId;
-  const mgr = await prisma.membership.findFirst({ where: { organizationId: orgId, userId: b.managerId, status: 'ACTIVE', role: { in: ['ADMIN', 'MANAGER'] } } });
-  if (!mgr) throw badRequest('Project manager must be an active manager or administrator');
+  await checkManager(orgId, b.managerId);
   if (b.directorId) await checkDirector(orgId, b.directorId, b.managerId);
   if (b.customerCompanyId && !(await prisma.customerCompany.findFirst({ where: { id: b.customerCompanyId, organizationId: orgId } }))) throw badRequest('Unknown customer company');
   if (b.customerContactIds.length) {
@@ -195,10 +207,12 @@ r.patch('/:projectId', async (req, res) => {
   const s = b.plannedStart ?? fmtDate(p.plannedStart); const f = b.plannedFinish ?? fmtDate(p.plannedFinish);
   if (f < s) throw badRequest('Planned finish must be on or after the planned start');
   if (b.calendarId && !(await loadCalendar(prisma, b.calendarId, p.organizationId))) throw badRequest('Unknown calendar');
-  if (b.managerId && !(await prisma.membership.findFirst({ where: { organizationId: p.organizationId, userId: b.managerId, role: { in: ['ADMIN', 'MANAGER'] }, status: 'ACTIVE' } }))) throw badRequest('Invalid project manager');
+  if (b.plannedStart && b.plannedStart !== fmtDate(p.plannedStart)) noFutureStart(b.plannedStart, b.timezone ?? p.timezone);
+  if (b.managerId && b.managerId !== p.managerId) await checkManager(p.organizationId, b.managerId);
   if (b.customerCompanyId && !(await prisma.customerCompany.findFirst({ where: { id: b.customerCompanyId, organizationId: p.organizationId } }))) throw badRequest('Unknown customer company');
   if (b.directorId !== undefined && b.directorId !== p.directorId && p.directorId && req.auth.orgRole !== 'ADMIN') throw forbidden('Only an administrator can change the project director');
-  if (b.directorId) await checkDirector(p.organizationId, b.directorId, b.managerId ?? p.managerId);
+  if (b.directorId && b.directorId !== p.directorId) await checkDirector(p.organizationId, b.directorId, b.managerId ?? p.managerId);
+  else if (b.directorId && (b.managerId ?? p.managerId) === b.directorId) throw badRequest('The project manager and the project director must be different people');
   else if (b.managerId && b.managerId === p.directorId && b.directorId === undefined) throw badRequest('The project manager and the project director must be different people');
   if (b.directorId === null && p.planSubmittedAt && !p.planApprovedAt) throw badRequest('The plan is waiting for the director. Choose another director instead of removing it.');
   const data = { ...b, ...(b.plannedStart && { plannedStart: toDate(b.plannedStart) }), ...(b.plannedFinish && { plannedFinish: toDate(b.plannedFinish) }), version: { increment: 1 } };
@@ -231,6 +245,7 @@ r.post('/:projectId/status', async (req, res) => {
   const { status, version, reason } = parse(z.object({ status: z.enum(['DRAFT', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED', 'ARCHIVED']), version: z.number().int(), reason: z.string().max(1000).optional() }), req.body);
   const p = access.project;
   if (!PROJECT_TRANSITIONS[p.status].includes(status)) throw badRequest(`A ${p.status} project cannot move to ${status}`);
+  if (status === 'ACTIVE' && !p.planApprovedAt) throw badRequest('The project can start once its plan is approved by the project director.');
   if (status === 'COMPLETED') {
     const open = await prisma.workItem.count({ where: { projectId: p.id, status: { notIn: ['DONE', 'CANCELLED'] } } });
     if (open) throw badRequest(`Close or cancel the ${open} open work item(s) before completing the project`);
@@ -240,6 +255,22 @@ r.post('/:projectId/status', async (req, res) => {
   await audit(prisma, req.auth, { action: 'project.status_changed', entityType: 'Project', entityId: p.id, projectId: p.id, metadata: { from: p.status, to: status, reason } }, req.ip);
   await reschedule(p.id);
   res.json(await projectDetail(req, await projectAccess(req.auth, p.id)));
+});
+
+// ----- Delete (administrators only): removes the project and everything in it -----
+r.delete('/:projectId', async (req, res) => {
+  if (req.auth.orgRole !== 'ADMIN') throw forbidden('Only an administrator can delete a project');
+  const p = await prisma.project.findFirst({ where: { id: req.params.projectId, organizationId: req.auth.orgId } });
+  if (!p) throw notFound('Project');
+  const { confirmCode } = parse(z.object({ confirmCode: z.string().trim().toUpperCase() }), req.body ?? {});
+  if (confirmCode !== p.code) throw badRequest(`Type the project code ${p.code} to confirm`);
+  const [tickets, hours] = await Promise.all([prisma.ticket.count({ where: { projectId: p.id } }), prisma.timeEntry.aggregate({ where: { projectId: p.id }, _sum: { hours: true } })]);
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${p.id}))`;
+    await tx.project.delete({ where: { id: p.id } });
+    await audit(tx, req.auth, { action: 'project.deleted', entityType: 'Project', entityId: p.id, metadata: { code: p.code, name: p.name, tickets, hours: Number(hours._sum.hours ?? 0) } }, req.ip);
+  }, { timeout: 60000 });
+  res.json({ deleted: true, code: p.code, ticketsUnlinked: tickets });
 });
 
 // ----- Members -----
@@ -282,6 +313,7 @@ r.post('/:projectId/clone', async (req, res) => {
   if (!access.internal) throw forbidden();
   const b = parse(z.object({ name: z.string().trim().min(2).max(160), code: createBody.shape.code, plannedStart: dateOnly, includeTeam: z.boolean().default(true), includeAssignees: z.boolean().default(false) }), req.body);
   const src = access.project;
+  noFutureStart(b.plannedStart, src.timezone);
   if (await prisma.project.findFirst({ where: { organizationId: req.auth.orgId, code: b.code } })) throw conflict(`Project code ${b.code} is already used`);
   const offset = Math.round((toDate(b.plannedStart) - src.plannedStart) / DAY);
   const [phases, items, deps, members, checklist] = await Promise.all([

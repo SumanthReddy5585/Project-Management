@@ -23,7 +23,7 @@ export const get = (url, params) => api.get(url, { params }).then((r) => r.data)
 export const post = (url, body) => api.post(url, body).then((r) => r.data);
 export const patch = (url, body) => api.patch(url, body).then((r) => r.data);
 export const put = (url, body) => api.put(url, body).then((r) => r.data);
-export const del = (url) => api.delete(url).then((r) => r.data);
+export const del = (url, data) => api.delete(url, data === undefined ? undefined : { data }).then((r) => r.data);
 export const upload = (form) => api.post('/files', form).then((r) => r.data);
 /** Authorized download: fetch as blob through the API, then hand to the browser. */
 export async function download(url, filename) {

@@ -1,4 +1,4 @@
--- O2 Support Hub — PostgreSQL schema (6 migrations, generated 2026-11-19)
+-- O2 Support Hub — PostgreSQL schema (7 migrations, generated 2026-11-23)
 -- Load into an EMPTY database owned by the app login, e.g.:  psql -U o2app -h localhost -d o2_support_hub -v ON_ERROR_STOP=1 -f schema.sql
 
 --
@@ -239,8 +239,11 @@ BEGIN
       IF EXISTS (SELECT 1 FROM "Project" p WHERE p."id" = OLD."projectId") THEN RAISE EXCEPTION 'The original plan is locked and cannot be deleted'; END IF;
     END IF;
   ELSE
-    SELECT "kind" INTO b FROM "Baseline" WHERE "id" = OLD."baselineId";
-    IF FOUND AND b."kind" = 'ORIGINAL' THEN RAISE EXCEPTION 'The original plan is locked and cannot be changed'; END IF;
+    SELECT bl."kind", bl."projectId" INTO b FROM "Baseline" bl WHERE bl."id" = OLD."baselineId";
+    IF FOUND AND b."kind" = 'ORIGINAL' THEN
+      IF TG_OP = 'UPDATE' THEN RAISE EXCEPTION 'The original plan is locked and cannot be changed'; END IF;
+      IF EXISTS (SELECT 1 FROM "Project" p WHERE p."id" = b."projectId") THEN RAISE EXCEPTION 'The original plan is locked and cannot be changed'; END IF;
+    END IF;
   END IF;
   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
   RETURN NEW;
@@ -599,7 +602,8 @@ CREATE TABLE public."Membership" (
     role public."OrgRole" NOT NULL,
     status public."MembershipStatus" DEFAULT 'ACTIVE'::public."MembershipStatus" NOT NULL,
     "customerCompanyId" uuid,
-    "createdAt" timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    "createdAt" timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "projectDirector" boolean DEFAULT false NOT NULL
 );
 
 
@@ -2309,9 +2313,10 @@ ALTER TABLE ONLY public."WorkingCalendar"
 
 
 -- Migration history (so the app's migrator sees the schema as up to date)
-INSERT INTO public._prisma_migrations VALUES ('81d40aff-e367-4593-8d7a-66da021de619', 'a6cb7fbd831a9dd8cdf604b47850d61477cb7c4f41f9e8a997aa286737f555f1', '2026-11-19 07:29:40.419139+00', '20261117000000_init', NULL, NULL, '2026-11-19 07:29:40.419139+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('076f41b8-5be8-4426-b84a-2bb2ff9ff160', '1ef3fbe0ad25e81e8e3dd4ff31be2426a2df16cbd5fb93fbb84e037379e7f276', '2026-11-19 07:29:40.574746+00', '20261118000000_support_desk', NULL, NULL, '2026-11-19 07:29:40.574746+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('21929e73-feee-4285-93e1-05a9e2e0657a', '7258804def3894affb9df192feaac9dd41c26fe3c2797411fff03cc301c97f97', '2026-11-19 07:29:40.585807+00', '20261118100000_user_profile', NULL, NULL, '2026-11-19 07:29:40.585807+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('ff1f1440-8028-4d2b-a81d-9c0476c8986e', '9b20e8ddc00595c70dd40b86b4bf0a21135e0c5fbdffc60d79d4651ed8a9dd93', '2026-11-19 07:29:40.58729+00', '20261118200000_original_plan', NULL, NULL, '2026-11-19 07:29:40.58729+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('ecf48199-4b58-423d-9352-1419a55a0522', 'd458a830f5a166e095cde12990ef4257afb132214c584194453174c004117e6f', '2026-11-19 07:29:40.591251+00', '20261119000000_auto_schedule', NULL, NULL, '2026-11-19 07:29:40.591251+00', 1);
-INSERT INTO public._prisma_migrations VALUES ('9a11dcb0-2c3d-40c6-8511-890d8f353403', '5074f2b8dd6fce0477fafc7231680364355a2deb1c716ab4d89463e59215e17e', '2026-11-19 07:29:40.592549+00', '20261120000000_project_director', NULL, NULL, '2026-11-19 07:29:40.592549+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('23775cea-0db2-473c-9822-b6afcdd27319', 'a6cb7fbd831a9dd8cdf604b47850d61477cb7c4f41f9e8a997aa286737f555f1', '2026-11-23 11:01:05.894231+00', '20261117000000_init', NULL, NULL, '2026-11-23 11:01:05.894231+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('c329e361-32ad-425c-a03c-41f68c8a8382', '1ef3fbe0ad25e81e8e3dd4ff31be2426a2df16cbd5fb93fbb84e037379e7f276', '2026-11-23 11:01:06.04852+00', '20261118000000_support_desk', NULL, NULL, '2026-11-23 11:01:06.04852+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('310917ec-deee-4daf-9214-93d80c28a900', '7258804def3894affb9df192feaac9dd41c26fe3c2797411fff03cc301c97f97', '2026-11-23 11:01:06.063193+00', '20261118100000_user_profile', NULL, NULL, '2026-11-23 11:01:06.063193+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('44d6669a-06fc-499d-a9fd-56fdf8a5b3b1', '9b20e8ddc00595c70dd40b86b4bf0a21135e0c5fbdffc60d79d4651ed8a9dd93', '2026-11-23 11:01:06.065136+00', '20261118200000_original_plan', NULL, NULL, '2026-11-23 11:01:06.065136+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('78c41d90-e32e-4a40-99bf-aa42250c113c', 'd458a830f5a166e095cde12990ef4257afb132214c584194453174c004117e6f', '2026-11-23 11:01:06.074599+00', '20261119000000_auto_schedule', NULL, NULL, '2026-11-23 11:01:06.074599+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('e2fde1e9-50e9-43da-962f-4369c530ecb5', '5074f2b8dd6fce0477fafc7231680364355a2deb1c716ab4d89463e59215e17e', '2026-11-23 11:01:06.077793+00', '20261120000000_project_director', NULL, NULL, '2026-11-23 11:01:06.077793+00', 1);
+INSERT INTO public._prisma_migrations VALUES ('88a88563-6ad8-4401-9ccd-1e7ec9555203', 'ef4969acb4532821dacdbff62bb6dd66f129a657ce0b451a3887438aa46e52b1', '2026-11-23 11:01:06.080478+00', '20261123000000_designations_project_delete', NULL, NULL, '2026-11-23 11:01:06.080478+00', 1);

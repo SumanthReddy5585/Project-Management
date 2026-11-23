@@ -69,8 +69,13 @@ r.post('/deliverables', async (req, res) => {
   const b = parse(body, req.body);
   if (b.phaseId && !(await prisma.phase.findFirst({ where: { id: b.phaseId, projectId: access.project.id } }))) throw badRequest('Phase not found');
   if (b.customerVisible && !access.project.customerVisible) throw badRequest('Share the project with the customer first');
-  const d = await prisma.deliverable.create({ data: { ...b, dueDate: toDate(b.dueDate), projectId: access.project.id } });
-  await audit(prisma, req.auth, { action: 'deliverable.created', entityType: 'Deliverable', entityId: d.id, projectId: access.project.id }, req.ip);
+  // version 1 is created straight away, so files can be attached at once
+  const d = await prisma.$transaction(async (tx) => {
+    const row = await tx.deliverable.create({ data: { ...b, dueDate: toDate(b.dueDate), projectId: access.project.id } });
+    await tx.deliverableVersion.create({ data: { deliverableId: row.id, versionNumber: 1, createdById: req.auth.userId } });
+    await audit(tx, req.auth, { action: 'deliverable.created', entityType: 'Deliverable', entityId: row.id, projectId: access.project.id }, req.ip);
+    return row;
+  });
   res.status(201).json(await serialize(d, access));
 });
 

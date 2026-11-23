@@ -2,7 +2,7 @@
 <style>body{font:14px/1.55 "Segoe UI",Inter,Arial,sans-serif;max-width:1120px;margin:2rem auto;padding:0 1rem;color:#0f172a}h1{border-bottom:3px solid #0a3df0;padding-bottom:.4rem}h2{margin-top:2.4rem;border-bottom:1px solid #e2e8f0;padding-bottom:.3rem}h3{margin-top:1.7rem;color:#0a3df0}table{border-collapse:collapse;width:100%;font-size:13px;margin:.4rem 0}th,td{border:1px solid #e2e8f0;padding:4px 8px;text-align:left;vertical-align:top}th{background:#f6f6f7}code{background:#f1f5f9;padding:0 3px;border-radius:3px;font-size:12px}pre.mermaid{background:#fff;border:1px solid #e2e8f0;padding:1rem;overflow:auto;font-size:12px}@media print{pre.mermaid{display:none}h2{page-break-before:auto}}</style>
 <script type="module">try{const m=await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs");m.default.initialize({startOnLoad:true,er:{useMaxWidth:false}});}catch(e){}</script>
 </head><body><h1 id="o2-support-hub-database-structure">O2 Support Hub - Database structure</h1>
-<p>PostgreSQL schema <code>public</code> · 45 tables · 17 enum types · 62 foreign keys · 56 indexes · 6 migrations · generated 2026-11-19</p>
+<p>PostgreSQL schema <code>public</code> · 45 tables · 17 enum types · 62 foreign keys · 56 indexes · 7 migrations · generated 2026-11-23</p>
 <p>All primary keys are UUIDs. Timestamps are <code>timestamptz</code> (UTC); plain dates are <code>date</code>. Every business table is scoped to an organisation, directly or through its project. The original (approved) plan is protected by the trigger <code>o2_protect_original_baseline</code> on <code>Baseline</code> and <code>BaselineItem</code>. Columns ending in <code>Id</code> without an arrow (for example <code>assigneeId</code>, <code>createdById</code>) point to a row in another table — usually <code>User</code> — and are checked by the application rather than by a database foreign key. The authoritative model definition is <code>prisma/schema.prisma</code>; the SQL history is in <code>prisma/migrations/</code>.</p>
 <h2 id="contents">Contents</h2>
 <ul>
@@ -192,6 +192,7 @@
 <li><code>20261118200000_original_plan</code></li>
 <li><code>20261119000000_auto_schedule</code></li>
 <li><code>20261120000000_project_director</code></li>
+<li><code>20261123000000_designations_project_delete</code></li>
 </ol>
 <h2 id="organisation-users-and-security">Organisation, users and security</h2>
 <h3 id="organization">Organization</h3>
@@ -440,6 +441,13 @@
 <td>timestamptz</td>
 <td>no</td>
 <td><code>CURRENT_TIMESTAMP</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>projectDirector</code></td>
+<td>boolean</td>
+<td>no</td>
+<td><code>false</code></td>
 <td></td>
 </tr>
 </tbody>

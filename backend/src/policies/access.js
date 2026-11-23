@@ -61,8 +61,9 @@ export async function ticketsWhere(auth) {
   const base = { organizationId: auth.orgId };
   if (auth.isCustomer) return { ...base, customerCompanyId: auth.customerCompanyId ?? '00000000-0000-0000-0000-000000000000' };
   if (orgCan(auth, 'ticket.viewAll')) return base;
-  const mine = await prisma.projectMember.findMany({ where: { userId: auth.userId, role: { not: 'CUSTOMER' } }, select: { projectId: true } });
-  return { ...base, OR: [{ assigneeId: auth.userId }, { requesterId: auth.userId }, { projectId: { in: mine.map((m) => m.projectId) } }] };
+  // project by project: tickets of the projects you are on, plus your own; managers also triage tickets not yet tied to a project
+  const mine = await prisma.projectMember.findMany({ where: { userId: auth.userId, role: { not: 'CUSTOMER' }, project: { organizationId: auth.orgId } }, select: { projectId: true } });
+  return { ...base, OR: [{ assigneeId: auth.userId }, { requesterId: auth.userId }, { projectId: { in: mine.map((m) => m.projectId) } }, ...(auth.orgRole === 'MANAGER' ? [{ projectId: null }] : [])] };
 }
 
 export async function ticketAccess(auth, ticketId) {

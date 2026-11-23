@@ -1,17 +1,23 @@
 import { useMemo, useState } from 'react';
-import { Plus, Copy, KeyRound, Link2, UserPlus, Search, ShieldCheck, Briefcase, Users as UsersIcon, Building2, Mail, CheckCircle2 } from 'lucide-react';
+import { Plus, Copy, KeyRound, Link2, UserPlus, Search, ShieldCheck, Briefcase, Users as UsersIcon, Building2, Mail, CheckCircle2, Stamp } from 'lucide-react';
 import { get, post, patch, del } from '../../api/client.js';
 import { useLoad, useDebounced } from '../../lib/hooks.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { fmtDateTime, fmtRelative, labelize } from '../../lib/format.js';
 import { Avatar, Card, ConfirmButton, Empty, ErrorBox, Field, Loading, Modal, Notice, Pagination, Pill, Select, useToast, fieldErrors } from '../../components/ui.jsx';
 
+// Access levels. "Project director" is a manager with the director designation: only directors appear in
+// the project director list, and only project managers in the project manager list.
 const ROLE_INFO = {
   ADMIN: ['Administrator', 'Everything, including users, settings and every project.', ShieldCheck],
-  MANAGER: ['Project manager', 'Creates and runs projects, assigns work, approves timesheets, sees reports.', Briefcase],
+  DIRECTOR: ['Project director', 'Approves project plans, documents and change requests on the projects they direct.', Stamp],
+  MANAGER: ['Project manager', 'Builds the plan, runs the team, approves timesheets, sees reports.', Briefcase],
   EMPLOYEE: ['Team member', 'Works on assigned tasks and tickets, logs time.', UsersIcon],
   CUSTOMER: ['Client', 'Portal access: shared projects, their tickets and the help center.', Building2],
 };
+/** The access tile a member shows as (directors are managers with the designation). */
+const levelOf = (m) => (m.role === 'MANAGER' && m.projectDirector ? 'DIRECTOR' : m.role);
+const fromLevel = (k) => (k === 'DIRECTOR' ? { role: 'MANAGER', projectDirector: true } : k === 'ADMIN' ? { role: 'ADMIN' } : { role: k, projectDirector: false });
 export const DEPARTMENTS = ['Engineering', 'Project Management', 'Quality Assurance', 'Business Analysis', 'Design', 'Support', 'Sales', 'Finance', 'Operations', 'HR'];
 
 function CopyRow({ label, value }) {
@@ -58,16 +64,21 @@ function PersonForm({ f, setF, customers, departments, isNew, isSelf }) {
       </div>}
       {f.role === 'CUSTOMER' && <div className="row"><div className="col-md-6"><Field label="Phone">{(id) => <input id={id} className="form-control" value={f.phone} onChange={set('phone')} />}</Field></div><div className="col-md-6"><Field label="Designation (optional)">{(id) => <input id={id} className="form-control" value={f.title} onChange={set('title')} />}</Field></div></div>}
       <div className="form-label mt-1">Access level</div>
-      <div className="row g-2 mb-3">{Object.entries(ROLE_INFO).map(([k, [label, desc, Icon]]) => (
-        <div key={k} className="col-md-6"><label className={`tile p-2 d-flex gap-2 align-items-start ${f.role === k ? 'border-primary' : ''}`} style={{ cursor: isSelf ? 'not-allowed' : 'pointer', boxShadow: f.role === k ? '0 0 0 3px var(--brand-ring)' : undefined }}>
-          <input type="radio" className="form-check-input mt-1" name="role" checked={f.role === k} disabled={isSelf} onChange={() => setF({ ...f, role: k })} />
-          <span><span className="fw-semibold d-flex align-items-center gap-1"><Icon size={14} /> {label}</span><span className="small text-muted d-block">{desc}</span></span></label></div>))}</div>
+      <div className="row g-2 mb-2">{Object.entries(ROLE_INFO).map(([k, [label, desc, Icon]]) => {
+        const on = levelOf(f) === k;
+        return (
+          <div key={k} className="col-md-6"><label className={`tile p-2 d-flex gap-2 align-items-start ${on ? 'border-primary' : ''}`} style={{ cursor: isSelf ? 'not-allowed' : 'pointer', boxShadow: on ? '0 0 0 3px var(--brand-ring)' : undefined }}>
+            <input type="radio" className="form-check-input mt-1" name="role" checked={on} disabled={isSelf} onChange={() => setF({ ...f, ...fromLevel(k) })} />
+            <span><span className="fw-semibold d-flex align-items-center gap-1"><Icon size={14} /> {label}</span><span className="small text-muted d-block">{desc}</span></span></label></div>);
+      })}</div>
+      {f.role === 'ADMIN' && <div className="form-check mb-3"><input className="form-check-input" type="checkbox" id="adm-dir" checked={Boolean(f.projectDirector)} onChange={(e) => setF({ ...f, projectDirector: e.target.checked })} />
+        <label className="form-check-label" htmlFor="adm-dir">This administrator can also be chosen as a project director</label></div>}
       {f.role === 'CUSTOMER' && <Field label="Client company">{(id) => <Select id={id} value={f.customerCompanyId} onChange={set('customerCompanyId')} placeholder="Choose…" options={customers.map((c) => ({ value: c.id, label: c.name }))} />}</Field>}
     </>
   );
 }
 
-const blank = { name: '', email: '', title: '', department: '', employeeId: '', phone: '', weeklyCapacityHours: 40, skills: '', role: 'EMPLOYEE', customerCompanyId: '', access: 'password' };
+const blank = { name: '', email: '', title: '', department: '', employeeId: '', phone: '', weeklyCapacityHours: 40, skills: '', role: 'EMPLOYEE', projectDirector: false, customerCompanyId: '', access: 'password' };
 
 export function AdminUsers() {
   const { user } = useAuth();
@@ -77,7 +88,7 @@ export function AdminUsers() {
   const [dept, setDept] = useState('');
   const [page, setPage] = useState(1);
   const dq = useDebounced(q);
-  const members = useLoad(() => get('/org/members', { q: dq || undefined, role: role || undefined, page, pageSize: 50 }), [dq, page, role]);
+  const members = useLoad(() => get('/org/members', { q: dq || undefined, role: role === 'DIRECTOR' ? 'MANAGER' : role || undefined, page, pageSize: 50 }), [dq, page, role]);
   const all = useLoad(() => get('/org/members', { pageSize: 200 }), []);
   const invites = useLoad(() => get('/org/invitations'), []);
   const customers = useLoad(() => get('/org/customers'), []);
@@ -87,10 +98,10 @@ export function AdminUsers() {
   const [err, setErr] = useState(null);
   const cust = customers.data?.data || [];
   const departments = useMemo(() => [...new Set([...DEPARTMENTS, ...(all.data?.data || []).map((m) => m.department).filter(Boolean)])].sort(), [all.data]);
-  const counts = useMemo(() => Object.fromEntries(Object.keys(ROLE_INFO).map((r) => [r, (all.data?.data || []).filter((m) => m.role === r && m.status === 'ACTIVE').length])), [all.data]);
-  const rows = (members.data?.data || []).filter((m) => !dept || m.department === dept);
+  const counts = useMemo(() => Object.fromEntries(Object.keys(ROLE_INFO).map((r) => [r, (all.data?.data || []).filter((m) => levelOf(m) === r && m.status === 'ACTIVE').length])), [all.data]);
+  const rows = (members.data?.data || []).filter((m) => (!dept || m.department === dept) && (!role || levelOf(m) === role));
   const payload = (f) => ({ name: f.name.trim(), title: f.title || null, department: f.department || null, employeeId: f.employeeId || null, phone: f.phone || null,
-    role: f.role, customerCompanyId: f.role === 'CUSTOMER' ? f.customerCompanyId || null : null, ...(f.role !== 'CUSTOMER' && { weeklyCapacityHours: Number(f.weeklyCapacityHours) || 0, skills: f.skills.split(',').map((s) => s.trim()).filter(Boolean) }) });
+    role: f.role, projectDirector: ['ADMIN', 'MANAGER'].includes(f.role) ? Boolean(f.projectDirector) : false, customerCompanyId: f.role === 'CUSTOMER' ? f.customerCompanyId || null : null, ...(f.role !== 'CUSTOMER' && { weeklyCapacityHours: Number(f.weeklyCapacityHours) || 0, skills: f.skills.split(',').map((s) => s.trim()).filter(Boolean) }) });
   const create = async () => {
     setErr(null);
     try {
@@ -112,8 +123,8 @@ export function AdminUsers() {
     <>
       <div className="page-header"><div><h2 className="h-page">Users & roles</h2><div className="sub">Add your team with their designation and department, then pick them when you set up projects.</div></div>
         <button className="btn btn-primary" onClick={() => { setErr(null); setAdding({ ...blank, customerCompanyId: cust[0]?.id || '' }); }}><UserPlus size={15} /> Add user</button></div>
-      <div className="row g-3 mb-3">{Object.entries(ROLE_INFO).map(([k, [label, , Icon]]) => (
-        <div key={k} className="col-6 col-xl-3"><button className={`tile w-100 text-start ${role === k ? 'border-primary' : ''}`} onClick={() => { setRole(role === k ? '' : k); setPage(1); }}><div className="label"><span className="ic"><Icon size={14} /></span>{label}s</div><div className="value">{counts[k] ?? '—'}</div><div className="hint">{role === k ? 'Showing only these — click to clear' : 'Click to filter'}</div></button></div>))}</div>
+      <div className="row g-3 mb-3 row-cols-2 row-cols-md-3 row-cols-xl-5">{Object.entries(ROLE_INFO).map(([k, [label, , Icon]]) => (
+        <div key={k} className="col"><button className={`tile w-100 text-start ${role === k ? 'border-primary' : ''}`} onClick={() => { setRole(role === k ? '' : k); setPage(1); }}><div className="label"><span className="ic"><Icon size={14} /></span>{label}s</div><div className="value">{counts[k] ?? '—'}</div><div className="hint">{role === k ? 'Showing only these — click to clear' : 'Click to filter'}</div></button></div>))}</div>
       {invites.data?.data.length > 0 && <Card title={<><Mail size={15} /> Pending invitations</>} className="mb-3" bodyClass="p-0"><div className="table-wrap"><table className="table"><thead><tr><th>Email</th><th>Designation</th><th>Role</th><th>Expires</th><th /></tr></thead>
         <tbody>{invites.data.data.map((i) => <tr key={i.id}><td>{i.email}</td><td className="small">{i.title || '—'}</td><td><Pill>{labelize(i.role)}</Pill></td><td className={`small ${i.expired ? 'text-danger' : ''}`}>{i.expired ? 'Expired' : fmtDateTime(i.expiresAt)}</td>
           <td className="text-end"><ConfirmButton className="btn btn-sm btn-ghost text-danger" title="Revoke invitation?" confirmLabel="Revoke" onConfirm={async () => { await del(`/org/invitations/${i.id}`); invites.reload(); }}>Revoke</ConfirmButton></td></tr>)}</tbody></table></div></Card>}
@@ -130,7 +141,8 @@ export function AdminUsers() {
             <td><span className="d-flex align-items-center gap-2"><Avatar name={m.name} /><span><span className="fw-semibold d-block">{m.name}{m.userId === user.id && <span className="text-muted fw-normal"> (you)</span>}</span><span className="small text-muted">{m.email}</span></span></span></td>
             <td>{m.title || <span className="text-muted small">—</span>}</td>
             <td className="small">{m.role === 'CUSTOMER' ? m.customerCompany?.name : m.department || <span className="text-muted">—</span>}</td>
-            <td><Pill tone={m.role === 'ADMIN' ? 'dark' : m.role === 'MANAGER' ? 'blue' : m.role === 'CUSTOMER' ? 'sky' : 'neutral'}>{ROLE_INFO[m.role][0]}</Pill></td>
+            <td><Pill tone={m.role === 'ADMIN' ? 'dark' : levelOf(m) === 'DIRECTOR' ? 'warn' : m.role === 'MANAGER' ? 'blue' : m.role === 'CUSTOMER' ? 'sky' : 'neutral'}>{ROLE_INFO[levelOf(m)][0]}</Pill>
+              {m.role === 'ADMIN' && m.projectDirector && <div className="small text-muted">also project director</div>}</td>
             <td><Pill tone={m.status === 'ACTIVE' ? 'ok' : 'risk'}>{m.status === 'ACTIVE' ? 'Active' : 'Disabled'}</Pill>{m.mustChangePassword && <div className="small text-muted">Hasn’t set password</div>}</td>
             <td className="small text-muted text-nowrap">{m.lastLoginAt ? fmtRelative(m.lastLoginAt) : 'Never'}</td>
             <td className="text-end text-nowrap"><button className="btn btn-sm btn-light" onClick={() => { setErr(null); setEdit({ ...blank, ...m, title: m.title || '', department: m.department || '', employeeId: m.employeeId || '', phone: m.phone || '', skills: (m.skills || []).join(', '), customerCompanyId: m.customerCompany?.id || '' }); }}>Edit</button>
@@ -148,6 +160,7 @@ export function AdminUsers() {
           <label className="d-flex gap-2 align-items-start"><input type="radio" className="form-check-input mt-1" name="access" checked={adding.access === 'invite'} onChange={() => setAdding({ ...adding, access: 'invite' })} />
             <span><span className="fw-semibold"><Link2 size={13} /> Send an invitation link</span><span className="small text-muted d-block">They open the link and set their own password (valid 7 days).</span></span></label>
         </div>
+        {adding.access === 'invite' && adding.projectDirector && <Notice tone="info">They join as a project manager. Once they accept, edit them here and choose “Project director”.</Notice>}
       </Modal>}
       {edit && <Modal open size="lg" onClose={() => setEdit(null)} title={`Edit ${edit.name}`} footer={<><button className="btn btn-light" onClick={() => setEdit(null)}>Cancel</button><button className="btn btn-primary" onClick={save} disabled={!edit.name.trim()}>Save changes</button></>}>
         <ErrorBox error={err} />

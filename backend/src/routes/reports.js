@@ -105,7 +105,9 @@ r.get('/workload/weeks', async (req, res) => {
     ...((req.auth.orgRole !== 'ADMIN' || q.projectId) && { user: { projectMembers: { some: { projectId: { in: pids } } } } }) }, include: { user: true }, orderBy: { user: { name: 'asc' } } });
   const cal = toWorkCalendar(await loadCalendar(prisma, null, req.auth.orgId));
   const tasks = await prisma.workItem.findMany({ where: { projectId: { in: pids }, assigneeId: { in: members.map((m) => m.userId) }, type: { in: ['TASK', 'SUBTASK'] }, status: { notIn: ['DONE', 'CANCELLED'] } },
-    select: { id: true, number: true, title: true, projectId: true, assigneeId: true, plannedStart: true, plannedFinish: true, estimateHours: true, status: true, percentComplete: true, priority: true } });
+    select: { id: true, number: true, title: true, type: true, projectId: true, assigneeId: true, plannedStart: true, plannedFinish: true, estimateHours: true, status: true, percentComplete: true, priority: true, version: true } });
+  // who is on which project (to offer re-assignment only to people on the task's project)
+  const onTeam = await prisma.projectMember.findMany({ where: { projectId: { in: pids }, role: { in: ['MANAGER', 'MEMBER'] } }, select: { projectId: true, userId: true } });
   const data = members.map((m) => {
     const mine = tasks.filter((x) => x.assigneeId === m.userId).map((x) => ({ ...x, plannedStart: fmtDate(x.plannedStart), plannedFinish: fmtDate(x.plannedFinish), estimateHours: x.estimateHours == null ? null : Number(x.estimateHours) }));
     const inWindow = mine.filter((x) => x.plannedStart && x.plannedFinish && x.plannedStart <= to && x.plannedFinish >= from);
@@ -113,12 +115,16 @@ r.get('/workload/weeks', async (req, res) => {
       const capacity = capacityHours(m.user.weeklyCapacityHours, w.start, w.end, cal);
       const planned = plannedLoad(inWindow, w.start, w.end, cal);
       const taskIds = inWindow.filter((x) => x.plannedStart <= w.end && x.plannedFinish >= w.start).map((x) => x.id);
-      return { start: w.start, capacity, planned, taskIds, ...utilization(capacity, planned) };
+      // the same hours split by project, for the stacked bar in each cell
+      const byProject = {};
+      for (const pid of new Set(inWindow.map((x) => x.projectId))) { const h = plannedLoad(inWindow.filter((x) => x.projectId === pid), w.start, w.end, cal); if (h) byProject[pid] = h; }
+      return { start: w.start, capacity, planned, taskIds, byProject, ...utilization(capacity, planned) };
     });
     return { userId: m.userId, name: m.user.name, title: m.user.title, department: m.user.department, weeklyCapacityHours: Number(m.user.weeklyCapacityHours), weeks: cells,
+      projectIds: [...new Set(onTeam.filter((x) => x.userId === m.userId).map((x) => x.projectId))],
       totals: { capacity: Math.round(cells.reduce((s, c) => s + c.capacity, 0) * 10) / 10, planned: Math.round(cells.reduce((s, c) => s + c.planned, 0) * 10) / 10 },
       unscheduled: mine.filter((x) => !x.plannedStart || !x.plannedFinish).length, unestimated: inWindow.filter((x) => !x.estimateHours).length,
-      tasks: inWindow.map((x) => ({ id: x.id, key: `${pmap.get(x.projectId).code}-${x.number}`, title: x.title, projectId: x.projectId, projectCode: pmap.get(x.projectId).code, plannedStart: x.plannedStart, plannedFinish: x.plannedFinish, estimateHours: x.estimateHours, status: x.status, priority: x.priority, percentComplete: x.percentComplete })) };
+      tasks: inWindow.map((x) => ({ id: x.id, key: `${pmap.get(x.projectId).code}-${x.number}`, title: x.title, projectId: x.projectId, projectCode: pmap.get(x.projectId).code, plannedStart: x.plannedStart, plannedFinish: x.plannedFinish, estimateHours: x.estimateHours, status: x.status, priority: x.priority, percentComplete: x.percentComplete, type: x.type, version: x.version })) };
   });
   res.json({ from, to, weeks: weeks.map((w) => w.start), projects: visible, data,
     method: 'Each cell = remaining estimate of open tasks spread over their planned working days, against that week\'s capacity (weekly hours × working days). Over 100% means the person is overbooked that week.' });
@@ -203,14 +209,16 @@ r.get('/dashboard', async (req, res) => {
       deliverablesAwaitingReview: deliverables.map((d) => ({ id: d.id, name: d.name, projectId: d.project.id, projectCode: d.project.code, dueDate: fmtDate(d.dueDate) })),
       tickets: tickets.map((t) => ({ id: t.id, number: t.number, subject: t.subject, status: t.status, updatedAt: t.updatedAt })) });
   }
-  const mine = await prisma.workItem.findMany({ where: { assigneeId: a.userId, status: { notIn: ['DONE', 'CANCELLED'] }, project: { organizationId: a.orgId, status: { in: ['ACTIVE', 'ON_HOLD'] }, members: { some: { userId: a.userId } } } },
-    include: { project: { select: { id: true, code: true } } }, orderBy: [{ plannedFinish: 'asc' }], take: 50 });
+  // assigned work on running projects whose plan is approved (work cannot start before that)
+  const mine = await prisma.workItem.findMany({ where: { assigneeId: a.userId, type: { not: 'MODULE' }, status: { notIn: ['DONE', 'CANCELLED'] }, project: { organizationId: a.orgId, status: { in: ['ACTIVE', 'ON_HOLD'] }, planApprovedAt: { not: null }, members: { some: { userId: a.userId } } } },
+    include: { project: { select: { id: true, code: true, name: true, status: true } }, parent: { select: { title: true } }, _count: { select: { children: { where: { status: { not: 'CANCELLED' } } } } } }, orderBy: [{ plannedFinish: 'asc' }], take: 300 });
   const ws = weekStartOf(today);
   const sheet = await prisma.timesheet.findUnique({ where: { userId_weekStart: { userId: a.userId, weekStart: toDate(ws) } }, include: { entries: true } });
   const myTickets = await prisma.ticket.findMany({ where: { organizationId: a.orgId, assigneeId: a.userId, status: { in: OPEN } }, orderBy: { updatedAt: 'desc' }, take: 10 });
   const mentions = await prisma.notification.count({ where: { userId: a.userId, type: 'mention', readAt: null } });
   const unread = await prisma.notification.count({ where: { userId: a.userId, readAt: null } });
-  const wi = (i) => ({ id: i.id, projectId: i.project.id, key: `${i.project.code}-${i.number}`, title: i.title, status: i.status, plannedFinish: fmtDate(i.plannedFinish), overdue: Boolean(i.plannedFinish && fmtDate(i.plannedFinish) < today) });
+  const wi = (i) => ({ id: i.id, projectId: i.project.id, projectCode: i.project.code, projectName: i.project.name, projectStatus: i.project.status, key: `${i.project.code}-${i.number}`, title: i.title, type: i.type, parentTitle: i.parent?.title ?? null,
+    hasSubtasks: i._count.children > 0, status: i.status, plannedStart: fmtDate(i.plannedStart), plannedFinish: fmtDate(i.plannedFinish), overdue: Boolean(i.plannedFinish && fmtDate(i.plannedFinish) < today) });
   const employee = {
     myTasks: mine.map(wi), upcoming: mine.filter((i) => i.plannedFinish && fmtDate(i.plannedFinish) <= addDays(today, 7)).map(wi), blocked: mine.filter((i) => i.status === 'BLOCKED').map(wi),
     timesheet: { weekStart: ws, status: sheet?.status ?? 'DRAFT', hours: (sheet?.entries ?? []).reduce((s, e) => s + Number(e.hours), 0) },

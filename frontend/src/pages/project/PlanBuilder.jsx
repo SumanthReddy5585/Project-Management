@@ -41,7 +41,8 @@ export function PlanBuilder({ compact = false }) {
     if (!d) return [];
     const byPhase = new Map(d.phases.map((ph) => [ph.id, []]));
     const loose = [];
-    for (const r of d.rows) (r.phaseId && byPhase.has(r.phaseId) ? byPhase.get(r.phaseId) : loose).push(r);
+    // milestones are kept apart from the task plan (see the Milestones section)
+    for (const r of d.rows.filter((x) => x.type !== 'MILESTONE')) (r.phaseId && byPhase.has(r.phaseId) ? byPhase.get(r.phaseId) : loose).push(r);
     const gs = d.phases.map((ph) => ({ id: ph.id, phase: ph, name: ph.name, rows: orderTree(byPhase.get(ph.id)) }));
     if (loose.length || !gs.length) gs.push({ id: null, name: gs.length ? 'Not in a stage' : 'Tasks', rows: orderTree(loose) });
     return gs;
@@ -82,13 +83,13 @@ export function PlanBuilder({ compact = false }) {
 
   const tasks = d.rows.filter((r) => r.type === 'TASK').length;
   const subtasks = d.rows.filter((r) => r.type === 'SUBTASK').length;
-  const milestones = d.rows.filter((r) => r.type === 'MILESTONE').length;
+  const milestones = d.rows.filter((r) => r.type === 'MILESTONE');
   return (
     <div className={`pb ${compact ? 'pb-compact' : ''}`}>
       {!compact && d.canEdit && <div className="pb-how">
         <div><span className="n">1</span><b>List the work</b> — task name, who does it, and how many working days it takes.</div>
         <div><span className="n">2</span><b>Say what it waits for</b> — “After previous task”, or pick the tasks. Tasks that wait for nothing run <b>in parallel</b>.</div>
-        <div><span className="n">3</span><b>Dates are worked out for you</b> — change a length or a link and every task after it moves.</div>
+        <div><span className="n">3</span><b>Split a task into sub-tasks</b> — they get their own dates <b>inside the task’s days</b>, one after another or in parallel.</div>
       </div>}
       <div className="pb-summary">
         <div className="pb-sum-item"><span className="lbl">Project starts</span>
@@ -96,7 +97,8 @@ export function PlanBuilder({ compact = false }) {
         <div className="pb-sum-item"><span className="lbl">{d.approved ? 'Work now ends' : 'Plan ends'}</span><b className="big">{d.calculatedFinish ? fmtDate(d.calculatedFinish) : '—'}</b>
           {d.calculatedFinish && <span className="text-muted small">{plural(d.workingDays, 'working day')}</span>}</div>
         {d.approved && <div className="pb-sum-item"><span className="lbl">Original end</span><b>{fmtDate(d.projectFinish)}</b></div>}
-        <div className="pb-sum-item"><span className="lbl">In the plan</span><b>{plural(tasks, 'task')}{subtasks > 0 && <> · {plural(subtasks, 'sub-task')}</>} · {plural(milestones, 'milestone')}</b></div>
+        <div className="pb-sum-item"><span className="lbl">In the plan</span><b>{plural(tasks, 'task')}{subtasks > 0 && <> · {plural(subtasks, 'sub-task')}</>}</b></div>
+        <div className="pb-sum-item"><span className="lbl">Milestones</span><b>{milestones.length ? plural(milestones.length, 'key date') : 'None yet'}</b></div>
       </div>
 
       {groups.map((g, gi) => (
@@ -124,7 +126,49 @@ export function PlanBuilder({ compact = false }) {
         </section>
       ))}
       {canEdit && <AddStage onAdd={addStage} />}
+      {!compact && <PlanMilestones rows={milestones} canEdit={canEdit} approved={d.approved} code={project.code} projectStart={d.projectStart} onAdd={add} onUpdate={update} onRemove={remove} />}
     </div>
+  );
+}
+
+/** Milestones: key dates kept apart from the task plan (they carry no work and nobody waits for them). */
+function PlanMilestones({ rows, canEdit, approved, code, projectStart, onAdd, onUpdate, onRemove }) {
+  const [f, setF] = useState({ title: '', date: '' });
+  const [busy, setBusy] = useState(false);
+  const sorted = [...rows].sort((a, b) => (a.start || '9').localeCompare(b.start || '9'));
+  const today = new Date().toISOString().slice(0, 10);
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!f.title.trim() || !f.date || busy) return;
+    setBusy(true);
+    const item = await onAdd({ type: 'MILESTONE', title: f.title.trim(), fixedStart: f.date, durationDays: 1, after: [] });
+    setBusy(false);
+    if (item) setF({ title: '', date: '' });
+  };
+  return (
+    <section className="pb-ms-card" aria-label="Milestones">
+      <div className="pb-ms-head"><Flag size={16} className="text-warning" /><h3>Milestones</h3>
+        <span className="text-muted small">Key dates such as sign-off or go-live. They sit outside the task plan and do not move it.</span></div>
+      {sorted.length === 0 ? <div className="small text-muted px-1 pb-2">No milestones yet.{canEdit ? ' Add the dates that matter to the client or the director.' : ''}</div> : (
+        <ul className="pb-ms-list">{sorted.map((m) => {
+          const reached = m.status === 'DONE'; const late = !reached && m.start && m.start < today;
+          return (
+            <li key={m.id} className={reached ? 'reached' : late ? 'late' : ''}>
+              <span className="pb-ms-dia" aria-hidden="true" />
+              <span className="mono text-muted small">{code}-{m.number}</span>
+              <EditText value={m.title} disabled={!canEdit || reached} label={`Name of milestone ${code}-${m.number}`} className="flex-grow-1" onSave={(title) => onUpdate(m, { title })} />
+              {canEdit && !reached ? <DateCell value={m.start} min={projectStart} label={`Date of ${m.title}`} onCommit={(v) => (v ? onUpdate(m, { fixedStart: v }, `${m.title} is now on ${fmtDate(v)}`) : Promise.resolve(false))} />
+                : <span className="small fw-semibold">{fmtDate(m.start)}</span>}
+              <span className={`pill ${reached ? 'pill-ok' : late ? 'pill-risk' : 'pill-neutral'}`}>{reached ? 'Reached' : late ? 'Overdue' : approved ? 'Upcoming' : 'Planned'}</span>
+              {canEdit && !reached && <ConfirmButton className="btn btn-ghost btn-icon btn-sm" title={`Remove “${m.title}”?`} confirmLabel="Remove" onConfirm={() => onRemove(m)}><Trash2 size={13} aria-label={`Remove milestone ${m.title}`} /></ConfirmButton>}
+            </li>);
+        })}</ul>)}
+      {canEdit && <form className="pb-ms-add" onSubmit={submit}>
+        <input className="form-control form-control-sm" placeholder="New milestone, e.g. Design signed off" value={f.title} aria-label="New milestone name" onChange={(e) => setF({ ...f, title: e.target.value })} />
+        <input type="date" className="form-control form-control-sm" style={{ maxWidth: 170 }} value={f.date} min={projectStart} aria-label="New milestone date" onChange={(e) => setF({ ...f, date: e.target.value })} />
+        <button className="btn btn-sm btn-outline-primary" disabled={busy || !f.title.trim() || !f.date}><Plus size={14} /> Add milestone</button>
+      </form>}
+    </section>
   );
 }
 
@@ -134,7 +178,7 @@ function ProjectStart({ project, onDone }) {
     try { await patch(`/projects/${project.id}`, { plannedStart: v, version: project.version }); toast(`Project start moved to ${fmtDate(v)} — the plan moved with it`, 'success'); onDone(); }
     catch (e) { toast(e.message, 'error'); onDone(); }
   };
-  return <DateCell value={project.plannedStart} onCommit={commit} label="Project start date" />;
+  return <DateCell value={project.plannedStart} max={new Date().toISOString().slice(0, 10)} onCommit={commit} label="Project start date (today or earlier)" />;
 }
 
 function StageHead({ group: g, index, canEdit, onRename }) {
@@ -199,6 +243,7 @@ function AfterPicker({ ids, mode, prev, options, onPick, disabled, label, code, 
     return () => { document.removeEventListener('mousedown', off); document.removeEventListener('keydown', esc); window.removeEventListener('scroll', scroll, true); window.removeEventListener('resize', place); };
   }, [open]);
   const byId = new Map(options.map((o) => [o.id, o]));
+  const noun = emptyText === 'With its task' ? 'sub-task' : 'task';
   const text = mode === 'start' || !ids.length ? emptyText
     : mode === 'parallel' ? `With #${prev?.number} (parallel)`
       : ids.length === 1 ? `#${byId.get(ids[0])?.number ?? '?'} ${byId.get(ids[0])?.title ?? ''}` : ids.map((x) => `#${byId.get(x)?.number ?? '?'}`).join(', ');
@@ -212,32 +257,34 @@ function AfterPicker({ ids, mode, prev, options, onPick, disabled, label, code, 
         <span className="truncate">{text}</span><ChevronDown size={14} />
       </button>
       {open && <div className="pb-pop" style={pos || { visibility: 'hidden' }} role="dialog" aria-label="What does this task wait for?">
-        <div className="pb-pop-title">This task can start…</div>
+        <div className="pb-pop-title">This {noun} can start…</div>
         <button type="button" className={`pb-opt ${!ids.length && mode !== 'parallel' ? 'on' : ''}`} onClick={() => pick('start', [])}>{emptyText === 'With its task' ? <><b>When its task starts</b><span>Waits only for what its task waits for</span></> : <><b>At the project start</b><span>Doesn’t wait for anything</span></>}</button>
-        {prev && <button type="button" className={`pb-opt ${mode === 'prev' || (mode !== 'parallel' && same(ids, [prev.id])) ? 'on' : ''}`} onClick={() => pick('prev', [prev.id])}><b>After the previous task</b><span>#{prev.number} {prev.title}</span></button>}
-        {prev && <button type="button" className={`pb-opt ${mode === 'parallel' ? 'on' : ''}`} onClick={() => pick('parallel', prev.after || [])}><b>At the same time as the previous task</b><span>In parallel with #{prev.number} {prev.title}</span></button>}
-        <div className="pb-pop-title mt-2">…or after these tasks are finished:</div>
+        {prev && <button type="button" className={`pb-opt ${mode === 'prev' || (mode !== 'parallel' && same(ids, [prev.id])) ? 'on' : ''}`} onClick={() => pick('prev', [prev.id])}><b>After the previous {noun}</b><span>#{prev.number} {prev.title}</span></button>}
+        {prev && <button type="button" className={`pb-opt ${mode === 'parallel' ? 'on' : ''}`} onClick={() => pick('parallel', prev.after || [])}><b>At the same time as the previous {noun}</b><span>In parallel with #{prev.number} {prev.title}</span></button>}
+        <div className="pb-pop-title mt-2">{emptyText === 'With its task' ? '…or after these sub-tasks are finished:' : '…or after these tasks are finished:'}</div>
         {options.length > 8 && <input className="form-control form-control-sm mb-1" placeholder="Find a task" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a task" />}
         <div className="pb-checks">
           {shown.map((o) => <label key={o.id} className="pb-check"><input type="checkbox" className="form-check-input" checked={sel.includes(o.id)} onChange={(e) => setSel((s) => (e.target.checked ? [...s, o.id] : s.filter((x) => x !== o.id)))} />
-            <span className="mono">{code}-{o.number}</span><span className="truncate">{o.title}</span>{o.type === 'MILESTONE' && <Flag size={12} className="text-muted flex-shrink-0" />}</label>)}
-          {!shown.length && <div className="small text-muted p-1">No other tasks yet.</div>}
+            <span className="mono">{code}-{o.number}</span><span className="truncate">{o.title}</span></label>)}
+          {!shown.length && <div className="small text-muted p-1">{emptyText === 'With its task' ? 'No other sub-tasks in this task yet.' : 'No other tasks yet.'}</div>}
         </div>
         <div className="d-flex justify-content-end gap-2 mt-2">
           <button type="button" className="btn btn-sm btn-light" onClick={() => setOpen(false)}>Cancel</button>
-          <button type="button" className="btn btn-sm btn-primary" onClick={() => pick(sel.length ? 'custom' : 'start', sel)}><Check size={14} /> Use {sel.length ? plural(sel.length, 'task') : 'project start'}</button>
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => pick(sel.length ? 'custom' : 'start', sel)}><Check size={14} /> Use {sel.length ? plural(sel.length, emptyText === 'With its task' ? 'sub-task' : 'task') : emptyText === 'With its task' ? 'the task start' : 'project start'}</button>
         </div>
       </div>}
     </div>
   );
 }
 
-/** Items a row may wait for: not itself, not its own sub-items, not the task it sits in, not work packages. */
+/**
+ * What a row may wait for. A sub-task: only the other sub-tasks of the same task (it stays inside its task).
+ * A task: other tasks (not sub-tasks, milestones or work packages).
+ */
 function waitOptions(flat, row, { newChildOf = null } = {}) {
-  const byId = new Map(flat.map((y) => [y.id, y]));
-  const isUnder = (x, id) => { for (let p = x.parentId; p; p = byId.get(p)?.parentId) if (p === id) return true; return false; };
-  const ancestors = new Set(); for (let p = newChildOf ? newChildOf.id : row?.parentId; p; p = byId.get(p)?.parentId) ancestors.add(p);
-  return flat.filter((x) => x.id !== row?.id && x.type !== 'MODULE' && !ancestors.has(x.id) && !(row && isUnder(x, row.id)));
+  const parentId = newChildOf ? newChildOf.id : row?.type === 'SUBTASK' ? row.parentId : null;
+  if (parentId) return flat.filter((x) => x.parentId === parentId && x.id !== row?.id);
+  return flat.filter((x) => x.id !== row?.id && x.type === 'TASK');
 }
 
 function Bar({ r, span, spanDays }) {
@@ -253,9 +300,11 @@ function Row({ r, flat, byId, people, canEdit, span, spanDays, code, onUpdate, o
   const ms = r.type === 'MILESTONE';
   const done = r.status === 'DONE';
   const started = ['IN_PROGRESS', 'BLOCKED', 'IN_REVIEW'].includes(r.status);
-  const editable = canEdit && !r.isParent && r.type !== 'MODULE' && !done;
+  // a task with sub-tasks is a box: it keeps its own length and owner, and its sub-tasks are planned inside it
+  const box = r.isParent && r.type === 'TASK';
+  const editable = canEdit && r.type !== 'MODULE' && !done;
   const idx = flat.findIndex((x) => x.id === r.id);
-  const prev = flat.slice(0, idx).reverse().find((x) => x.type !== 'MODULE' && !x.isParent && x.parentId === r.parentId) || null;
+  const prev = flat.slice(0, idx).reverse().find((x) => x.parentId === r.parentId && (r.type === 'SUBTASK' || x.type === 'TASK')) || null;
   const mode = r.after.length === 0 ? 'start' : prev && r.after.length === 1 && r.after[0] === prev.id ? 'prev' : 'custom';
   const owner = people.find((p) => p.id === r.assigneeId);
   return (
@@ -270,16 +319,16 @@ function Row({ r, flat, byId, people, canEdit, span, spanDays, code, onUpdate, o
           {(done || started) && <StatusBadge status={r.status} />}
         </div>
       </td>
-      <td className="c-owner">{ms || r.isParent ? <span className="text-muted small">—</span> : editable
+      <td className="c-owner">{ms || r.type === 'MODULE' ? <span className="text-muted small">—</span> : editable
         ? <select className="form-select form-select-sm pb-input" value={r.assigneeId || ''} aria-label={`Who does ${code}-${r.number}`} onChange={(e) => onUpdate(r, { assigneeId: e.target.value || null })}>
           <option value="">Nobody yet</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
         : <span className="small">{owner?.name || '—'}</span>}</td>
-      <td className="c-days">{ms ? <span className="pb-ms-tag">Milestone</span> : r.isParent ? <span className="text-muted small" title="From the items inside it">{r.durationDays ?? '—'}</span>
-        : <EditDays value={r.durationDays} disabled={!editable} label={`Working days for ${code}-${r.number}`} onSave={(durationDays) => onUpdate(r, { durationDays })} />}</td>
-      <td className="c-after">{r.isParent ? <AfterPicker ids={r.after} mode={mode} prev={prev} options={waitOptions(flat, r)} disabled={!canEdit || done || r.type === 'MODULE'} code={code}
-        label={`What ${code}-${r.number} and its sub-tasks wait for`} onPick={({ ids }) => onUpdate(r, { after: ids })} />
-        : <AfterPicker ids={r.after} mode={mode} prev={prev} options={waitOptions(flat, r)} disabled={!editable || started} code={code} label={`What ${code}-${r.number} waits for`} emptyText={r.type === 'SUBTASK' ? 'With its task' : 'Project start'}
-          onPick={({ ids }) => onUpdate(r, { after: ids })} />}</td>
+      <td className="c-days">{ms ? <span className="pb-ms-tag">Milestone</span> : r.type === 'MODULE' ? <span className="text-muted small" title="From the items inside it">{r.durationDays ?? '—'}</span>
+        : <span className="d-inline-flex align-items-center gap-1"><EditDays value={r.durationDays} disabled={!editable} label={`Working days for ${code}-${r.number}`} onSave={(durationDays) => onUpdate(r, { durationDays })} />
+          {box && <span className="pb-box-tag" title="Its sub-tasks are planned inside these days">box</span>}</span>}</td>
+      <td className="c-after"><AfterPicker ids={r.after} mode={mode} prev={prev} options={waitOptions(flat, r)} disabled={!editable || started || r.type === 'MODULE'} code={code}
+        label={box ? `What ${code}-${r.number} and its sub-tasks wait for` : `What ${code}-${r.number} waits for`} emptyText={r.type === 'SUBTASK' ? 'With its task' : 'Project start'}
+        onPick={({ ids }) => onUpdate(r, { after: ids })} /></td>
       <td className="c-date">
         {fixing && editable ? <DateCell value={r.start} label={`Fixed start for ${code}-${r.number}`} onCommit={async (v) => { setFixing(false); await onUpdate(r, { fixedStart: v }, `${r.title} will not start before ${fmtDate(v)}`); }} />
           : <span className="d-inline-flex align-items-center gap-1">
@@ -295,7 +344,6 @@ function Row({ r, flat, byId, people, canEdit, span, spanDays, code, onUpdate, o
       <td className="c-act text-nowrap">
         {canEdit && r.type === 'TASK' && !done && r.status !== 'CANCELLED' && <button className="btn btn-ghost btn-icon btn-sm pb-hover pb-sub" title="Add a sub-task" aria-label={`Add a sub-task to ${code}-${r.number}`} onClick={() => onAddSub(r)}><ListPlus size={14} /></button>}
         {editable && !r.isParent && <>
-        {r.type !== 'SUBTASK' && <button className="btn btn-ghost btn-icon btn-sm pb-hover" title={ms ? 'Make it a task' : 'Make it a milestone'} aria-label={ms ? `Make ${code}-${r.number} a task` : `Make ${code}-${r.number} a milestone`} onClick={() => onUpdate(r, { type: ms ? 'TASK' : 'MILESTONE' })}><Flag size={13} /></button>}
         <ConfirmButton className="btn btn-ghost btn-icon btn-sm pb-hover" title={`Remove “${r.title}”?`} message="Tasks that waited for it will wait for what it waited for instead." confirmLabel="Remove" onConfirm={() => onRemove(r)}><Trash2 size={13} aria-label={`Remove ${code}-${r.number}`} /></ConfirmButton>
       </>}</td>
     </tr>
@@ -306,10 +354,10 @@ function AddRow({ group, flat, groups, people, onAdd, parent = null, onClose }) 
   // "previous task" = the last task in this stage, or the last task of the stages before it;
   // for a sub-task: the last sub-task of the same task (the first one simply starts with its task)
   const gi = groups.indexOf(group);
-  const before = parent ? flat.filter((x) => x.parentId === parent.id && !x.isParent)
-    : groups.slice(0, gi + 1).flatMap((g) => g.rows).filter((x) => x.type !== 'MODULE' && !x.isParent);
+  const before = parent ? flat.filter((x) => x.parentId === parent.id)
+    : groups.slice(0, gi + 1).flatMap((g) => g.rows).filter((x) => x.type === 'TASK');
   const prev = before.at(-1) || null;
-  const [f, setF] = useState({ title: '', type: parent ? 'SUBTASK' : 'TASK', assigneeId: parent?.assigneeId || '', durationDays: parent ? '2' : '5', mode: 'prev', ids: [] });
+  const [f, setF] = useState({ title: '', type: parent ? 'SUBTASK' : 'TASK', assigneeId: parent?.assigneeId || '', durationDays: parent ? '1' : '5', mode: 'prev', ids: [] });
   const [busy, setBusy] = useState(false);
   const input = useRef(null);
   const ms = f.type === 'MILESTONE';
@@ -334,19 +382,15 @@ function AddRow({ group, flat, groups, people, onAdd, parent = null, onClose }) 
       <td className="c-num">{parent ? <CornerDownRight size={14} className="text-muted" /> : <Plus size={14} className="text-muted" />}</td>
       <td style={parent ? { paddingLeft: `${0.5 + ((parent.depth ?? 0) + 1) * 1.1}rem` } : undefined}>
         <div className="d-flex gap-1">
-          <input ref={input} className="form-control form-control-sm" placeholder={parent ? `Sub-task of ${parent.title}…` : ms ? 'Milestone, e.g. Design signed off' : `Add a task to ${group.name}…`} value={f.title}
+          <input ref={input} className="form-control form-control-sm" placeholder={parent ? `Sub-task of ${parent.title} (fits in its ${plural(parent.durationDays ?? 1, 'day')})…` : `Add a task to ${group.name}…`} value={f.title}
             aria-label={parent ? `New sub-task of ${parent.title}` : `New task in ${group.name}`} onChange={(e) => setF({ ...f, title: e.target.value })} onKeyDown={onKey} />
-          {!parent && <div className="btn-group btn-group-sm pb-type" role="group" aria-label="Task or milestone">
-            <button type="button" className={`btn ${ms ? 'btn-light' : 'btn-secondary'}`} onClick={() => setF({ ...f, type: 'TASK' })}>Task</button>
-            <button type="button" className={`btn ${ms ? 'btn-secondary' : 'btn-light'}`} onClick={() => setF({ ...f, type: 'MILESTONE' })} title="Milestone: a key date, e.g. sign-off or go-live" aria-label="Milestone"><Flag size={12} /></button>
-          </div>}
         </div>
       </td>
       <td className="c-owner">{ms ? <span className="text-muted small">—</span> : <select className="form-select form-select-sm" value={f.assigneeId} aria-label="Who does the new task" onChange={(e) => setF({ ...f, assigneeId: e.target.value })}>
         <option value="">Who?</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}</td>
       <td className="c-days">{ms ? <span className="pb-ms-tag">Milestone</span> : <input type="number" min="1" max="1000" className="form-control form-control-sm pb-days" value={f.durationDays} aria-label="Working days for the new task" onChange={(e) => setF({ ...f, durationDays: e.target.value })} onKeyDown={onKey} />}</td>
-      <td className="c-after">{parent && !prev ? <span className="small text-muted" title="A sub-task waits for whatever its task waits for">With its task</span>
-        : <AfterPicker ids={ids} mode={mode} prev={prev} options={waitOptions(flat, null, { newChildOf: parent })} code="" label="What the new task waits for" onPick={({ mode: m, ids: x }) => setF({ ...f, mode: m, ids: x })} />}</td>
+      <td className="c-after">{parent && !prev ? <span className="small text-muted" title="The first sub-task starts when its task starts">When its task starts</span>
+        : <AfterPicker ids={ids} mode={mode} prev={prev} options={waitOptions(flat, null, { newChildOf: parent })} code="" label={parent ? 'What the new sub-task waits for' : 'What the new task waits for'} emptyText={parent ? 'With its task' : 'Project start'} onPick={({ mode: m, ids: x }) => setF({ ...f, mode: m, ids: x })} />}</td>
       <td className="c-date" colSpan={2}><span className="small text-muted">Calculated</span></td>
       <td className="c-bar" />
       <td className="c-act text-nowrap"><button className="btn btn-sm btn-primary" disabled={busy || !f.title.trim()} onClick={submit}>{busy ? 'Adding…' : 'Add'}</button>

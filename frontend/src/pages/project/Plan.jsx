@@ -92,7 +92,7 @@ function BuildPlan({ plan, reload }) {
       {plan.returnNote && !waiting && <Notice tone="warn"><b>Sent back by the director{plan.returnedAt ? ` on ${fmtDate(plan.returnedAt)}` : ''}:</b> “{plan.returnNote}” Make the changes and send it again.</Notice>}
       {!plan.canSubmit && !plan.canApprove && !waiting && <Notice>The project manager builds the plan and sends it to the project director for approval.</Notice>}
       <PlanBuilder />
-      <div className="form-text mt-3">Prefer a spreadsheet? You can also edit everything in the <Link to="../tasks">Tasks</Link> table or Gantt chart, or import a CSV there. Once the director approves it, the plan is frozen as the <b>original plan</b> and every later change is compared with it.</div>
+      <div className="form-text mt-3">Prefer a spreadsheet? Import a CSV from <b>Actions → Import tasks</b>. Once the director approves the plan, it is frozen as the <b>original plan</b>, every later change is compared with it, and the Tasks views (list, timeline, board, calendar) open for the team.</div>
 
       <Modal open={modal === 'submit'} onClose={() => setModal(null)} title={`Send the plan to ${dirName || 'the project director'}`}
         footer={<><button className="btn btn-light" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => run('submit', { note: note || undefined }, `Plan sent to ${dirName || 'the director'} for approval`)}><Send size={14} /> {busy ? 'Sending…' : 'Send for approval'}</button></>}>
@@ -254,7 +254,7 @@ function PlanVsOriginal({ plan }) {
         <PlanTimeline plan={plan} />
       </Card>
       <WorkingPlanEditor />
-      <Card title="Tasks compared with the approved plan" actions={<Link to="../tasks" className="small fw-semibold d-inline-flex align-items-center gap-1"><GanttChart size={14} /> Open the Gantt chart</Link>}>
+      <Card title="Tasks compared with the approved plan" actions={<Link to="../timeline" className="small fw-semibold d-inline-flex align-items-center gap-1"><GanttChart size={14} /> Open the Gantt chart</Link>}>
         <div className="seg-tabs mb-2" role="tablist">{TASK_GROUPS.map((g) => <button key={g[0]} role="tab" aria-selected={tab === g[0]} className={`${tab === g[0] ? 'on' : ''} ${g[0] === 'late' && count(g) ? 'alert' : ''}`} onClick={() => setTab(g[0])}>{g[1]} <span className="n">{count(g)}</span></button>)}</div>
         <div className="small text-muted mb-2">{group[3]}</div>
         {rows.length === 0 ? <Empty icon={CheckCircle2} title={tab === 'late' ? 'No late tasks — everything is on plan' : 'Nothing here'} /> : (

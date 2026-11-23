@@ -133,8 +133,13 @@ removed; project start, calendar or status changed; plan builder edits) and once
 - **Delays:** in an active project, unfinished work whose due date has passed is expected to finish today at the
   earliest, so everything that waits for it moves out day by day until it is done. The late task itself keeps its
   dates, so it still shows as overdue.
-- **Parents** (work packages, tasks with sub-tasks) span their children; a link to or from a parent applies to all
-  of its children. Cancelled and undated items are ignored. A circular set of links is refused.
+- **Work packages** span their children; a link to or from a work package applies to all of its children.
+- **A task with sub-tasks is a box.** It keeps its own length and is placed like any task (after what it waits for);
+  its sub-tasks are scheduled inside it: none starts before the task, and they run one after another or in parallel.
+  Whatever waits for the task also waits for its sub-tasks. If sub-tasks would end after the task, the plan editor
+  refuses the change (the API answers 400 with the date they would need); elsewhere the task is stretched to cover
+  them and the overrun is reported (`rescheduled.overflow`).
+- Cancelled and undated items are ignored. A circular set of links is refused.
 - **Project end:** until the plan is approved, the project's end date is the end of its last task. After approval
   the original end stays fixed and the expected end (forecast) moves.
 - **Upgrade:** existing plans keep their dates. Tasks that already started right after the task they wait for are
@@ -147,7 +152,19 @@ is still the default. "Starts after" offers: project start, after the previous t
 task (same predecessors = parallel), or any set of tasks. Removing a task reconnects what waited for it to what it
 waited for, so a chain is never broken.
 
-**Sub-tasks.** Any task can be split into sub-tasks (`type: SUBTASK`, `parentId` = the task). A task with sub-tasks
-spans them: its dates are the earliest sub-task start to the latest sub-task finish. What the task waits for, and a
-fixed start on the task, apply to all its sub-tasks; a sub-task can also wait for its sibling sub-tasks. Sub-tasks
-take the task's owner unless another person is chosen.
+**Sub-tasks.** Any task can be split into sub-tasks (`type: SUBTASK`, `parentId` = the task). The task keeps its
+own number of working days, and its sub-tasks get their own start and end dates **inside** those days: the first
+starts with the task, the next ones either after another sub-task of the same task or at the same time (parallel).
+A sub-task can only wait for sub-tasks of the same task, and a task never waits for its own sub-tasks. A change that
+would push a sub-task past the task's end is refused with the date it would need — make the task longer, or the
+sub-tasks shorter or parallel. Sub-tasks take the task's owner unless another person is chosen.
+
+**Milestones** are kept apart from the task plan: a name and a date (a fixed date), listed under *Milestones* on the
+Plan tab, on the Timeline and the Calendar. Tasks do not wait for milestones, and milestones are not shown in the
+task List or Board.
+
+**Project start** cannot be in the future (today or earlier, in the project's time zone).
+
+**Until the plan is approved** the project is in set-up: the Tasks views (list, timeline, board, calendar) and the
+status report are closed, work cannot be started or completed, time cannot be logged and the project cannot be
+started. Everything opens when the project director approves the plan.

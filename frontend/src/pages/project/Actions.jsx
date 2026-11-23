@@ -34,7 +34,9 @@ export function ProjectActions({ project: p, can, reload }) {
       else { await post(`/projects/${p.id}/status`, { status: f.status, version: p.version, reason: f.reason || undefined }); toast(`Project is now ${labelize(f.status).toLowerCase()}`, 'success'); setDialog(null); reload(); }
     } catch (x) { setErr(x); } finally { setBusy(false); }
   };
-  const statuses = can('project.edit') ? NEXT[p.status] : [];
+  // the project starts only once the director has approved its plan
+  const statuses = can('project.edit') ? NEXT[p.status].filter((x) => x !== 'ACTIVE' || p.planApprovedAt) : [];
+  const waitsForPlan = can('project.edit') && NEXT[p.status].includes('ACTIVE') && !p.planApprovedAt;
   const items = [
     ...(orgCan('project.create') ? [['clone', 'Duplicate project', Copy], ['template', 'Save as template', LayoutTemplate]] : []),
     ...statuses.map((s) => [s, STATUS_VERB[s], STATUS_ICON[s]]),
@@ -45,6 +47,7 @@ export function ProjectActions({ project: p, can, reload }) {
       <button className="btn btn-light btn-sm" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu" aria-label="Project actions"><MoreHorizontal size={16} /> Actions</button>
       {open && <div className="new-menu" role="menu">
         {items.map(([k, label, Icon]) => <button key={k} role="menuitem" onClick={() => start(k)}><Icon size={16} className={k === 'CANCELLED' ? 'text-danger' : 'text-primary'} /><span>{label}</span></button>)}
+        {waitsForPlan && <button role="menuitem" disabled title="The project director approves the plan first"><PlayCircle size={16} className="text-muted" /><span className="text-muted">Start project — after the plan is approved</span></button>}
         <button role="menuitem" onClick={() => { setOpen(false); nav(`/projects/${p.id}/report`); }}><FileText size={16} className="text-primary" /><span>Status report (print / PDF)</span></button>
         {can('work.editAny') && !p.readOnly && <button role="menuitem" onClick={() => { setOpen(false); setImporting(true); }}><Upload size={16} className="text-primary" /><span>Import tasks (CSV)</span></button>}
         <button role="menuitem" onClick={() => { setOpen(false); download(`/projects/${p.id}/export/work-items.csv`, `${p.code}-tasks.csv`).catch((e) => toast(e.message, 'error')); }}><Download size={16} className="text-primary" /><span>Export tasks (CSV)</span></button>
@@ -66,7 +69,7 @@ export function ProjectActions({ project: p, can, reload }) {
           <p className="small">{dialog === 'COMPLETED' ? 'All tasks must be done or cancelled first. Time can still be logged afterwards.' : dialog === 'CANCELLED' ? 'The project becomes read-only.' : dialog === 'ARCHIVED' ? 'Archived projects are hidden from lists and read-only.' : dialog === 'ON_HOLD' ? 'The team keeps access; reports show the project as on hold.' : 'The project becomes active for the team.'}</p>
           <Field label="Reason (optional, kept in the activity log)">{(id) => <input id={id} className="form-control" value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} />}</Field></>}
       </Modal>}
-      {importing && <ImportTasksDialog project={p} onClose={() => setImporting(false)} onDone={() => { reload(); emitLocal({ type: 'work.changed', projectId: p.id }); nav(`/projects/${p.id}/tasks`); }} />}
+      {importing && <ImportTasksDialog project={p} onClose={() => setImporting(false)} onDone={() => { reload(); emitLocal({ type: 'work.changed', projectId: p.id }); nav(`/projects/${p.id}/${p.planApprovedAt ? 'list' : 'plan'}`); }} />}
     </div>
   );
 }

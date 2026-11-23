@@ -21,6 +21,9 @@ const STATUS = z.enum(['TODO', 'IN_PROGRESS', 'BLOCKED', 'IN_REVIEW', 'DONE', 'C
 const PRIORITY = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 const today = () => toDate(new Date().toISOString().slice(0, 10));
 const writable = (access) => { if (READ_ONLY_PROJECT.has(access.project.status)) throw conflict(`${access.project.status.toLowerCase()} projects are read-only`); };
+/** Work starts (and is completed) only on an approved plan. */
+const LOCKED_MSG = 'Work can start once the project plan is approved by the project director.';
+const startable = (access, status, percent) => { if (!access.project.planApprovedAt && ((status && status !== 'TODO' && status !== 'CANCELLED') || (percent != null && percent > 0))) throw badRequest(LOCKED_MSG); };
 
 const PARENT_RULES = { MODULE: [null], TASK: [null, 'MODULE'], SUBTASK: ['TASK'], MILESTONE: [null, 'MODULE'] };
 
@@ -111,6 +114,7 @@ r.post('/work-items', async (req, res) => {
   if (b.plannedStart && b.plannedFinish && b.plannedFinish < b.plannedStart) throw badRequest('Planned finish must be on or after planned start');
   if (!access.can('work.editAny')) { delete b.customerVisible; if (b.assigneeId && b.assigneeId !== req.auth.userId) throw forbidden('Members can only assign new work to themselves'); }
   await validateAssignee(access.project.id, b.assigneeId);
+  startable(access, b.status, b.percentComplete);
   const norm = normalizeProgress({ status: 'TODO', percentComplete: 0 }, { status: b.status, percentComplete: b.percentComplete }, today());
   const item = await prisma.$transaction(async (tx) => {
     const p = await tx.project.update({ where: { id: access.project.id }, data: { workItemSeq: { increment: 1 } }, select: { workItemSeq: true } });
@@ -180,6 +184,7 @@ r.patch('/work-items/:itemId', async (req, res) => {
   const as = 'actualStart' in b ? b.actualStart : fmtDate(it.actualStart); const af = 'actualFinish' in b ? b.actualFinish : fmtDate(it.actualFinish);
   if (as && af && af < as) throw badRequest('Actual finish must be on or after actual start');
   if ('assigneeId' in b) await validateAssignee(a.project.id, b.assigneeId);
+  startable(a, b.status, b.percentComplete);
   const norm = (b.status || b.percentComplete != null) ? normalizeProgress(it, { status: b.status, percentComplete: b.percentComplete, actualStart: b.actualStart, actualFinish: b.actualFinish }, today()) : {};
   const data = { ...b, ...norm, version: { increment: 1 } };
   for (const k of ['plannedStart', 'plannedFinish', 'actualStart', 'actualFinish']) if (k in b) data[k] = toDate(b[k]);
@@ -279,6 +284,7 @@ r.post('/work-items/bulk', async (req, res) => {
   const { ids, patch } = parse(z.object({ ids: z.array(uuid).min(1).max(200), patch: z.object({ status: STATUS.optional(), assigneeId: uuid.nullable().optional(), priority: PRIORITY.optional(),
     customerVisible: z.boolean().optional(), addLabel: z.string().trim().min(1).max(40).optional() }).refine((p) => Object.keys(p).length > 0, 'Nothing to change') }), req.body);
   if ('assigneeId' in patch) await validateAssignee(access.project.id, patch.assigneeId);
+  startable(access, patch.status);
   const items = await prisma.workItem.findMany({ where: { id: { in: ids }, projectId: access.project.id } });
   if (items.length !== new Set(ids).size) throw notFound('One or more work items');
   const skipped = [];
@@ -522,6 +528,21 @@ r.get('/plan-items', async (req, res) => {
   });
 });
 
+/** Sub-tasks must fit inside their task: refuse a change that would make them run past its end. */
+function fitsInside(rs, ids, fmt) {
+  const bad = (rs.overflow || []).find((o) => ids.includes(o.id));
+  if (bad) throw badRequest(`The sub-tasks of “${bad.title}” would need until ${fmt(bad.needed)}, but the task ends on ${fmt(bad.finish)}. Make the task longer, or the sub-tasks shorter or in parallel.`);
+  if (rs.cycle) throw badRequest(rs.cycle);
+}
+const dmy = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+/** A sub-task may only wait for other sub-tasks of the same task (it sits inside its task's dates). */
+async function siblingsOnly(projectId, parentId, after) {
+  if (!after.length) return;
+  const n = await prisma.workItem.count({ where: { id: { in: after }, projectId, parentId } });
+  if (n !== new Set(after).size) throw badRequest('A sub-task can only start after other sub-tasks of the same task (or at the same time as them)');
+}
+
 r.post('/plan-items', async (req, res) => {
   const access = await projectAccess(req.auth, req.params.projectId);
   access.require('work.schedule');
@@ -541,10 +562,12 @@ r.post('/plan-items', async (req, res) => {
   }
   const after = await checkPlanRefs(p.id, b);
   if (parent && after.includes(parent.id)) throw badRequest('A sub-task cannot wait for its own task');
+  if (parent) await siblingsOnly(p.id, parent.id, after);
   const cal = await projectCalendar(p);
   const ms = b.type === 'MILESTONE';
   const start = nextWorkingDay(b.fixedStart || fmtDate(p.plannedStart), cal);
   const finish = ms ? start : addWorkingDays(start, b.durationDays - 1, cal);
+  let rescheduledInTx = null;
   const item = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${p.id}))`;
     const seq = await tx.project.update({ where: { id: p.id }, data: { workItemSeq: { increment: 1 } }, select: { workItemSeq: true } });
@@ -559,9 +582,11 @@ r.post('/plan-items', async (req, res) => {
     if (after.length) await tx.dependency.createMany({ data: after.map((pid) => ({ projectId: p.id, predecessorId: pid, successorId: it.id, type: 'FS', lagDays: 0 })) });
     await audit(tx, req.auth, { action: 'work_item.created', entityType: 'WorkItem', entityId: it.id, projectId: p.id, metadata: { number: it.number, type: it.type, title: it.title, after: after.length } }, req.ip);
     if (it.assigneeId) await notify(tx, { orgId: req.auth.orgId, userIds: [it.assigneeId], exclude: req.auth.userId, type: 'work_item.assigned', title: `Assigned: ${p.code}-${it.number} ${it.title}`, link: `/projects/${p.id}/work/${it.id}` });
-    return it;
-  });
-  const rescheduled = await reschedule(p.id);
+    const rs = await reschedule(p.id, tx);
+    if (parent) fitsInside(rs, [parent.id], dmy);
+    return { it, rs };
+  }).then((x) => { rescheduledInTx = x.rs; return x.it; });
+  const rescheduled = rescheduledInTx;
   res.status(201).json({ item: S.workItem(await prisma.workItem.findUnique({ where: { id: item.id } }), access, { code: p.code }), rescheduled });
 });
 
@@ -576,6 +601,8 @@ r.patch('/plan-items/:itemId', async (req, res) => {
   const it = a.item; const p = a.project;
   if (it.type === 'MODULE') throw badRequest('Work packages take their dates from the tasks inside them');
   const after = b.after ? await checkPlanRefs(p.id, b, it.id) : (await checkPlanRefs(p.id, { phaseId: b.phaseId, assigneeId: b.assigneeId }), null);
+  if (after && it.parentId) await siblingsOnly(p.id, it.parentId, after);
+  if (after && after.length && (await prisma.workItem.count({ where: { id: { in: after }, parentId: it.id } }))) throw badRequest('A task cannot wait for its own sub-tasks');
   const cal = await projectCalendar(p);
   const type = b.type ?? it.type; const ms = type === 'MILESTONE';
   if (b.type && b.type !== it.type && !['TASK', 'MILESTONE'].includes(it.type)) throw badRequest('Only tasks and milestones can be switched');
@@ -600,6 +627,7 @@ r.patch('/plan-items/:itemId', async (req, res) => {
   if (b.fixedStart !== undefined) data.startConstraint = b.fixedStart ? toDate(start) : null;
   else if (b.type === 'MILESTONE' && it.type !== 'MILESTONE') data.startConstraint = it.startConstraint;
   if (data.assigneeId === undefined) delete data.assigneeId;
+  let rescheduledInTx = null;
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${p.id}))`;
     const n = await tx.workItem.updateMany({ where: { id: it.id, version: b.version }, data });
@@ -622,8 +650,11 @@ r.patch('/plan-items/:itemId', async (req, res) => {
     const fields = Object.keys(b).filter((k) => k !== 'version');
     await audit(tx, req.auth, { action: 'work_item.updated', entityType: 'WorkItem', entityId: it.id, projectId: p.id, metadata: { number: it.number, fields } }, req.ip);
     if (b.assigneeId && b.assigneeId !== it.assigneeId) await notify(tx, { orgId: req.auth.orgId, userIds: [b.assigneeId], exclude: req.auth.userId, type: 'work_item.assigned', title: `Assigned: ${p.code}-${it.number} ${b.title ?? it.title}`, link: `/projects/${p.id}/work/${it.id}` });
-  });
-  const rescheduled = await reschedule(p.id);
+    const rs = await reschedule(p.id, tx);
+    fitsInside(rs, [it.id, it.parentId].filter(Boolean), dmy);
+    return rs;
+  }).then((rs) => { rescheduledInTx = rs; });
+  const rescheduled = rescheduledInTx;
   res.json({ item: S.workItem(await prisma.workItem.findUnique({ where: { id: it.id } }), a, { code: p.code }), rescheduled });
 });
 

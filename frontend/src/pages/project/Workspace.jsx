@@ -20,6 +20,7 @@ export default function ProjectWorkspace() {
   const { projectId } = useParams();
   const { me, isCustomer } = useAuth();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const { data: p, error, loading, reload } = useLoad(() => get(`/projects/${projectId}`), [projectId]);
   useLive((e) => e.type === 'work.changed' && e.projectId === projectId && !e.self, () => reload({ silent: true }), [projectId]);
   if (loading && !p) return <Loading rows={6} />;
@@ -58,7 +59,7 @@ export default function ProjectWorkspace() {
       </div>
       <ProjectTabs base={base} p={p} can={can} isCustomer={isCustomer} />
       {p.readOnly && <Notice tone="warn">This project is {labelize(p.status).toLowerCase()}. You can look around but not make changes.</Notice>}
-      <Outlet />
+      {planLocked(p, isCustomer) && LOCKED.has(location.pathname.slice(base.length + 1).split('/')[0]) ? <LockedUntilApproved project={p} /> : <Outlet />}
       <WorkItemDrawer itemId={itemId} onClose={() => openItem(null)} />
     </Ctx.Provider>
   );
@@ -69,7 +70,13 @@ function Remember({ project }) {
   return null;
 }
 
-/** Jira-style project navigation: the main views as tabs, the rest under "More". */
+// Task views live under one "Tasks" tab with a view switcher.
+export const TASK_VIEWS = [['list', 'List', Table2], ['timeline', 'Timeline', GanttChart], ['board', 'Board', Columns3], ['calendar', 'Calendar', CalendarDays]];
+/** Until the director approves the plan, only the set-up parts of a project are open. */
+export const planLocked = (p, isCustomer) => !isCustomer && !p.planApprovedAt && !['COMPLETED', 'CANCELLED', 'ARCHIVED'].includes(p.status);
+const LOCKED = new Set(['list', 'timeline', 'board', 'calendar', 'tasks', 'report']);
+
+/** Project navigation: the main views as tabs, the rest under "More". */
 function ProjectTabs({ base, p, can, isCustomer }) {
   const loc = useLocation();
   const [open, setOpen] = useState(false);
@@ -81,21 +88,50 @@ function ProjectTabs({ base, p, can, isCustomer }) {
     document.addEventListener('mousedown', off);
     return () => document.removeEventListener('mousedown', off);
   }, [open]);
+  const locked = planLocked(p, isCustomer);
+  const path = (to) => (to ? `${base}/${to}` : base);
+  const sub = loc.pathname.slice(base.length + 1).split('/')[0];
+  const inTasks = TASK_VIEWS.some(([k]) => k === sub) || sub === 'tasks';
   const main = isCustomer
     ? [['', 'Summary', LayoutDashboard], ['tasks', 'Tasks', Rows3], ['calendar', 'Calendar', CalendarDays], ['approvals', 'Approvals', ClipboardCheck], ['updates', 'Updates', MessagesSquare], ['files', 'Files', FolderOpen]]
-    : [['', 'Summary', LayoutDashboard], ['plan', p.planApprovedAt ? 'Plan vs original' : 'Plan (not approved)', ListChecks], ['tasks', 'Backlog', Rows3], ['board', 'Board', Columns3], ['list', 'List', Table2], ['timeline', 'Timeline', GanttChart], ['calendar', 'Calendar', CalendarDays], ['approvals', 'Approvals', ClipboardCheck]];
+    : [['', 'Summary', LayoutDashboard], ['plan', p.planApprovedAt ? 'Plan vs original' : 'Plan (not approved)', ListChecks], ['list', 'Tasks', Rows3], ['approvals', 'Approvals', ClipboardCheck]];
   const more = isCustomer ? [] : [['files', 'Files', FolderOpen], ['updates', 'Updates', MessagesSquare], ...(can('register.view') ? [['risks', 'Risks & issues', ShieldAlert]] : []),
     ['team', `Team (${p.members.filter((m) => m.role !== 'CUSTOMER').length})`, Users], ['activity', 'Activity', History], ['report', 'Status report', FileText]];
-  const path = (to) => (to ? `${base}/${to}` : base);
   const inMore = more.find(([to]) => to && loc.pathname.startsWith(path(to)));
+  const lockTip = 'Opens once the project director approves the plan';
   return (
-    <nav className="proj-tabs tabs no-print" aria-label="Project sections">
-      {main.map(([to, label, Icon]) => <NavLink key={to} to={path(to)} end={!to}><Icon size={16} aria-hidden="true" />{label}</NavLink>)}
-      {more.length > 0 && <span className="more-wrap" ref={ref}>
-        <button type="button" className={inMore ? 'active' : ''} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)} style={inMore ? { color: 'var(--brand)', borderBottomColor: 'var(--brand)' } : undefined}>
-          {inMore ? inMore[1] : 'More'}<ChevronDown size={14} /></button>
-        {open && <div className="menu-pop" role="menu" style={{ position: 'fixed', marginTop: 4 }}>{more.map(([to, label, Icon]) => <Link key={to} role="menuitem" to={path(to)}><Icon size={16} />{label}</Link>)}</div>}
-      </span>}
-    </nav>
+    <>
+      <nav className="proj-tabs tabs no-print" aria-label="Project sections">
+        {main.map(([to, label, Icon]) => {
+          const isLocked = locked && LOCKED.has(to);
+          if (isLocked) return <span key={to} className="tab-locked" title={lockTip} aria-disabled="true"><Icon size={16} aria-hidden="true" />{label}<Lock size={12} className="ms-1" aria-label="Locked until the plan is approved" /></span>;
+          const active = !isCustomer && to === 'list' ? inTasks : undefined;
+          return <NavLink key={to} to={path(to)} end={!to} className={active === undefined ? undefined : () => (active ? 'active' : '')}><Icon size={16} aria-hidden="true" />{label}</NavLink>;
+        })}
+        {more.length > 0 && <span className="more-wrap" ref={ref}>
+          <button type="button" className={inMore ? 'active' : ''} aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)} style={inMore ? { color: 'var(--brand)', borderBottomColor: 'var(--brand)' } : undefined}>
+            {inMore ? inMore[1] : 'More'}<ChevronDown size={14} /></button>
+          {open && <div className="menu-pop" role="menu" style={{ position: 'fixed', marginTop: 4 }}>{more.map(([to, label, Icon]) => (locked && LOCKED.has(to)
+            ? <span key={to} role="menuitem" aria-disabled="true" className="menu-locked" title={lockTip}><Icon size={16} />{label}<Lock size={12} className="ms-auto" /></span>
+            : <Link key={to} role="menuitem" to={path(to)}><Icon size={16} />{label}</Link>))}</div>}
+        </span>}
+      </nav>
+      {!isCustomer && inTasks && !locked && <nav className="task-views no-print" aria-label="Task views">
+        {TASK_VIEWS.map(([k, label, Icon]) => <NavLink key={k} to={path(k)} className={({ isActive }) => (isActive || (k === 'list' && sub === 'tasks') ? 'on' : '')}><Icon size={15} aria-hidden="true" />{label}</NavLink>)}
+      </nav>}
+    </>
+  );
+}
+
+/** Shown instead of a task view while the plan is not approved yet. */
+export function LockedUntilApproved({ project }) {
+  return (
+    <div className="locked-panel">
+      <div className="ic"><Lock size={22} /></div>
+      <h2>Opens once the plan is approved</h2>
+      <p>Task lists, the board, time logging and progress updates start when the project director approves the plan.
+        {project.planSubmittedAt ? ' The plan has been sent for approval.' : ' Build the plan and send it to the director first.'}</p>
+      <Link className="btn btn-primary" to={`/projects/${project.id}/plan`}>Go to the plan</Link>
+    </div>
   );
 }

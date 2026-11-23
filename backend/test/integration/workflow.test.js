@@ -92,6 +92,8 @@ describe('2–3. manager creates a project from a template', () => {
   it('generates phases, milestones and deliverables', async () => {
     project = await mgr.post('/api/projects', { name: 'Store revamp', code: 'STR', customerCompanyId: contoso.id, customerContactIds: [cust.userId], managerId: mgr.userId,
       teamMemberIds: [dev.userId, dev2.userId], plannedStart: plus(-10), plannedFinish: plus(110), status: 'ACTIVE', customerVisible: true, budgetAmount: 50000, budgetCurrency: 'USD', billingEnabled: true, hourlyRate: 100 });
+    // work starts on an approved plan (the plan approval flow itself is covered in projects-people)
+    await prisma.project.update({ where: { id: project.id }, data: { planApprovedAt: new Date() } });
     const d = await mgr.get(`/api/projects/${project.id}`);
     expect(d.phases).toHaveLength(10);
     expect(d.phases[0].name).toMatch(/Initiation/);

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { Plus, ChevronRight, ChevronDown, Download, Lock, AlertTriangle, Flag, ListChecks, X, Upload } from 'lucide-react';
 import { get, post, patch, download } from '../../api/client.js';
 import { useLive } from '../../lib/live.js';
@@ -197,7 +198,7 @@ export function Board() {
   const [over, setOver] = useState(null);
   const [q, setQ] = useState('');
   const [who, setWho] = useState(() => new Set());
-  const { data, error, loading, reload, setData } = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true', type: 'TASK,SUBTASK,MILESTONE' }), [project.id]);
+  const { data, error, loading, reload, setData } = useLoad(() => get(`/projects/${project.id}/work-items`, { all: 'true', type: 'TASK,SUBTASK' }), [project.id]);
   useLive((e) => e.type === 'work.changed' && e.projectId === project.id && !e.self, () => reload({ silent: true }), [project.id]);
   const names = new Map(people.map((m) => [m.id, m.name]));
   const phase = new Map(project.phases.map((ph) => [ph.id, ph.name]));
@@ -257,7 +258,13 @@ export function Board() {
 }
 
 /** Backlog: every task grouped by stage (quick add, bulk edit, sub-tasks). */
-export function TasksTab() { return <TaskList />; }
+/** Clients get the simple task list; the team's "Tasks" tab opens on the List view (the old backlog is gone). */
+export function TasksTab() {
+  const { isCustomer } = useAuth();
+  const loc = useLocation();
+  if (!isCustomer) return <Navigate to={`../list${loc.search}`} relative="path" replace />;
+  return <TaskList />;
+}
 /** Jira-style board: drag cards between status columns. */
 export function BoardTab() { return <Board />; }
 /** Spreadsheet list: inline editing of names, owners, dates and estimates. */
